@@ -1,0 +1,9 @@
+{
+  "name": "cbam-communication-console",
+  "version": "1.0.0",
+  "private": true,
+  "description": "CBAM Communication Console — cell-by-cell guideline, SEE calculator and scope checker for the EU CBAM Communication Template v2.1.1",
+  "scripts": {
+    "dev": "npx --yes serve -l 5173 ."
+  }
+}
