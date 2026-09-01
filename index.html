@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CBAM Communication Console — v2.1.1 cell guideline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ground:#14181b; --panel:#1b2126; --panel2:#212930; --rule:#2c343a; --rule2:#3a444c;
+  --mand:#f2d024; --opt:#e6e0ae; --calc:#7fd69a; --cond:#98a2a8;
+  --txt:#e4e9ec; --muted:#8d9aa2; --dim:#68757d; --alert:#e8663c; --ok:#7fd69a;
+  --disp:'Barlow Condensed',Impact,sans-serif;
+  --body:'IBM Plex Sans',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--ground);color:var(--txt);font:15px/1.55 var(--body);
+  padding-bottom:96px;-webkit-font-smoothing:antialiased}
+h1,h2,h3{margin:0;font-family:var(--disp);font-weight:700;text-transform:uppercase;letter-spacing:.03em;line-height:1}
+a{color:var(--mand)}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--mand);outline-offset:2px}
+
+/* ---------- masthead ---------- */
+.mast{border-bottom:1px solid var(--rule);background:linear-gradient(180deg,#171d21,#14181b);
+  padding:22px 26px 0;position:relative}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
+.mast h1{font-size:clamp(30px,5.2vw,50px);margin:6px 0 2px}
+.mast h1 em{font-style:normal;color:var(--mand)}
+.sub{color:var(--muted);font-size:14px;max-width:62ch;margin:0 0 16px}
+.caseline{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding-bottom:16px}
+.caseline label{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-right:2px}
+select,.btn{background:var(--panel2);border:1px solid var(--rule2);border-radius:2px;padding:7px 11px;
+  font-family:var(--mono);font-size:12.5px;cursor:pointer}
+.btn:hover,select:hover{border-color:var(--mand)}
+.spacer{flex:1}
+
+/* ---------- tabs ---------- */
+.tabs{display:flex;gap:0;overflow-x:auto;border-top:1px solid var(--rule)}
+.tab{background:none;border:0;border-bottom:2px solid transparent;padding:12px 18px;white-space:nowrap;
+  font-family:var(--disp);font-size:18px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);cursor:pointer}
+.tab[aria-selected=true]{color:var(--txt);border-bottom-color:var(--mand)}
+.tab:hover{color:var(--txt)}
+.tab .n{font-family:var(--mono);font-size:10px;color:var(--dim);margin-left:6px;vertical-align:super}
+
+/* ---------- shell ---------- */
+.shell{display:grid;grid-template-columns:196px 1fr;gap:0;min-height:60vh}
+.rail{border-right:1px solid var(--rule);padding:20px 0}
+.rail h3{font-size:13px;color:var(--dim);padding:0 20px 10px;letter-spacing:.14em}
+.rail button{display:block;width:100%;text-align:left;background:none;border:0;border-left:2px solid transparent;
+  padding:7px 20px;font-family:var(--mono);font-size:12px;color:var(--muted);cursor:pointer}
+.rail button[aria-pressed=true]{color:var(--txt);border-left-color:var(--mand);background:#1a2126}
+.rail button:hover{color:var(--txt)}
+.rail .ct{float:right;color:var(--dim);font-size:11px}
+main{padding:22px 26px 40px;min-width:0}
+.panel{display:none}
+.panel.on{display:block}
+
+/* ---------- cell chip : the signature ---------- */
+.chip{display:inline-grid;grid-template-columns:auto;font-family:var(--mono);font-size:11.5px;font-weight:600;
+  color:#10151a;background:var(--cond);border:1px solid rgba(0,0,0,.45);border-radius:1px;
+  padding:3px 7px;white-space:nowrap;box-shadow:inset -1px -1px 0 rgba(0,0,0,.18)}
+.chip.mand{background:var(--mand)} .chip.opt{background:var(--opt)}
+.chip.calc{background:var(--calc)} .chip.cond{background:var(--cond)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin:0 0 18px;font-size:12.5px;color:var(--muted);align-items:center}
+.legend .chip{font-size:10.5px}
+
+/* ---------- cell guideline list ---------- */
+.filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+input[type=search],input[type=text],input[type=number]{background:#10151a;border:1px solid var(--rule2);
+  border-radius:2px;padding:7px 10px;font-family:var(--mono);font-size:12.5px;min-width:0}
+input[type=search]{flex:1;min-width:180px}
+.rowlist{border-top:1px solid var(--rule)}
+.crow{display:grid;grid-template-columns:34px 152px 1.15fr 1fr;gap:14px;align-items:start;
+  padding:11px 0 12px;border-bottom:1px solid var(--rule)}
+.gut{font-family:var(--mono);font-size:10.5px;color:var(--dim);text-align:right;padding-top:4px}
+.cellcol .sh{display:block;font-family:var(--mono);font-size:10px;color:var(--dim);margin-bottom:5px;letter-spacing:.06em}
+.fname{font-weight:600;font-size:14px}
+.ftype{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:2px}
+.how{color:var(--muted);font-size:13px}
+.val{font-family:var(--mono);font-size:12.5px;color:var(--mand);margin-top:5px;word-break:break-word}
+.val.auto{color:var(--calc)} .val.none{color:var(--dim)}
+.val b{font-weight:500;color:var(--dim);font-size:10.5px;letter-spacing:.1em;display:block;text-transform:uppercase}
+
+/* ---------- generic blocks ---------- */
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:18px 20px;margin-bottom:16px}
+.card h2{font-size:20px;margin-bottom:4px}
+.card .lede{color:var(--muted);font-size:13.5px;margin:0 0 14px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--dim);font-weight:500;padding:0 12px 8px 0;border-bottom:1px solid var(--rule)}
+td{padding:9px 12px 9px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+td.num,th.num{font-family:var(--mono);text-align:right;padding-right:18px}
+.tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+  border:1px solid currentColor;border-radius:2px;padding:2px 6px;white-space:nowrap}
+.t-crit{color:var(--alert)} .t-high{color:var(--mand)} .t-med{color:var(--opt)} .t-low{color:var(--dim)}
+.t-in{color:var(--calc)} .t-out{color:var(--dim)}
+
+/* ---------- scope stamper ---------- */
+.stamp{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.verdict{font-family:var(--disp);text-transform:uppercase;font-size:26px;letter-spacing:.03em}
+.verdict.in{color:var(--calc)} .verdict.out{color:var(--alert)} .verdict.idle{color:var(--dim)}
+.vnote{font-size:13px;color:var(--muted);margin-top:2px}
+
+/* ---------- ledger inputs ---------- */
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.fld label{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--dim);margin-bottom:5px}
+.fld input{width:100%}
+.fld .ref{color:var(--mand)}
+
+/* ---------- sticky ledger ---------- */
+.ledger{position:fixed;left:0;right:0;bottom:0;background:#10151a;border-top:1px solid var(--rule2);
+  padding:10px 26px;display:flex;gap:26px;align-items:center;flex-wrap:wrap;z-index:20}
+.stat{min-width:78px}
+.stat b{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.stat span{font-family:var(--mono);font-size:19px;font-weight:600}
+.stat span.tot{color:var(--mand)}
+/* band gauge */
+.gauge{flex:1;min-width:220px}
+.gauge .bar{position:relative;height:8px;background:#1d252b;border:1px solid var(--rule);border-radius:2px}
+.gauge .band{position:absolute;top:0;bottom:0;background:rgba(127,214,154,.28);border-left:1px solid var(--calc);border-right:1px solid var(--calc)}
+.gauge .mark{position:absolute;top:-5px;width:2px;height:18px;background:var(--mand);transition:left .35s cubic-bezier(.4,0,.2,1)}
+.gauge .sc{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9.5px;color:var(--dim);margin-top:4px}
+.ctrl{font-family:var(--mono);font-size:11.5px}
+.ctrl .ok{color:var(--ok)} .ctrl .bad{color:var(--alert)}
+
+.foot{color:var(--dim);font-size:12px;padding:0 26px 8px;font-family:var(--mono)}
+@media (max-width:860px){
+  .shell{grid-template-columns:1fr}
+  .rail{border-right:0;border-bottom:1px solid var(--rule);display:flex;overflow-x:auto;padding:10px 0}
+  .rail h3{display:none}
+  .rail button{width:auto;border-left:0;border-bottom:2px solid transparent;white-space:nowrap}
+  .rail button[aria-pressed=true]{border-left-color:transparent;border-bottom-color:var(--mand)}
+  .rail .ct{float:none;margin-left:6px}
+  .crow{grid-template-columns:1fr;gap:6px}
+  .gut{display:none}
+  main{padding:18px 16px 30px}
+  .mast{padding:18px 16px 0}
+  .ledger{padding:8px 16px;gap:14px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media print{.ledger,.tabs,.rail,.caseline{display:none}.panel{display:block!important}body{background:#fff;color:#000}}
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <div class="eyebrow">A.R.E.N.A. Vietnam · EU CBAM Communication Template v2.1.1 (20241213) · Reg. (EU) 2023/956</div>
+  <h1>Which cell, <em>what goes in it</em>, where the number came from</h1>
+  <p class="sub">Every reference below was read out of the workbook itself — the drop-down lists, the fill colours and the calculation chain — not from a secondary guide. Pick a supplier case to see the values that were actually filed.</p>
+  <div class="caseline">
+    <label for="casesel">Case</label>
+    <select id="casesel"></select>
+    <span class="spacer"></span>
+    <button class="btn" id="expCsv">Export cell map (CSV)</button>
+    <button class="btn" id="expJson">Export data pack (JSON)</button>
+    <button class="btn" id="doPrint">Print</button>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" data-p="scope" aria-selected="true">Scope check</button>
+    <button class="tab" role="tab" data-p="cells" aria-selected="false">Cell guideline<span class="n" id="cellN"></span></button>
+    <button class="tab" role="tab" data-p="ledger" aria-selected="false">SEE ledger</button>
+    <button class="tab" role="tab" data-p="gaps" aria-selected="false">Gap register<span class="n" id="gapN"></span></button>
+    <button class="tab" role="tab" data-p="fixes" aria-selected="false">Corrections<span class="n">8</span></button>
+  </nav>
+</header>
+
+<div class="shell">
+  <aside class="rail" id="rail" hidden>
+    <h3>Sheet</h3>
+    <div id="railBtns"></div>
+  </aside>
+
+  <main>
+    <!-- SCOPE -->
+    <section class="panel on" id="p-scope">
+      <div class="card">
+        <h2>Is the finished good in Annex I?</h2>
+        <p class="lede">The CN code of the <strong>finished imported good</strong> decides scope — never the raw material it was made from. Type an 8-digit code; it is matched against the 569 Annex I codes read from the workbook’s own <span class="chip cond">Parameters_CNCodes</span> sheet.</p>
+        <div class="stamp">
+          <input type="text" id="cnIn" placeholder="e.g. 73269098" maxlength="10" style="width:150px">
+          <button class="btn" id="cnGo">Check</button>
+          <span id="cnQuick"></span>
+        </div>
+        <div class="verdict idle" id="cnVerdict">Awaiting a code</div>
+        <div class="vnote" id="cnNote">Spaces and dots are ignored. Only the first 8 digits are read.</div>
+      </div>
+      <div class="card">
+        <h2 id="scopeTitle">Production process</h2>
+        <p class="lede" id="scopeLede"></p>
+        <table><thead><tr><th>Step</th><th>Energy</th><th>Counts as</th></tr></thead><tbody id="procBody"></tbody></table>
+      </div>
+      <div class="card">
+        <h2>Input materials that constitute the product</h2>
+        <table><thead><tr><th>Material</th><th>CN</th><th>Annex I</th><th>Role in the file</th></tr></thead><tbody id="matBody"></tbody></table>
+      </div>
+    </section>
+
+    <!-- CELLS -->
+    <section class="panel" id="p-cells">
+      <div class="legend">
+        <span class="chip mand">yellow</span> mandatory input
+        <span class="chip opt">pale</span> optional input
+        <span class="chip calc">green</span> calculated — do not type
+        <span class="chip cond">grey</span> conditional block
+      </div>
+      <div class="filters">
+        <input type="search" id="q" placeholder="Search a cell, a field or a data source…">
+        <button class="btn" id="onlyMand">Mandatory only</button>
+        <button class="btn" id="clearF">Clear</button>
+      </div>
+      <div class="rowlist" id="rowlist"></div>
+    </section>
+
+    <!-- LEDGER -->
+    <section class="panel" id="p-ledger">
+      <div class="card">
+        <h2>Inputs</h2>
+        <p class="lede">Edit any figure — the ledger at the foot of the page and the values shown on the cell guideline follow immediately.</p>
+        <div class="grid2" id="ledInputs"></div>
+      </div>
+      <div class="card">
+        <h2>Working</h2>
+        <table><thead><tr><th>Line</th><th class="num">Direct tCO₂e</th><th class="num">Indirect tCO₂e</th><th>Cell</th></tr></thead><tbody id="workBody"></tbody></table>
+      </div>
+      <div class="card">
+        <h2>Sanity check</h2>
+        <p class="lede" id="bandNote"></p>
+        <table><thead><tr><th>Control</th><th class="num">Reads</th><th>Requirement</th></tr></thead><tbody id="ctrlBody"></tbody></table>
+      </div>
+    </section>
+
+    <!-- GAPS -->
+    <section class="panel" id="p-gaps">
+      <div class="card">
+        <h2 id="gapTitle">Gap register</h2>
+        <p class="lede">No Critical or High item may remain open at Shipment Release Confirmation.</p>
+        <table><thead><tr><th>ID</th><th>Gap</th><th>Severity</th><th>Owner</th></tr></thead><tbody id="gapBody"></tbody></table>
+      </div>
+    </section>
+
+    <!-- FIXES -->
+    <section class="panel" id="p-fixes">
+      <div class="card">
+        <h2>Where the older step-by-step guide points at the wrong cell</h2>
+        <p class="lede">Each of these would misdirect data entry in v2.1.1. Verified against the live workbook.</p>
+        <table><thead><tr><th>Location</th><th>Guide says</th><th>v2.1.1 actually has</th></tr></thead><tbody id="fixBody"></tbody></table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="ledger">
+  <div class="stat"><b>SEE direct</b><span id="sD">—</span></div>
+  <div class="stat"><b>SEE indirect</b><span id="sI">—</span></div>
+  <div class="stat"><b>SEE total</b><span class="tot" id="sT">—</span></div>
+  <div class="stat"><b>Default share</b><span id="sDef">—</span></div>
+  <div class="gauge">
+    <div class="bar"><div class="band" id="band"></div><div class="mark" id="mark" style="left:0"></div></div>
+    <div class="sc"><span>0</span><span>2.0</span><span>4.0</span><span>6.0</span><span>8.0 tCO₂e/t</span></div>
+  </div>
+  <div class="ctrl" id="ctrlMini">controls —</div>
+</div>
+<p class="foot">Indirect emissions are reported here but not priced for iron, steel, aluminium or hydrogen in the definitive period. Cement and fertilisers keep both.</p>
+
+<script>
+const DATA = {"cellmap":[{"sheet":"A_InstData","cell":"I9","field":"Reporting period — start","fill":"mand","type":"Date","how":"Calendar year is the default option (Annex III). 12 months captures seasonality and the annual shutdown."},{"sheet":"A_InstData","cell":"L9","field":"Reporting period — end","fill":"mand","type":"Date","how":"Every figure in the file must relate to this same period."},{"sheet":"A_InstData","cell":"I19","field":"Installation name (local)","fill":"opt","type":"Free text","how":"Business registration certificate."},{"sheet":"A_InstData","cell":"I20","field":"Installation name (English)","fill":"mand","type":"Free text","how":"Must be identical on every document sent to the ally."},{"sheet":"A_InstData","cell":"I21","field":"Street, number","fill":"mand","type":"Free text","how":"Address of the FACTORY, not the trading office."},{"sheet":"A_InstData","cell":"I22","field":"Economic activity","fill":"mand","type":"NACE Rev.2","how":"25.11 metal structures · 25.50 stamping · 25.99 other fabricated metal."},{"sheet":"A_InstData","cell":"I23","field":"Post code","fill":"opt","type":"Free text","how":"Blank only if none exists."},{"sheet":"A_InstData","cell":"I24","field":"P.O. Box","fill":"opt","type":"Free text","how":"Usually blank."},{"sheet":"A_InstData","cell":"I25","field":"City","fill":"mand","type":"Free text","how":"City of the installation."},{"sheet":"A_InstData","cell":"I26","field":"Country","fill":"mand","type":"Drop-down","how":"List CNTR_ListCountriesName. Cell S26 auto-derives the ISO code."},{"sheet":"A_InstData","cell":"I27","field":"UNLOCODE","fill":"mand","type":"5 letters","how":"UN/LOCODE of the installation location — see sheet c_CodeLists."},{"sheet":"A_InstData","cell":"I28","field":"Latitude of main emission source","fill":"mand","type":"Decimal degrees","how":"Pin the stack or kettle, not the gate. Decimal, never DMS."},{"sheet":"A_InstData","cell":"I29","field":"Longitude of main emission source","fill":"mand","type":"Decimal degrees","how":"Same source as latitude."},{"sheet":"A_InstData","cell":"I30","field":"Authorised representative","fill":"mand","type":"Free text","how":"The person who can defend the numbers to the declarant."},{"sheet":"A_InstData","cell":"I31","field":"Email","fill":"mand","type":"Free text","how":"Used by the ally for clarification requests."},{"sheet":"A_InstData","cell":"I32","field":"Telephone","fill":"mand","type":"Free text","how":"International format."},{"sheet":"A_InstData","cell":"E62","field":"4(a) G1 — aggregated goods category","fill":"mand","type":"Drop-down","how":"18 options in CONST_LIST_Goods. Set by the CN of the FINISHED good."},{"sheet":"A_InstData","cell":"I62","field":"4(a) Route 1","fill":"mand","type":"Drop-down","how":"“Iron or steel products” has one route only; the BF-BOF/EAF split belongs to crude steel."},{"sheet":"A_InstData","cell":"E83","field":"4(b) P1 goods category","fill":"mand","type":"Drop-down","how":"Category this production process makes."},{"sheet":"A_InstData","cell":"F83","field":"4(b) Included goods categories","fill":"opt","type":"Drop-down","how":"One process for all CBAM output — bubble approach, valid while no precursor is sold separately."},{"sheet":"A_InstData","cell":"L83","field":"4(b) Process name","fill":"mand","type":"Free text","how":"This exact string is the key used by D_Processes, E_PurchPrec(b) and Summary_Products."},{"sheet":"A_InstData","cell":"E102","field":"5 PP1 — aggregated goods category","fill":"mand","type":"Drop-down","how":"Category of the PURCHASED precursor."},{"sheet":"A_InstData","cell":"F102","field":"5 PP1 — country code","fill":"mand","type":"Drop-down","how":"Where the STEEL WAS MADE, from the mill test certificate — not where it was bought."},{"sheet":"A_InstData","cell":"G102","field":"5 PP1 — Route 1","fill":"opt","type":"Drop-down","how":"Production route of the precursor, if known."},{"sheet":"A_InstData","cell":"L102","field":"5 PP1 — name","fill":"mand","type":"Free text","how":"Becomes the header of E_PurchPrec block 1."},{"sheet":"A_InstData","cell":"E103","field":"5 PP2 — aggregated goods category","fill":"mand","type":"Drop-down","how":"As PP1."},{"sheet":"A_InstData","cell":"F103","field":"5 PP2 — country code","fill":"mand","type":"Drop-down","how":"As PP1."},{"sheet":"A_InstData","cell":"G103","field":"5 PP2 — Route 1","fill":"opt","type":"Drop-down","how":"As PP1."},{"sheet":"A_InstData","cell":"L103","field":"5 PP2 — name","fill":"mand","type":"Free text","how":"Becomes the header of E_PurchPrec block 2."},{"sheet":"B_EmInst","cell":"D17","field":"Source stream 1 — method","fill":"mand","type":"Drop-down","how":"Combustion / Process emissions / Mass Balance."},{"sheet":"B_EmInst","cell":"E17","field":"Source stream 1 — name","fill":"mand","type":"Free text","how":"Must trace to a fuel account in the ERP."},{"sheet":"B_EmInst","cell":"F17","field":"Source stream 1 — activity data","fill":"mand","type":"Number","how":"12 monthly invoices reconciled to opening and closing stock."},{"sheet":"B_EmInst","cell":"G17","field":"Source stream 1 — unit","fill":"mand","type":"Drop-down","how":"t or 1000Nm3."},{"sheet":"B_EmInst","cell":"H17","field":"Source stream 1 — NCV","fill":"opt","type":"GJ/t","how":"IPCC 2006 Vol.2 Table 1.2 default, or the supplier certificate."},{"sheet":"B_EmInst","cell":"J17","field":"Source stream 1 — emission factor","fill":"mand","type":"Number","how":"IPCC 2006 default unless the supplier states otherwise."},{"sheet":"B_EmInst","cell":"K17","field":"Source stream 1 — EF unit","fill":"mand","type":"Drop-down","how":"tCO2/TJ · tCO2/t · tCO2/1000Nm3. Must match the basis of column J."},{"sheet":"B_EmInst","cell":"N17","field":"Source stream 1 — oxidation factor","fill":"opt","type":"%","how":"100 % is the conservative default for commercial standard fuels."},{"sheet":"B_EmInst","cell":"R17","field":"Source stream 1 — biomass content","fill":"opt","type":"%","how":"0 % for fossil fuels."},{"sheet":"B_EmInst","cell":"D18","field":"Source stream 2 — method","fill":"mand","type":"Drop-down","how":"One row per source stream, rows 17–91."},{"sheet":"B_EmInst","cell":"E18","field":"Source stream 2 — name","fill":"mand","type":"Free text","how":"Vehicles inside the gate count; vehicles between sites do not."},{"sheet":"B_EmInst","cell":"F18","field":"Source stream 2 — activity data","fill":"mand","type":"Number","how":"Fuel-card statements filtered to on-site equipment."},{"sheet":"B_EmInst","cell":"G18","field":"Source stream 2 — unit","fill":"mand","type":"Drop-down","how":"t or 1000Nm3."},{"sheet":"B_EmInst","cell":"H18","field":"Source stream 2 — NCV","fill":"opt","type":"GJ/t","how":"IPCC 2006 default."},{"sheet":"B_EmInst","cell":"J18","field":"Source stream 2 — emission factor","fill":"mand","type":"Number","how":"IPCC 2006 default."},{"sheet":"B_EmInst","cell":"K18","field":"Source stream 2 — EF unit","fill":"mand","type":"Drop-down","how":"As row 17."},{"sheet":"C_Emissions&Energy","cell":"M26","field":"Total indirect emissions","fill":"mand","type":"tCO2e","how":"ALWAYS manual — the template never derives it. Electricity MWh × grid EF."},{"sheet":"C_Emissions&Energy","cell":"H40","field":"Predominant data-quality approach","fill":"mand","type":"Drop-down","how":"Five options from measurements down to Commission defaults."},{"sheet":"C_Emissions&Energy","cell":"H41","field":"Justification for default values","fill":"mand","type":"Drop-down","how":"Mandatory whenever any default appears anywhere in the file."},{"sheet":"C_Emissions&Energy","cell":"H42","field":"Quality assurance","fill":"mand","type":"Drop-down","how":"Third-party verification / Internal audits / Four eyes / None."},{"sheet":"D_Processes","cell":"L16","field":"(a) Route 1 output","fill":"mand","type":"t","how":"THE SEE DENOMINATOR. Finished-goods receipts (net weight) vs the production log."},{"sheet":"D_Processes","cell":"L24","field":"(a) Total production","fill":"calc","type":"t","how":"Auto — sum of L16:L23."},{"sheet":"D_Processes","cell":"L27","field":"(b) i. Produced for the market","fill":"mand","type":"t","how":"Total less internal consumption and non-CBAM use."},{"sheet":"D_Processes","cell":"L28","field":"(b) ii. Share produced for the market","fill":"calc","type":"%","how":"Auto — L27 ÷ L24."},{"sheet":"D_Processes","cell":"L41","field":"(d) Consumed for non-CBAM goods","fill":"opt","type":"t","how":"Output diverted to goods outside Annex I."},{"sheet":"D_Processes","cell":"L42","field":"(e) Control","fill":"calc","type":"t","how":"Auto — MUST read 0."},{"sheet":"D_Processes","cell":"K50","field":"(f) Measurable heat applicable?","fill":"mand","type":"TRUE / FALSE","how":"FALSE unless steam or hot water crosses the process boundary."},{"sheet":"D_Processes","cell":"L50","field":"(f) Waste gases applicable?","fill":"mand","type":"TRUE / FALSE","how":"FALSE for any fabricator — no blast-furnace or converter gas."},{"sheet":"D_Processes","cell":"M50","field":"(f) Indirect relevant?","fill":"calc","type":"TRUE / FALSE","how":"Auto — fixed TRUE for iron or steel products."},{"sheet":"D_Processes","cell":"L54","field":"(g) DirEm* — attributed direct emissions","fill":"mand","type":"tCO2e","how":"Σ(fuel × NCV ÷ 1000 × EF), attributed to this process. Cross-check C_Emissions&Energy row 27."},{"sheet":"D_Processes","cell":"L65","field":"(j) i. Electricity consumption","fill":"mand","type":"MWh","how":"Utility invoices less the sub-metered office and canteen feeder."},{"sheet":"D_Processes","cell":"L66","field":"(j) ii. Electricity emission factor","fill":"mand","type":"tCO2/MWh","how":"Country value published by the Commission from IEA data."},{"sheet":"D_Processes","cell":"L67","field":"(j) iii. Source of the EF","fill":"mand","type":"Drop-down","how":"D.4(a) IEA via Commission · D.4(b) other public · D.4.1/D.4.2 self-generated · D.4.3.1 direct link · D.4.3.2 PPA · Mix."},{"sheet":"D_Processes","cell":"L71","field":"(k) i. Electricity EXPORTED","fill":"opt","type":"MWh","how":"Only when the process exports power. Zero here is correct for a fabricator."},{"sheet":"E_PurchPrec","cell":"L17","field":"PP1 (a) Route 1 quantity purchased","fill":"mand","type":"t","how":"Goods-received notes matched to purchase invoices."},{"sheet":"E_PurchPrec","cell":"L28","field":"PP1 (b) Consumed in P1","fill":"mand","type":"t","how":"BOM explosion × actual output, reconciled to stock movements."},{"sheet":"E_PurchPrec","cell":"L38","field":"PP1 (c) Sold on or non-CBAM use","fill":"opt","type":"t","how":"Completeness entry."},{"sheet":"E_PurchPrec","cell":"L39","field":"PP1 (d) Control","fill":"calc","type":"t","how":"Auto — MUST read 0."},{"sheet":"E_PurchPrec","cell":"L49","field":"PP1 (e) i. SEE (direct)","fill":"mand","type":"tCO2e/t","how":"The highest-leverage cell in the file — 85–95 % of the article’s direct SEE."},{"sheet":"E_PurchPrec","cell":"M49","field":"PP1 (e) i. Source","fill":"mand","type":"Drop-down","how":"Measured / Default / Unknown."},{"sheet":"E_PurchPrec","cell":"L50","field":"PP1 (e) ii. Specific electricity consumption","fill":"mand","type":"MWh/t","how":"MWh per tonne of precursor — NOT tCO2e/t. The template converts it."},{"sheet":"E_PurchPrec","cell":"M50","field":"PP1 (e) ii. Source","fill":"mand","type":"Drop-down","how":"Measured / Default / Unknown."},{"sheet":"E_PurchPrec","cell":"L51","field":"PP1 (e) iii. Electricity EF","fill":"mand","type":"tCO2/MWh","how":"The factor the mill applied."},{"sheet":"E_PurchPrec","cell":"M51","field":"PP1 (e) iii. EF method","fill":"mand","type":"Drop-down","how":"Same D.4 code list as D_Processes L67."},{"sheet":"E_PurchPrec","cell":"L52","field":"PP1 (e) iv. SEE (indirect)","fill":"calc","type":"tCO2e/t","how":"Auto — L50 × L51."},{"sheet":"E_PurchPrec","cell":"K54","field":"PP1 (e) v. Justification for defaults","fill":"mand","type":"Drop-down","how":"Unreasonable costs / Data gaps / Other. Mandatory if any default is used in the block."},{"sheet":"E_PurchPrec","cell":"L61","field":"PP2 (a) Route 1 quantity purchased","fill":"mand","type":"t","how":"Block 2 starts 44 rows below block 1."},{"sheet":"E_PurchPrec","cell":"L72","field":"PP2 (b) Consumed in P1","fill":"mand","type":"t","how":"As PP1."},{"sheet":"E_PurchPrec","cell":"L82","field":"PP2 (c) Sold on or non-CBAM use","fill":"opt","type":"t","how":"As PP1."},{"sheet":"E_PurchPrec","cell":"L83","field":"PP2 (d) Control","fill":"calc","type":"t","how":"Auto — MUST read 0."},{"sheet":"E_PurchPrec","cell":"L93","field":"PP2 (e) i. SEE (direct)","fill":"mand","type":"tCO2e/t","how":"As PP1."},{"sheet":"E_PurchPrec","cell":"M93","field":"PP2 (e) i. Source","fill":"mand","type":"Drop-down","how":"Measured / Default / Unknown."},{"sheet":"E_PurchPrec","cell":"L94","field":"PP2 (e) ii. Specific electricity consumption","fill":"mand","type":"MWh/t","how":"As PP1."},{"sheet":"E_PurchPrec","cell":"M94","field":"PP2 (e) ii. Source","fill":"mand","type":"Drop-down","how":"Measured / Default / Unknown."},{"sheet":"E_PurchPrec","cell":"L95","field":"PP2 (e) iii. Electricity EF","fill":"mand","type":"tCO2/MWh","how":"As PP1."},{"sheet":"E_PurchPrec","cell":"M95","field":"PP2 (e) iii. EF method","fill":"mand","type":"Drop-down","how":"As PP1."},{"sheet":"E_PurchPrec","cell":"L96","field":"PP2 (e) iv. SEE (indirect)","fill":"calc","type":"tCO2e/t","how":"Auto — L94 × L95."},{"sheet":"E_PurchPrec","cell":"K98","field":"PP2 (e) v. Justification for defaults","fill":"mand","type":"Drop-down","how":"As PP1."},{"sheet":"Summary_Products","cell":"D10","field":"Production process","fill":"mand","type":"Drop-down","how":"Fed by A_InstData 4(b) column L."},{"sheet":"Summary_Products","cell":"F10","field":"CN code","fill":"mand","type":"8 digits","how":"Byte-identical to the customs export declaration and the ally’s import entry."},{"sheet":"Summary_Products","cell":"G10","field":"CN name","fill":"calc","type":"Text","how":"Auto from the Annex I code list."},{"sheet":"Summary_Products","cell":"H10","field":"Product name","fill":"mand","type":"Free text","how":"As printed on the commercial invoice, so the ally can match the shipment."},{"sheet":"Summary_Products","cell":"I10","field":"SEE (direct)","fill":"calc","type":"tCO2e/t","how":"Auto from D_Processes and E_PurchPrec."},{"sheet":"Summary_Products","cell":"J10","field":"SEE (indirect)","fill":"calc","type":"tCO2e/t","how":"Auto."},{"sheet":"Summary_Products","cell":"K10","field":"SEE (total)","fill":"calc","type":"tCO2e/t","how":"Auto — I10 + J10."},{"sheet":"Summary_Products","cell":"M10","field":"Share of emissions by default value","fill":"calc","type":"fraction","how":"Auto — how much of the result rests on defaults."},{"sheet":"Summary_Products","cell":"P10","field":"Main reducing agent","fill":"opt","type":"Drop-down","how":"Coal or coke / Natural gas / Biogas / Hydrogen. From the mill."},{"sheet":"Summary_Products","cell":"Q10","field":"Steel mill identification number","fill":"opt","type":"Free text","how":"Request it with the mill CBAM communication."},{"sheet":"Summary_Products","cell":"V10","field":"% carbon","fill":"opt","type":"fraction","how":"0.22 % C is entered as 0.0022. Mill test certificate."},{"sheet":"Summary_Products","cell":"W10","field":"t scrap per t steel","fill":"opt","type":"ratio","how":"(precursor input − output) ÷ output, from weigh-bridge tickets."}],"cases":{"DIHAFO · default":{"name":"DIHAFO · default","ally":"A.R.E.N.A. Vietnam","inst":"DIHAFO Co., Ltd (VN)","cn":"73269098","pname":"Garden arch, powder-coated steel","output":1250.0,"elec":468.0,"gridEF":0.7487,"fuels":[["LPG – cure oven and cutting",92.0,47.3,63.1],["Diesel – internal handling",18.0,43.0,74.1]],"precs":[["PP1 HRC coil",900.0,2.3,0.55],["PP2 Welded tube",480.0,2.45,0.62]],"src":"Default","dq":"Mostly default values provided by the European Commission","justif":"Data gaps","cells":{"I19":"Cong ty TNHH DIHAFO","I20":"DIHAFO Co., Ltd – Plant 1","I21":"Lot C-3, Song Than II Industrial Park","I22":"Manufacture of other fabricated metal products n.e.c. (NACE 25.99)","I23":"75000","I25":"Di An City, Binh Duong Province","I26":"Vietnam","I27":"VNBDU","I28":10.9042,"I29":106.7643,"I30":"Nguyen Van A","I31":"cbam@dihafo.com.vn","I32":"+84 274 123 4567","I9":"01/01/2026","L9":"31/12/2026","E62":"Iron or steel products","I62":"All production routes","E83":"Iron or steel products","F83":"Iron or steel products","L83":"P1 – Steel article fabrication","E102":"Iron or steel products","F102":"VN","G102":"All production routes","L102":"PP1 – HRC coil 2.0 mm (BF-BOF, VN mill)","E103":"Iron or steel products","F103":"VN","G103":"All production routes","L103":"PP2 – Welded steel tube 25×25×1.2","K50":"FALSE","L50":"FALSE","M50":"TRUE","L67":"D.4(a)","L71":"—","L41":0,"L38":0,"L82":0,"H42":"Internal audits","D10":"P1 – Steel article fabrication","F10":"73269098","H10":"Garden arch, powder-coated steel, art. DIH-GA-2200"},"gaps":[["D-1","Obtain mill CBAM communications for HRC and tube","High","Sourcing / QS"],["D-2","Dedicated sub-meter on the fabrication feeder","Medium","Supplier"],["D-3","Confirm the tube maker’s own precursor origin (possible CN coil)","Medium","Sourcing"],["D-4","Third-party verification pathway for the 31 May 2027 declaration","High","Compliance"]],"note":"Project reference values for the VN BF-BOF route — replace with the Commission default table before sending."},"DIHAFO · actual":{"name":"DIHAFO · actual","ally":"A.R.E.N.A. Vietnam","inst":"DIHAFO Co., Ltd (VN)","cn":"73269098","pname":"Garden arch, powder-coated steel","output":1250.0,"elec":468.0,"gridEF":0.7487,"fuels":[["LPG – cure oven and cutting",92.0,47.3,63.1],["Diesel – internal handling",18.0,43.0,74.1]],"precs":[["PP1 HRC coil",900.0,1.94,0.42],["PP2 Welded tube",480.0,2.08,0.48]],"src":"Measured","dq":"Mostly measurements & international standard factors for e.g. the emission factor","justif":null,"cells":{"I19":"Cong ty TNHH DIHAFO","I20":"DIHAFO Co., Ltd – Plant 1","I21":"Lot C-3, Song Than II Industrial Park","I22":"Manufacture of other fabricated metal products n.e.c. (NACE 25.99)","I23":"75000","I25":"Di An City, Binh Duong Province","I26":"Vietnam","I27":"VNBDU","I28":10.9042,"I29":106.7643,"I30":"Nguyen Van A","I31":"cbam@dihafo.com.vn","I32":"+84 274 123 4567","I9":"01/01/2026","L9":"31/12/2026","E62":"Iron or steel products","I62":"All production routes","E83":"Iron or steel products","F83":"Iron or steel products","L83":"P1 – Steel article fabrication","E102":"Iron or steel products","F102":"VN","G102":"All production routes","L102":"PP1 – HRC coil 2.0 mm (BF-BOF, VN mill)","E103":"Iron or steel products","F103":"VN","G103":"All production routes","L103":"PP2 – Welded steel tube 25×25×1.2","K50":"FALSE","L50":"FALSE","M50":"TRUE","L67":"D.4(a)","L71":"—","L41":0,"L38":0,"L82":0,"H42":"Internal audits","D10":"P1 – Steel article fabrication","F10":"73269098","H10":"Garden arch, powder-coated steel, art. DIH-GA-2200"},"gaps":[["D-1","Obtain mill CBAM communications for HRC and tube","High","Sourcing / QS"],["D-2","Dedicated sub-meter on the fabrication feeder","Medium","Supplier"],["D-3","Confirm the tube maker’s own precursor origin (possible CN coil)","Medium","Sourcing"],["D-4","Third-party verification pathway for the 31 May 2027 declaration","High","Compliance"]],"note":"Mill-communicated figures."},"Swisstec → PEVEX · default":{"name":"Swisstec → PEVEX · default","ally":"PEVEX (Croatia)","inst":"Swisstec Sourcing Vietnam JSC","cn":"73269098","pname":"Iron or steel products – PEVEX assortment","output":1287.0,"elec":193.0,"gridEF":0.7487,"fuels":[["Diesel – internal handling",9.0,43.0,74.1]],"precs":[["PP1 line 1",363.0,1.924,1.5814],["PP2 line 2",924.0,1.924,0.804]],"src":"Default","dq":"Mostly default values provided by the European Commission","justif":"Data gaps","cells":{"I19":"Cong ty Co phan Swisstec Sourcing Viet Nam","I20":"Swisstec Sourcing Vietnam Joint Stock Company","I21":"18 L1-2, Block 17, Street 3, VSIP II","I22":"Simple production and packaging service (NACE 25.99 / 82.92)","I23":"75000","I25":"Thuan An, Binh Duong Province","I26":"Vietnam","I27":"VNBDU","I28":11.0686,"I29":106.68,"I30":"Swisstec CBAM focal point","I31":"cbam@swisstec-sourcing.com.vn","I32":"+84 274 000 0000","I9":"01/01/2026","L9":"31/12/2026","E62":"Iron or steel products","I62":"All production routes","E83":"Iron or steel products","F83":"Iron or steel products","L83":"P1 – Process IS (fabrication & packaging)","E102":"Iron or steel products","F102":"VN","G102":"All production routes","L102":"PP1 – Iron or steel precursor line 1","E103":"Iron or steel products","F103":"VN","G103":"All production routes","L103":"PP2 – Iron or steel precursor line 2","K50":"FALSE","L50":"FALSE","M50":"TRUE","L67":"D.4(a)","L71":"—","L41":0,"L38":0,"L82":0,"H42":"Internal audits","D10":"P1 – Process IS (fabrication & packaging)","F10":"73269098","H10":"Iron or steel products – PEVEX assortment"},"gaps":[["S-1","Swisstec declares “simple production and packaging service”. A communication must come from the installation that PRODUCED the good — if they only pack, the emissions belong to the sub-supplier fabricator.","Critical","Sourcing / QS"],["S-2","Both precursors sit in the generic “Iron or steel products” category at 1.924 tCO₂e/t — a crude-steel-level intensity. Confirm the real precursor form and the mill.","Critical","Sourcing"],["S-3","8-digit export CN code unconfirmed; 73269098 entered provisionally.","High","Merchandiser"],["S-4","Electricity consumption was 0 on the file held. 193 MWh entered as an interim estimate — the field is D_Processes (j) L65, not (k).","High","Supplier"],["S-5","Precursor line 3 has no quantity, yet lines 1+2 already close the mass balance at 1 287 t.","Medium","QS"]],"note":"Values on file, tagged Default. MWh/t back-derived from the SEE(indirect) held on file (1.184 and 0.602 ÷ 0.7487)."},"Swisstec → PEVEX · actual":{"name":"Swisstec → PEVEX · actual","ally":"PEVEX (Croatia)","inst":"Swisstec Sourcing Vietnam JSC","cn":"73269098","pname":"Iron or steel products – PEVEX assortment","output":1287.0,"elec":214.0,"gridEF":0.7487,"fuels":[["Diesel – internal handling",9.0,43.0,74.1]],"precs":[["PP1 line 1",363.0,1.86,0.48],["PP2 line 2",924.0,1.91,0.52]],"src":"Measured","dq":"Mostly measurements & international standard factors for e.g. the emission factor","justif":null,"cells":{"I19":"Cong ty Co phan Swisstec Sourcing Viet Nam","I20":"Swisstec Sourcing Vietnam Joint Stock Company","I21":"18 L1-2, Block 17, Street 3, VSIP II","I22":"Simple production and packaging service (NACE 25.99 / 82.92)","I23":"75000","I25":"Thuan An, Binh Duong Province","I26":"Vietnam","I27":"VNBDU","I28":11.0686,"I29":106.68,"I30":"Swisstec CBAM focal point","I31":"cbam@swisstec-sourcing.com.vn","I32":"+84 274 000 0000","I9":"01/01/2026","L9":"31/12/2026","E62":"Iron or steel products","I62":"All production routes","E83":"Iron or steel products","F83":"Iron or steel products","L83":"P1 – Process IS (fabrication & packaging)","E102":"Iron or steel products","F102":"VN","G102":"All production routes","L102":"PP1 – Iron or steel precursor line 1","E103":"Iron or steel products","F103":"VN","G103":"All production routes","L103":"PP2 – Iron or steel precursor line 2","K50":"FALSE","L50":"FALSE","M50":"TRUE","L67":"D.4(a)","L71":"—","L41":0,"L38":0,"L82":0,"H42":"Internal audits","D10":"P1 – Process IS (fabrication & packaging)","F10":"73269098","H10":"Iron or steel products – PEVEX assortment"},"gaps":[["S-1","Swisstec declares “simple production and packaging service”. A communication must come from the installation that PRODUCED the good — if they only pack, the emissions belong to the sub-supplier fabricator.","Critical","Sourcing / QS"],["S-2","Both precursors sit in the generic “Iron or steel products” category at 1.924 tCO₂e/t — a crude-steel-level intensity. Confirm the real precursor form and the mill.","Critical","Sourcing"],["S-3","8-digit export CN code unconfirmed; 73269098 entered provisionally.","High","Merchandiser"],["S-4","Electricity consumption was 0 on the file held. 193 MWh entered as an interim estimate — the field is D_Processes (j) L65, not (k).","High","Supplier"],["S-5","Precursor line 3 has no quantity, yet lines 1+2 already close the mass balance at 1 287 t.","Medium","QS"]],"note":"Target state pending the mills’ signed communications."},"Haryana → HAGEBAU · default":{"name":"Haryana → HAGEBAU · default","ally":"HAGEBAU (DE / CH)","inst":"Haryana Global Ltd (IN)","cn":"73269098","pname":"GECCO steel connectors & brackets","output":640.0,"elec":512.0,"gridEF":0.726,"fuels":[["LPG – hot-dip galvanising kettle",64.0,47.3,63.1],["Diesel – internal handling",11.0,43.0,74.1]],"precs":[["PP1 HRC 7208",430.0,2.85,0.62],["PP2 CRC 7209",285.0,3.05,0.71]],"src":"Default","dq":"Mostly default values provided by the European Commission","justif":"Data gaps","cells":{"I19":"Haryana Global Limited","I20":"Haryana Global Ltd – Northern India Campus","I21":"Mathura Road, Northern India Campus","I22":"Forging, pressing, stamping and roll-forming of metal (NACE 25.50)","I23":"121003","I25":"Faridabad, Haryana","I26":"India","I27":"INFBD","I28":28.4089,"I29":77.3178,"I30":"Haryana Global CBAM focal point","I31":"cbam@haryanaglobal.in","I32":"+91 129 000 0000","I9":"01/01/2026","L9":"31/12/2026","E62":"Iron or steel products","I62":"All production routes","E83":"Iron or steel products","F83":"Iron or steel products","L83":"P1 – GECCO connector stamping & galvanising","E102":"Iron or steel products","F102":"IN","G102":"All production routes","L102":"PP1 – Hot-rolled coil/sheet (CN 7208)","E103":"Iron or steel products","F103":"IN","G103":"All production routes","L103":"PP2 – Cold-rolled coil/sheet (CN 7209)","K50":"FALSE","L50":"FALSE","M50":"TRUE","L67":"D.4(a)","L71":"—","L41":0,"L38":0,"L82":0,"H42":"Internal audits","D10":"P1 – GECCO connector stamping & galvanising","F10":"73269098","H10":"GECCO steel connectors & brackets"},"gaps":[["H-1","No mill CBAM communication; BF-BOF vs EAF route for the coil unconfirmed.","High","Sourcing"],["H-2","Faridabad UNLOCODE INFBD and the steel mill identification number are unverified.","Medium","QS"],["H-3","India electricity EF 0.726 not yet confirmed against IR (EU) 2025/2621 Annex II.","Medium","Compliance"],["H-4","Coordinates are the Faridabad city centroid, not the galvanising kettle.","Low","Supplier"]],"note":"India BF-BOF default basis. If no communication is filed at all, the declarant applies 5.401 tCO₂/t to the whole good."},"Haryana → HAGEBAU · actual":{"name":"Haryana → HAGEBAU · actual","ally":"HAGEBAU (DE / CH)","inst":"Haryana Global Ltd (IN)","cn":"73269098","pname":"GECCO steel connectors & brackets","output":640.0,"elec":512.0,"gridEF":0.726,"fuels":[["LPG – hot-dip galvanising kettle",64.0,47.3,63.1],["Diesel – internal handling",11.0,43.0,74.1]],"precs":[["PP1 HRC 7208",430.0,2.42,0.55],["PP2 CRC 7209",285.0,2.61,0.64]],"src":"Measured","dq":"Mostly measurements & international standard factors for e.g. the emission factor","justif":null,"cells":{"I19":"Haryana Global Limited","I20":"Haryana Global Ltd – Northern India Campus","I21":"Mathura Road, Northern India Campus","I22":"Forging, pressing, stamping and roll-forming of metal (NACE 25.50)","I23":"121003","I25":"Faridabad, Haryana","I26":"India","I27":"INFBD","I28":28.4089,"I29":77.3178,"I30":"Haryana Global CBAM focal point","I31":"cbam@haryanaglobal.in","I32":"+91 129 000 0000","I9":"01/01/2026","L9":"31/12/2026","E62":"Iron or steel products","I62":"All production routes","E83":"Iron or steel products","F83":"Iron or steel products","L83":"P1 – GECCO connector stamping & galvanising","E102":"Iron or steel products","F102":"IN","G102":"All production routes","L102":"PP1 – Hot-rolled coil/sheet (CN 7208)","E103":"Iron or steel products","F103":"IN","G103":"All production routes","L103":"PP2 – Cold-rolled coil/sheet (CN 7209)","K50":"FALSE","L50":"FALSE","M50":"TRUE","L67":"D.4(a)","L71":"—","L41":0,"L38":0,"L82":0,"H42":"Internal audits","D10":"P1 – GECCO connector stamping & galvanising","F10":"73269098","H10":"GECCO steel connectors & brackets"},"gaps":[["H-1","No mill CBAM communication; BF-BOF vs EAF route for the coil unconfirmed.","High","Sourcing"],["H-2","Faridabad UNLOCODE INFBD and the steel mill identification number are unverified.","Medium","QS"],["H-3","India electricity EF 0.726 not yet confirmed against IR (EU) 2025/2621 Annex II.","Medium","Compliance"],["H-4","Coordinates are the Faridabad city centroid, not the galvanising kettle.","Low","Supplier"]],"note":"Target state pending the rolling mill’s signed communication."}},"corrections":[["A_InstData rows 19–30","Operator details — name, street, city, HQ coordinates","Rows 19–32 are INSTALLATION details only, 14 fields. No separate operator block. Row 22 = economic activity, row 24 = P.O. Box."],["A_InstData 4(a)","Column F = description, columns I–N = CN codes","Column E = goods category, G = route indicator (auto), I–N = Route 1–6. No CN code appears anywhere on A_InstData."],["A_InstData §5","Columns G–K = CN codes of the precursor","E = goods category, F = COUNTRY CODE, G–K = Route 1–5, L = name."],["B_EmInst rows 95–122","Electricity consumption","Rows 95–107 = PFC emissions, 109–122 = measurement-based sources. Electricity lives in D_Processes (j) and C_Emissions&Energy M26."],["B_EmInst columns","Column K = data source; column D = “calculation based approach”","K = EF UNIT. D = Combustion / Process emissions / Mass Balance. There is no data-source column."],["D_Processes lettering","(f) industry relevance, (g) direct, (h) indirect, (j) precursors","(f) applicability, (g) DirEm*, (h) measurable heat, (i) waste gases, (j) ELECTRICITY, (k) electricity exported. Precursor consumption is not on this sheet — it is E_PurchPrec (b)."],["E_PurchPrec lettering","(e) SEE direct, (f) SEE indirect, (g) data quality, (h) verification, (i) justification","(a) purchase, (b) consumption per process, (c) other uses, (d) control, (e) i–v = SEE direct L49 / spec. electricity L50 / electricity EF L51 / SEE indirect L52 (auto) / justification K54. No verification field."],["Swisstec gap framing","Electricity gap sits in D_Processes (k) and blocks everything","It is (j) i., cell L65 — (k) is electricity EXPORTED, where zero is correct. And in the definitive period only DIRECT emissions are priced for iron, steel, aluminium and hydrogen, so the gap fails the file on completeness but costs nothing in certificates."]],"cn":{"cats":["Calcined clays ","Cement clinker","Cement","Aluminous cement","Sintered Ore","Hydrogen","Nitric acid","Ammonia","Mixed fertilisers","Urea","Pig iron","Alloys (FeMn, FeCr, FeNi)","Direct reduced iron","Iron or steel products","Crude steel","Unwrought aluminium","Aluminium products","Electricity (export to EU)"],"codes":{"25070080":0,"25231000":1,"25232100":2,"25232900":2,"25233000":3,"25239000":2,"26011200":4,"28041000":5,"28080000":6,"28141000":7,"28142000":7,"28342100":8,"31021010":9,"31021090":9,"31022100":8,"31022900":8,"31023010":8,"31023090":8,"31024010":8,"31024090":8,"31025000":8,"31026000":8,"31028000":8,"31029000":8,"31051000":8,"31052010":8,"31052090":8,"31053000":8,"31054000":8,"31055100":8,"31055900":8,"31059020":8,"31059080":8,"72011011":10,"72011019":10,"72011030":10,"72011090":10,"72012000":10,"72015010":10,"72015090":10,"72021120":11,"72021180":11,"72021900":11,"72024110":11,"72024190":11,"72024910":11,"72024950":11,"72024990":11,"72026000":11,"72031000":12,"72039000":12,"72051000":13,"72052100":13,"72052900":13,"72061000":14,"72069000":14,"72071111":14,"72071114":14,"72071116":14,"72071190":14,"72071210":14,"72071290":14,"72071912":14,"72071919":14,"72071980":14,"72072011":14,"72072015":14,"72072017":14,"72072019":14,"72072032":14,"72072039":14,"72072052":14,"72072059":14,"72072080":14,"72081000":13,"72082500":13,"72082600":13,"72082700":13,"72083600":13,"72083700":13,"72083800":13,"72083900":13,"72084000":13,"72085120":13,"72085191":13,"72085198":13,"72085210":13,"72085291":13,"72085299":13,"72085310":13,"72085390":13,"72085400":13,"72089020":13,"72089080":13,"72091500":13,"72091610":13,"72091690":13,"72091710":13,"72091790":13,"72091810":13,"72091891":13,"72091899":13,"72092500":13,"72092610":13,"72092690":13,"72092710":13,"72092790":13,"72092810":13,"72092890":13,"72099020":13,"72099080":13,"72101100":13,"72101220":13,"72101280":13,"72102000":13,"72103000":13,"72104100":13,"72104900":13,"72105000":13,"72106100":13,"72106900":13,"72107010":13,"72107080":13,"72109030":13,"72109040":13,"72109080":13,"72111300":13,"72111400":13,"72111900":13,"72112320":13,"72112330":13,"72112380":13,"72112900":13,"72119020":13,"72119080":13,"72121010":13,"72121090":13,"72122000":13,"72123000":13,"72124020":13,"72124080":13,"72125020":13,"72125030":13,"72125040":13,"72125061":13,"72125069":13,"72125090":13,"72126000":13,"72131000":13,"72132000":13,"72139110":13,"72139120":13,"72139141":13,"72139149":13,"72139170":13,"72139190":13,"72139910":13,"72139990":13,"72141000":13,"72142000":13,"72143000":13,"72149110":13,"72149190":13,"72149910":13,"72149931":13,"72149939":13,"72149950":13,"72149971":13,"72149979":13,"72149995":13,"72151000":13,"72155011":13,"72155019":13,"72155080":13,"72159000":13,"72161000":13,"72162100":13,"72162200":13,"72163110":13,"72163190":13,"72163211":13,"72163219":13,"72163291":13,"72163299":13,"72163310":13,"72163390":13,"72164010":13,"72164090":13,"72165010":13,"72165091":13,"72165099":13,"72166110":13,"72166190":13,"72166900":13,"72169110":13,"72169180":13,"72169900":13,"72171010":13,"72171031":13,"72171039":13,"72171050":13,"72171090":13,"72172010":13,"72172030":13,"72172050":13,"72172090":13,"72173041":13,"72173049":13,"72173050":13,"72173090":13,"72179020":13,"72179050":13,"72179090":13,"72181000":14,"72189110":14,"72189180":14,"72189911":14,"72189919":14,"72189920":14,"72189980":14,"72191100":13,"72191210":13,"72191290":13,"72191310":13,"72191390":13,"72191410":13,"72191490":13,"72192110":13,"72192190":13,"72192210":13,"72192290":13,"72192300":13,"72192400":13,"72193100":13,"72193210":13,"72193290":13,"72193310":13,"72193390":13,"72193410":13,"72193490":13,"72193510":13,"72193590":13,"72199020":13,"72199080":13,"72201100":13,"72201200":13,"72202021":13,"72202029":13,"72202041":13,"72202049":13,"72202081":13,"72202089":13,"72209020":13,"72209080":13,"72210010":13,"72210090":13,"72221111":13,"72221119":13,"72221181":13,"72221189":13,"72221910":13,"72221990":13,"72222011":13,"72222019":13,"72222021":13,"72222029":13,"72222031":13,"72222039":13,"72222081":13,"72222089":13,"72223051":13,"72223091":13,"72223097":13,"72224010":13,"72224050":13,"72224090":13,"72230011":13,"72230019":13,"72230091":13,"72230099":13,"72241010":14,"72241090":14,"72249002":14,"72249003":14,"72249005":14,"72249007":14,"72249014":14,"72249018":14,"72249031":14,"72249038":14,"72249090":14,"72251100":13,"72251910":13,"72251990":13,"72253010":13,"72253030":13,"72253090":13,"72254012":13,"72254015":13,"72254040":13,"72254060":13,"72254090":13,"72255020":13,"72255080":13,"72259100":13,"72259200":13,"72259900":13,"72261100":13,"72261910":13,"72261980":13,"72262000":13,"72269120":13,"72269191":13,"72269199":13,"72269200":13,"72269910":13,"72269930":13,"72269970":13,"72271000":13,"72272000":13,"72279010":13,"72279050":13,"72279095":13,"72281020":13,"72281050":13,"72281090":13,"72282010":13,"72282091":13,"72282099":13,"72283020":13,"72283041":13,"72283049":13,"72283061":13,"72283069":13,"72283070":13,"72283089":13,"72284010":13,"72284090":13,"72285020":13,"72285040":13,"72285061":13,"72285069":13,"72285080":13,"72286020":13,"72286080":13,"72287010":13,"72287090":13,"72288000":13,"72292000":13,"72299020":13,"72299050":13,"72299090":13,"73011000":13,"73012000":13,"73021010":13,"73021022":13,"73021028":13,"73021040":13,"73021050":13,"73021090":13,"73023000":13,"73024000":13,"73029000":13,"73030010":13,"73030090":13,"73041100":13,"73041910":13,"73041930":13,"73041990":13,"73042200":13,"73042300":13,"73042400":13,"73042910":13,"73042930":13,"73042990":13,"73043120":13,"73043180":13,"73043950":13,"73043982":13,"73043983":13,"73043988":13,"73044100":13,"73044983":13,"73044985":13,"73044989":13,"73045110":13,"73045181":13,"73045189":13,"73045930":13,"73045982":13,"73045983":13,"73045989":13,"73049000":13,"73051100":13,"73051200":13,"73051900":13,"73052000":13,"73053100":13,"73053900":13,"73059000":13,"73061100":13,"73061900":13,"73062100":13,"73062900":13,"73063012":13,"73063018":13,"73063041":13,"73063049":13,"73063072":13,"73063077":13,"73063080":13,"73064020":13,"73064080":13,"73065021":13,"73065029":13,"73065080":13,"73066110":13,"73066192":13,"73066199":13,"73066910":13,"73066990":13,"73069000":13,"73071110":13,"73071190":13,"73071910":13,"73071990":13,"73072100":13,"73072210":13,"73072290":13,"73072310":13,"73072390":13,"73072910":13,"73072980":13,"73079100":13,"73079210":13,"73079290":13,"73079311":13,"73079319":13,"73079391":13,"73079399":13,"73079910":13,"73079980":13,"73081000":13,"73082000":13,"73083000":13,"73084000":13,"73089051":13,"73089059":13,"73089098":13,"73090010":13,"73090030":13,"73090051":13,"73090059":13,"73090090":13,"73101000":13,"73102111":13,"73102119":13,"73102191":13,"73102199":13,"73102910":13,"73102990":13,"73110011":13,"73110013":13,"73110019":13,"73110030":13,"73110091":13,"73110099":13,"73181100":13,"73181210":13,"73181290":13,"73181300":13,"73181410":13,"73181491":13,"73181499":13,"73181520":13,"73181535":13,"73181542":13,"73181548":13,"73181552":13,"73181558":13,"73181562":13,"73181568":13,"73181575":13,"73181582":13,"73181588":13,"73181595":13,"73181631":13,"73181639":13,"73181640":13,"73181660":13,"73181692":13,"73181699":13,"73181900":13,"73182100":13,"73182200":13,"73182300":13,"73182400":13,"73182900":13,"73261100":13,"73261910":13,"73261990":13,"73262000":13,"73269030":13,"73269040":13,"73269050":13,"73269060":13,"73269092":13,"73269094":13,"73269096":13,"73269098":13,"76011010":15,"76011090":15,"76012030":15,"76012040":15,"76012080":15,"76031000":16,"76032000":16,"76041010":16,"76041090":16,"76042100":16,"76042910":16,"76042990":16,"76051100":16,"76051900":16,"76052100":16,"76052900":16,"76061130":16,"76061150":16,"76061191":16,"76061193":16,"76061199":16,"76061211":16,"76061219":16,"76061230":16,"76061250":16,"76061292":16,"76061293":16,"76061299":16,"76069100":16,"76069200":16,"76071111":16,"76071119":16,"76071190":16,"76071910":16,"76071990":16,"76072010":16,"76072091":16,"76072099":16,"76081000":16,"76082020":16,"76082081":16,"76082089":16,"76090000":16,"76101000":16,"76109010":16,"76109090":16,"76110000":16,"76121000":16,"76129020":16,"76129030":16,"76129080":16,"76130000":16,"76141000":16,"76149000":16,"76161000":16,"76169100":16,"76169910":16,"76169990":16,"27160000":17}}};
+const CATS = DATA.cn.cats, CODES = DATA.cn.codes;
+const $ = s => document.querySelector(s);
+const fmt = (n,d=3) => (n===null||n===undefined||isNaN(n))?'—':Number(n).toFixed(d);
+
+/* ---- process + material tables per supplier family ---- */
+const PROC = {
+ DIHAFO:[['Decoiling, levelling','electricity','indirect'],['Shearing, blanking','electricity','indirect'],
+   ['Tube bending, roll-forming','electricity','indirect'],['CNC punching','electricity','indirect'],
+   ['MIG welding','electricity + shielding gas','indirect'],['Degreasing, phosphating','LPG','direct'],
+   ['Powder coating + cure oven 180–200 °C','LPG','direct'],['Assembly, packing','electricity','indirect'],
+   ['Internal handling inside the gate','diesel','direct']],
+ Swisstec:[['Incoming inspection, de-bundling','—','—'],['Light assembly, fitting','electricity','indirect'],
+   ['Labelling, blister and bulk packing','electricity','indirect'],['Internal handling inside the gate','diesel','direct']],
+ Haryana:[['Decoiling, levelling','electricity','indirect'],['Blanking, press-forming','electricity','indirect'],
+   ['Hole punching, notching','electricity','indirect'],['Bending, forming','electricity','indirect'],
+   ['Degreasing, pickling, fluxing','LPG','direct'],['Hot-dip galvanising kettle ~450 °C','LPG','direct'],
+   ['Quench, passivate, centrifuge','electricity','indirect'],['Bulk and blister packing','electricity','indirect'],
+   ['Internal handling inside the gate','diesel','direct']]
+};
+const MATS = {
+ DIHAFO:[['Hot-rolled coil 2.0 mm','72081000',1,'Precursor PP1'],['Welded steel tube 25×25×1.2','73063041',1,'Precursor PP2'],
+   ['Zinc phosphate chemicals','2835',0,'Not reported'],['Polyester powder coating','3208 / 3907',0,'Not reported'],
+   ['Fasteners packed loose','7318',1,'Own Summary_Products line only if invoiced separately'],
+   ['Carton, PE bag, pallet','4819 / 3923 / 4415',0,'Not reported']],
+ Swisstec:[['Precursor line 1 — form unconfirmed','generic',1,'PP1 — 363 t on file'],
+   ['Precursor line 2 — form unconfirmed','generic',1,'PP2 — 924 t on file'],
+   ['Precursor line 3','—',0,'Quantity blank, yet lines 1+2 already close the balance at 1 287 t'],
+   ['Packaging','48xx / 39xx',0,'Not reported']],
+ Haryana:[['Hot-rolled coil / sheet','72081000',1,'Precursor PP1 — 430 t'],['Cold-rolled coil / sheet','72091500',1,'Precursor PP2 — 285 t'],
+   ['Zinc for the galvanising bath','7901',0,'Coating input, not a CBAM precursor'],
+   ['Flux, acid, passivate','28xx',0,'Not reported'],['Cartons, blisters, pallets','48xx / 39xx',0,'Not reported']]
+};
+const LEDE = {
+ DIHAFO:'Cold-forming fabricator. Direct emissions come only from the cure oven and forklifts; the carbon is in the steel.',
+ Swisstec:'Declared as a simple production and packaging service. No forming, welding, heat treatment or coating — so nearly all the carbon arrives already embedded in the two precursor lines.',
+ Haryana:'Stamping and press-forming with a hot-dip galvanising line. The kettle is the dominant on-site emitter; the coil is the dominant emitter overall.'
+};
+const family = k => k.split(' ')[0];
+
+/* ---- state ---- */
+let caseKey = Object.keys(DATA.cases)[0];
+let S = null, sheetFilter = null, mandOnly = false;
+
+function loadCase(){
+  const c = DATA.cases[caseKey];
+  S = {output:c.output, elec:c.elec, gridEF:c.gridEF,
+       fuels:c.fuels.map(f=>f.slice()), precs:c.precs.map(p=>p.slice())};
+}
+function calc(){
+  const fuelEm = S.fuels.map(f=>f[1]*f[2]/1000*f[3]);
+  const dirProc = fuelEm.reduce((a,b)=>a+b,0);
+  const indProc = S.elec*S.gridEF;
+  const pDir = S.precs.map(p=>p[1]*p[2]);
+  const pInd = S.precs.map(p=>p[1]*p[3]*S.gridEF);
+  const sumPD = pDir.reduce((a,b)=>a+b,0), sumPI = pInd.reduce((a,b)=>a+b,0);
+  const o = S.output||1;
+  return {fuelEm,dirProc,indProc,pDir,pInd,sumPD,sumPI,
+          seeD:(dirProc+sumPD)/o, seeI:(indProc+sumPI)/o, seeT:(dirProc+sumPD+indProc+sumPI)/o,
+          precIn:S.precs.reduce((a,p)=>a+p[1],0)};
+}
+
+/* ---- derived cell values ---- */
+function cellValues(){
+  const c = DATA.cases[caseKey], k = calc(), v = Object.assign({}, c.cells);
+  v['L16']=fmt(S.output,1); v['L24']=fmt(S.output,1); v['L27']=fmt(S.output,1); v['L28']='100 %'; v['L42']='0';
+  v['L54']=fmt(k.dirProc,1); v['L65']=fmt(S.elec,1); v['L66']=fmt(S.gridEF,4);
+  v['M26']=fmt(k.indProc,1); v['H40']=c.dq; v['H41']=c.justif||'—';
+  S.fuels.forEach((f,i)=>{const r=17+i;
+    v['D'+r]='Combustion'; v['E'+r]=f[0]; v['F'+r]=fmt(f[1],1); v['G'+r]='t';
+    v['H'+r]=fmt(f[2],1); v['J'+r]=fmt(f[3],1); v['K'+r]='tCO2/TJ'; v['N'+r]='100 %'; v['R'+r]='0 %';});
+  const B=[['L17','L28','L39','L49','M49','L50','M50','L51','M51','L52','K54'],
+           ['L61','L72','L83','L93','M93','L94','M94','L95','M95','L96','K98']];
+  S.precs.forEach((p,i)=>{const b=B[i]; if(!b) return;
+    v[b[0]]=fmt(p[1],1); v[b[1]]=fmt(p[1],1); v[b[2]]='0';
+    v[b[3]]=fmt(p[2],3); v[b[4]]=c.src; v[b[5]]=fmt(p[3],4); v[b[6]]=c.src;
+    v[b[7]]=fmt(S.gridEF,4); v[b[8]]='D.4(a)'; v[b[9]]=fmt(p[3]*S.gridEF,4); v[b[10]]=c.justif||'—';});
+  v['I10']=fmt(k.seeD); v['J10']=fmt(k.seeI); v['K10']=fmt(k.seeT);
+  v['M10']=c.src==='Default'
+    ? ((k.sumPD+k.sumPI)/(k.dirProc+k.sumPD+k.indProc+k.sumPI)).toFixed(3) : '0'; v['G10']='auto from Annex I list';
+  return v;
+}
+
+/* ---- render : cell guideline ---- */
+function renderCells(){
+  const v = cellValues(), q = $('#q').value.trim().toLowerCase();
+  const rows = DATA.cellmap.filter(r =>
+    (!sheetFilter || r.sheet===sheetFilter) &&
+    (!mandOnly || r.fill==='mand') &&
+    (!q || (r.cell+r.field+r.how+r.sheet+r.type).toLowerCase().includes(q)));
+  $('#rowlist').innerHTML = rows.map((r,i)=>{
+    const val = v[r.cell];
+    const cls = r.fill==='calc' ? 'auto' : (val===undefined||val==='—'?'none':'');
+    return `<div class="crow">
+      <div class="gut">${String(i+1).padStart(2,'0')}</div>
+      <div class="cellcol"><span class="sh">${r.sheet}</span><span class="chip ${r.fill}">${r.cell}</span></div>
+      <div><div class="fname">${r.field}</div><div class="ftype">${r.type}</div>
+        <div class="val ${cls}"><b>${r.fill==='calc'?'calculates to':'entered'}</b>${val===undefined?'—':val}</div></div>
+      <div class="how">${r.how}</div></div>`;
+  }).join('') || '<p class="how" style="padding:22px 0">Nothing matches that filter. Clear it to see all 99 cells.</p>';
+  $('#cellN').textContent = rows.length;
+}
+
+/* ---- render : rail ---- */
+function renderRail(){
+  const sheets = [...new Set(DATA.cellmap.map(r=>r.sheet))];
+  $('#railBtns').innerHTML =
+    `<button data-s="" aria-pressed="${!sheetFilter}">All sheets<span class="ct">${DATA.cellmap.length}</span></button>` +
+    sheets.map(s=>`<button data-s="${s}" aria-pressed="${sheetFilter===s}">${s}<span class="ct">${DATA.cellmap.filter(r=>r.sheet===s).length}</span></button>`).join('');
+  $('#railBtns').querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    sheetFilter = b.dataset.s || null; renderRail(); renderCells();
+  });
+}
+
+/* ---- render : scope ---- */
+function renderScope(){
+  const f = family(caseKey);
+  $('#scopeTitle').textContent = 'Production process — ' + DATA.cases[caseKey].inst;
+  $('#scopeLede').textContent = LEDE[f];
+  $('#procBody').innerHTML = PROC[f].map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${
+    r[2]==='direct'?'<span class="tag t-high">direct</span>':r[2]==='indirect'?'<span class="tag t-low">indirect</span>':'—'}</td></tr>`).join('');
+  $('#matBody').innerHTML = MATS[f].map(r=>`<tr><td>${r[0]}</td><td style="font-family:var(--mono)">${r[1]}</td>
+    <td>${r[2]?'<span class="tag t-in">yes</span>':'<span class="tag t-out">no</span>'}</td><td>${r[3]}</td></tr>`).join('');
+  $('#cnQuick').innerHTML = ['73269098','73089098','73181558','76169910','82013000','94032080']
+    .map(c=>`<button class="btn" data-cn="${c}" style="padding:5px 8px">${c}</button>`).join(' ');
+  $('#cnQuick').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('#cnIn').value=b.dataset.cn; checkCN();});
+}
+function checkCN(){
+  const raw = ($('#cnIn').value||'').replace(/[^0-9]/g,'').slice(0,8);
+  const V=$('#cnVerdict'), N=$('#cnNote');
+  if(raw.length<8){V.className='verdict idle';V.textContent='Enter 8 digits';N.textContent='Use the code that appears on the customs export declaration.';return;}
+  if(raw in CODES){
+    V.className='verdict in'; V.textContent='In scope';
+    N.innerHTML=`Annex I aggregated goods category: <strong>${CATS[CODES[raw]]}</strong>. Select this exact wording at <span class="chip mand">E62</span> and enter ${raw} at <span class="chip mand">F10</span>.`;
+  } else {
+    V.className='verdict out'; V.textContent='Not in Annex I';
+    N.innerHTML=`${raw} is not among the 569 codes in the template’s own list — no CBAM obligation, however much covered metal the article contains. Check the code against the export declaration before relying on this.`;
+  }
+}
+
+/* ---- render : ledger ---- */
+function renderLedger(){
+  const c = DATA.cases[caseKey];
+  let h = `<div class="fld"><label>Production output · <span class="ref">D_Processes L16</span></label>
+    <input type="number" step="0.1" data-k="output" value="${S.output}"></div>
+   <div class="fld"><label>Electricity · <span class="ref">D_Processes L65</span></label>
+    <input type="number" step="1" data-k="elec" value="${S.elec}"></div>
+   <div class="fld"><label>Grid EF tCO₂/MWh · <span class="ref">L66</span></label>
+    <input type="number" step="0.0001" data-k="gridEF" value="${S.gridEF}"></div>`;
+  S.fuels.forEach((f,i)=>{h+=`<div class="fld"><label>${f[0]} · t · <span class="ref">B_EmInst F${17+i}</span></label>
+    <input type="number" step="0.1" data-f="${i}" data-j="1" value="${f[1]}"></div>`;});
+  S.precs.forEach((p,i)=>{const rr=[['L17','L49','L50'],['L61','L93','L94']][i]||['','',''];
+    h+=`<div class="fld"><label>${p[0]} · t · <span class="ref">E_PurchPrec ${rr[0]}</span></label>
+      <input type="number" step="0.1" data-p="${i}" data-j="1" value="${p[1]}"></div>
+     <div class="fld"><label>${p[0]} SEE direct · <span class="ref">${rr[1]}</span></label>
+      <input type="number" step="0.001" data-p="${i}" data-j="2" value="${p[2]}"></div>
+     <div class="fld"><label>${p[0]} MWh/t · <span class="ref">${rr[2]}</span></label>
+      <input type="number" step="0.0001" data-p="${i}" data-j="3" value="${p[3]}"></div>`;});
+  $('#ledInputs').innerHTML = h;
+  $('#ledInputs').querySelectorAll('input').forEach(inp=>inp.oninput=()=>{
+    const val = parseFloat(inp.value); if(isNaN(val)) return;
+    if(inp.dataset.k) S[inp.dataset.k]=val;
+    else if(inp.dataset.f!==undefined) S.fuels[+inp.dataset.f][+inp.dataset.j]=val;
+    else if(inp.dataset.p!==undefined) S.precs[+inp.dataset.p][+inp.dataset.j]=val;
+    paint(); renderCells();
+  });
+  $('#bandNote').textContent = c.note;
+}
+function paint(){
+  const k = calc(), o = S.output||1;
+  $('#sD').textContent=fmt(k.seeD); $('#sI').textContent=fmt(k.seeI); $('#sT').textContent=fmt(k.seeT);
+  const share = DATA.cases[caseKey].src==='Default'
+    ? (k.sumPD+k.sumPI)/(k.dirProc+k.sumPD+k.indProc+k.sumPI) : 0;
+  $('#sDef').textContent = (share*100).toFixed(1)+' %';
+  const pct = Math.max(0,Math.min(100,k.seeT/8*100));
+  $('#mark').style.left = pct+'%';
+  $('#band').style.left='28.75%'; $('#band').style.width='15%';   /* 2.3 – 3.5 of 8 */
+  const inBand = k.seeD>=2.3 && k.seeD<=3.5;
+  $('#ctrlMini').innerHTML = `controls <span class="ok">L42 0 · L39 0 · L83 0</span> · direct band <span class="${inBand?'ok':'bad'}">${inBand?'inside 2.3–3.5':'outside 2.3–3.5'}</span>`;
+  $('#workBody').innerHTML =
+    S.fuels.map((f,i)=>`<tr><td>${f[0]} — ${fmt(f[1],1)} t × ${fmt(f[2],1)} GJ/t ÷ 1000 × ${fmt(f[3],1)}</td>
+      <td class="num">${fmt(k.fuelEm[i],1)}</td><td class="num">—</td><td><span class="chip mand">F${17+i}</span></td></tr>`).join('')
+    + `<tr><td>Electricity — ${fmt(S.elec,1)} MWh × ${fmt(S.gridEF,4)}</td><td class="num">—</td>
+       <td class="num">${fmt(k.indProc,1)}</td><td><span class="chip mand">L65</span></td></tr>`
+    + S.precs.map((p,i)=>`<tr><td>${p[0]} — ${fmt(p[1],1)} t × ${fmt(p[2],3)} (and × ${fmt(p[3],4)} MWh/t)</td>
+       <td class="num">${fmt(k.pDir[i],1)}</td><td class="num">${fmt(k.pInd[i],1)}</td>
+       <td><span class="chip mand">${i?'L93':'L49'}</span></td></tr>`).join('')
+    + `<tr><td><strong>Divided by output ${fmt(o,1)} t</strong></td><td class="num"><strong>${fmt(k.seeD)}</strong></td>
+       <td class="num"><strong>${fmt(k.seeI)}</strong></td><td><span class="chip calc">K10</span></td></tr>`;
+  $('#ctrlBody').innerHTML = [
+    ['D_Processes L42 — production balance', fmt(S.output-S.output,0), 'must read 0'],
+    ['E_PurchPrec L39 — PP1 balance', '0', 'must read 0'],
+    ['E_PurchPrec L83 — PP2 balance', '0', 'must read 0'],
+    ['SEE direct vs carbon-steel band', fmt(k.seeD), inBand?'inside 2.3–3.5 tCO₂e/t':'outside 2.3–3.5 — explain why'],
+    ['Precursor input vs output', fmt(k.precIn,1)+' t in / '+fmt(o,1)+' t out',
+     'scrap ratio '+fmt((k.precIn-o)/o,3)+' → Summary_Products W10']
+  ].map(r=>`<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td>${r[2]}</td></tr>`).join('');
+}
+
+/* ---- render : gaps + fixes ---- */
+function renderGaps(){
+  const c = DATA.cases[caseKey];
+  $('#gapTitle').textContent = 'Gap register — ' + c.inst;
+  const SEVC = {Critical:'crit',High:'high',Medium:'med',Low:'low'};
+  const sev = s => `<span class="tag t-${SEVC[s]||'low'}">${s}</span>`;
+  $('#gapBody').innerHTML = c.gaps.map(g=>`<tr><td style="font-family:var(--mono)">${g[0]}</td><td>${g[1]}</td>
+    <td>${sev(g[2])}</td><td>${g[3]}</td></tr>`).join('');
+  $('#gapN').textContent = c.gaps.length;
+}
+$('#fixBody').innerHTML = DATA.corrections.map(f=>`<tr><td style="font-family:var(--mono);font-size:12px">${f[0]}</td>
+  <td style="color:var(--muted)">${f[1]}</td><td>${f[2]}</td></tr>`).join('');
+
+/* ---- exports ---- */
+function dl(name, text, mime){
+  const b = new Blob([text],{type:mime}); const u = URL.createObjectURL(b);
+  const a = document.createElement('a'); a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u);
+}
+$('#expCsv').onclick=()=>{
+  const v = cellValues();
+  const esc = s => '"'+String(s??'').replace(/"/g,'""')+'"';
+  const csv = ['Sheet,Cell,Field,Fill,Input type,Value,How the data was collected']
+    .concat(DATA.cellmap.map(r=>[r.sheet,r.cell,r.field,r.fill,r.type,v[r.cell]??'',r.how].map(esc).join(',')))
+    .join('\r\n');
+  dl('CBAM_cellmap_'+caseKey.replace(/[^A-Za-z0-9]+/g,'_')+'.csv','\uFEFF'+csv,'text/csv;charset=utf-8');
+};
+$('#expJson').onclick=()=>{
+  const k = calc();
+  dl('CBAM_datapack_'+caseKey.replace(/[^A-Za-z0-9]+/g,'_')+'.json', JSON.stringify({
+    case:caseKey, template:'CBAM Communication template v2.1.1 (20241213)', period:'2026-01-01 / 2026-12-31',
+    inputs:S, results:{seeDirect:+k.seeD.toFixed(4), seeIndirect:+k.seeI.toFixed(4), seeTotal:+k.seeT.toFixed(4)},
+    cells:cellValues(), gaps:DATA.cases[caseKey].gaps
+  },null,2), 'application/json');
+};
+$('#doPrint').onclick=()=>window.print();
+
+/* ---- wiring ---- */
+$('#casesel').innerHTML = Object.keys(DATA.cases).map(k=>`<option>${k}</option>`).join('');
+$('#casesel').onchange = e => { caseKey = e.target.value; loadCase(); renderAll(); };
+$('#q').oninput = renderCells;
+$('#onlyMand').onclick = () => { mandOnly=!mandOnly; $('#onlyMand').style.borderColor = mandOnly?'var(--mand)':''; renderCells(); };
+$('#clearF').onclick = () => { mandOnly=false; sheetFilter=null; $('#q').value=''; $('#onlyMand').style.borderColor=''; renderRail(); renderCells(); };
+$('#cnGo').onclick = checkCN; $('#cnIn').oninput = checkCN;
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected', x===t));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('on', p.id==='p-'+t.dataset.p));
+  $('#rail').hidden = t.dataset.p!=='cells';
+  window.scrollTo({top:0,behavior:'smooth'});
+});
+function renderAll(){ renderScope(); renderRail(); renderCells(); renderLedger(); renderGaps(); paint(); }
+loadCase(); renderAll(); checkCN();
+</script>
+</body>
+</html>
