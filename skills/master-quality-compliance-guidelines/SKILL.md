@@ -145,7 +145,7 @@ the issue date**. Never rely on the source checklist or on memory for editions a
 | Repealed acts | Never cite as applicable: GPSD 2001/95/EC (repealed 13/12/2024 → GPSR (EU) 2023/988); PPWD 94/62/EC (→ PPWR (EU) 2025/40, applicable 12/08/2026). Flag them in the change log if present in the source. |
 | Machinery | MD 2006/42/EC applies to machinery placed on the EU market up to 19/01/2027; Machinery Regulation (EU) 2023/1230 from 20/01/2027. Decide per P.O. on the **EU placing-on-market (arrival) date**; prepare dual MD/MR documentation when a P.O. straddles the date. |
 | hEN citation under MR | Check whether a Commission Implementing Decision citing harmonised standards under MR has been published. MD citations do **not** give presumption of conformity under MR Art. 20 — until cited, the technical file must demonstrate Annex III EHSR directly. |
-| Standard editions | Confirm current edition + amendments and withdrawal dates (CEN national catalogues, ISO.org). Example found: EN 16307-5:2013 withdrawn 29/12/2023 → EN 16307-5:2023. |
+| Standard editions | Run the `harmonised-standard-lookup` preflight (VERSION_DB / WATCH) and confirm edition + amendments. Presumption of conformity follows the **OJ-cited** edition, not CEN withdrawal. Example: EN 16307-5:2023 superseded :2013 at CEN level (29/12/2023) but its OJ citation is unconfirmed → cite the last OJ-cited edition for presumption and require new test reports to cover :2023. |
 | PPWR staging | Art. 5(4) + packaging DoC since 12/08/2026; Art. 12 labelling from the later of 12/08/2028 or 24 months after implementing acts; Art. 44 harmonised registers pending (use national EPR schemes meanwhile). |
 | Switzerland | EU-CH MRA covers MD today; update for MR depends on EU-CH package ratification — flag CH lots after 20/01/2027. |
 | Pending amendments | Check Omnibus IV (digital DoC/instructions), CBAM downstream extension (COM(2025) 989, proposed 2028), POPs/REACH Candidate List updates. |
@@ -1011,7 +1011,7 @@ The MCG includes a master document register covering all 8 links:
 |---------|---------------|
 | Taxonomy | DIY › Hand Tools (QSD) › Storage / Moving (QCP) |
 | Pathway / module | A (CE) · MD 2006/42/EC Annex VIII → MR (EU) 2023/1230 Module A (Annex VI) from 20/01/2027 · no NB |
-| hENs | EN ISO 3691-5:2015 + AC:2016 + A1:2020 · EN 16307-5:2023 · EN ISO 12100:2010 (verify MR citation) |
+| hENs | EN ISO 3691-5:2015 + AC:2016 + A1:2020 · EN 16307-5 (:2013 last OJ-cited — verify; test reports to :2023) · EN ISO 12100:2010 (verify MR citation) |
 | Type tests | Static 1.5×Q, dynamic 1.1×Q, overload device (< 115 % max working pressure), stability, controlled lowering, load holding, tiller grips (Ø 25–35 mm, span ≥ 120 mm), crushing gaps (EN ISO 13854), edges, parking brake, coating (ISO 2409 / 9227 / 2808), PAH/phthalates/SCCP/SVHC, packaging heavy metals |
 | Overlays | REACH Art. 33, Annex XVII 50/51 (grips/wheels) · POPs SCCP 0.15 % · PPWR · ISPM 15 pallets · CBAM: CN 8427 out of scope (watch 2028 downstream extension) |
 | FPC CCPs | Weld inspection, 100 % pump pressure/leak + overload valve seal, 100 % end-of-line load test, fasteners/circlips, DFT, data plate |
