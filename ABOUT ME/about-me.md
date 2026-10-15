@@ -31,7 +31,7 @@
 - **Management reporting:** Mandatory Management Summary (MMS) from `New_Master_File.xlsx`.
 
 ## Regulatory watch list (verify dates live before use)
-CBAM (EU) 2023/956 · EUDR (EU) 2023/1115 as am. 2025/2650 · PPWR (EU) 2025/40 · Battery Reg. (EU) 2023/1542 ·
+CBAM (EU) 2023/956 · EUDR (EU) 2023/1115 as am. 2025/2650 · PPWR (EU) 2025/40 ·
 GPSR (EU) 2023/988 · REACH · RoHS · CPR (EU) 305/2011 · Machinery Reg. (EU) 2023/1230 · ESPR (EU) 2024/1781 / DPP ·
 Forced Labour Reg. (EU) 2024/3015 · **Battery Reg. (EU) 2023/1542 (see dedicated section)** · OEKO-TEX 100 · Canada CCPSA · US CPSC/CPSIA.
 
