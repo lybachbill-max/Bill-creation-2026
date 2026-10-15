@@ -54,7 +54,7 @@ Forced Labour Reg. (EU) 2024/3015 · **Battery Reg. (EU) 2023/1542 (see dedicate
 | Art. 17–20 | Conformity assessment (Module A), EU DoC, technical documentation, CE marking | 18 Aug 2024 | DoC + TCF review at Link 6–7; CE on battery |
 | Art. 13(1)–(3) | General label, capacity label (rechargeable portable/LMT/SLI), minimum-duration label (non-rechargeable portable) | 18 Aug 2026 or 18 months after labelling implementing act, whichever is later | Artwork check: pending implementing act; monitor |
 | Art. 13(4) | Separate-collection (crossed-out bin) symbol; Cd/Pb chemical symbols where thresholds exceeded | 18 Aug 2025 | Artwork/packaging gate |
-| Art. 13(6) | QR code giving access to label information | 18 Feb 2027 [VERIFY: sources diverge] | Supplier data request |
+| Art. 13(6) | QR code giving access to label information | 18 Feb 2027 (sources consistent; EUR-Lex text check pending) | Supplier data request |
 | Art. 11 | Portable batteries removable and replaceable by end-user; LMT by independent professionals | 18 Feb 2027 | Design review at RFx / QSD stage: **critical for GARDEN/DIY/DECO sealed products** |
 | Art. 47–53 | Supply-chain due diligence (Co, Li, Ni, natural graphite): only economic operators with net turnover ≥ €40 M | 18 Aug 2027 (postponed by (EU) 2025/1561) | Ally-level; A.R.E.N.A. supplies smelter/refiner data |
 | Art. 55–62 | Extended producer responsibility: producer registration in each Member State, take-back | 18 Aug 2025 | Ally as producer; A.R.E.N.A. supplies weight/chemistry data |
