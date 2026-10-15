@@ -31,4 +31,22 @@
 17. Use the matching A.R.E.N.A. skill for each document type before any generic approach.
 18. Default formats: .docx / .xlsx for controlled documents; self-contained HTML (no CDN/network) for dashboards.
 19. ARENA brand palette and master PPTX template only.
-20. File names traceable to case/P.O.; revisions carry a `Rev.n` suffix. [CONFIRM] full naming convention.
+20. **File naming standard:** `ARENA-[DOCTYPE]-[DEPT]-[YYYY]-[SEQ]-[PO|SKU|Case]-r[NN].[ext]`
+    - DOCTYPE codes: QSD · QCP · CPTP · TCF · FPC · BOM · GPSR-RA · MRA · FMEA · FRI · 8D · RCA · DoC · DoP · MMS · CBAM · EUDR-DDS · PPWR · BATT
+    - Example: `ARENA-QCP-GARDEN-2026-004-PO451230-r02.xlsx`
+    - Never overwrite an issued document; increment `rNN`. Unapproved versions carry `_DRAFT`.
+    - Skills still using legacy patterns (FPC, product spec, 8D) are to be aligned to this standard.
+
+## F. Document control and quality of evidence
+21. Every controlled document carries a control block: reference, revision, date, author, approver, status.
+22. **Evidence standard:** a compliance claim is accepted only with a traceable document (test report no., certificate ID, NB number, OJ reference). Unverifiable = not accepted.
+23. **Severity scale (all findings):** Critical (stop shipment, escalate ≤24 h) · Major (fix before SRC, ≤5 working days) · Minor (fix next P.O.) · Observation (no action required).
+24. Regulatory deadlines are shown as **days remaining** from the verification date.
+25. **Language:** English by default; state which Ally/market requires translation (e.g. DE, FR, RO, NL, HR).
+26. **Confidentiality:** Ally and supplier data is never sent to external services without CQAD approval.
+
+## G. Batteries — Regulation (EU) 2023/1542
+27. Any product containing or supplied with a battery triggers a battery check at Link 1 (4-step determination), on top of the product's own pathway.
+28. **Mandatory evidence before SRC:** UN 38.3 summary (Li), IEC 62133 report, Hg/Cd/Pb test, Battery Reg. DoC, compliant label artwork, MSDS.
+29. **Art. 11 removability** (from 18 Feb 2027) is assessed at RFx/QSD stage; a sealed, non-replaceable portable battery is a **Critical** design finding for P.O.s shipping on or after that date.
+30. Battery category (portable / LMT / SLI / industrial / EV) is stated on every QSD and DoC; borderline cases (>5 kg, >2 kWh) are escalated for classification.
