@@ -72,10 +72,11 @@ Forced Labour Reg. (EU) 2024/3015 · **Battery Reg. (EU) 2023/1542 (see dedicate
 UN 38.3 test summary · IEC 62133-2 (Li) / IEC 62133-1 (Ni) · substance test (Hg/Cd/Pb) · EU DoC (Battery Reg.) · label artwork · MSDS · cell supplier ID · capacity/chemistry/weight declaration · removability statement (Art. 11).
 
 ## Active projects
-- **CBAM Communication Console** (this repo): Communication Template v2.1.1 app for Ally suppliers.
+- **CBAM Communication Console** (this repo, PR #1): Communication Template v2.1.1 app for Ally suppliers.
 - Battery Regulation readiness: Art. 11 removability and Art. 13 labelling (Feb 2027 / Aug 2026+).
 - EUDR readiness for 30 Dec 2026 (large/medium operators).
 - PPWR gap closure ahead of the 2028 obligations.
+- **Master Compliance Guideline: manual hand pallet truck** (DIY, EU-27 + CH): PR #2 in this repo.
 - [CONFIRM] Other live projects, priority suppliers, current Ally escalations.
 
 ## Team and governance [CONFIRM: complete]
