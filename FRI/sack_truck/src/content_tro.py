@@ -292,3 +292,21 @@ def requirements():
     for id_, en, vi in VERDICT:
         add(id_, "STD", 10, "D13", en, vi, "Verdict rule", "—", "Applied", "—", "Summary result", "ARENA FRI Standard", True, "Defined")
     return rows
+
+# ---------------------------------------------------------------- builder configuration
+LEGAL_STREAM = "GPSR (EU) 2023/988 – NO CE marking"
+FIGS = ["fig1_tro_points.png", "fig2_tro_tests.png"]
+FIG_CAPTION = ("Critical points – see Fig. 1 (A side, B front, C tilted) and Fig. 2 (test set-ups):",
+               "Điểm quan trọng – xem Hình 1 và Hình 2:")
+MATRIX_NOTE = ("Matrix note: no OJ-cited EN exists for manual sack trucks (SoA). Limits = approved supplier drawing per SKU "
+               "(fill in P.O. annex) or ARENA proposals marked * – QS to confirm before release. | Ghi chú: không có EN hài hòa; "
+               "giới hạn theo bản vẽ đã duyệt hoặc đề xuất ARENA *.")
+T2_SKU_LINE = (f"SKU: {PH}   Drawing ref./rev.: {PH}   Rated load: {PH} kg   Wheel type: {PH}",
+               "Mã hàng / Bản vẽ / Tải định mức / Loại bánh")
+TITLE_EN = "SACK TRUCK (NON-POWERED)"
+TITLE_VI = "XE ĐẨY TAY 2 BÁNH (KHÔNG ĐỘNG CƠ)"
+SCOPE = ("Used by A.R.E.N.A. QC or an appointed inspection body for FRI of manual two-wheel sack trucks (steel or aluminium frame, "
+         "fixed or folding toe plate, solid / pneumatic / puncture-proof wheels) shipped to the EU-27, EEA-3 or Northern Ireland. "
+         "Legal stream: GPSR (EU) 2023/988 only – NO CE marking. Manual sack trucks are outside the Machinery Regulation (EU) 2023/1230 "
+         "(no drive other than directly applied human effort, no lifting function) – stair-climbers or nose-lift designs must be "
+         "re-classified (O3). A.R.E.N.A. is a sourcing office only: never manufacturer, importer or GPSR responsible person.")

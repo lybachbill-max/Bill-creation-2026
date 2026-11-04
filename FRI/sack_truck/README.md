@@ -8,6 +8,6 @@ Status: **Incomplete / DRAFT** – 19 mandatory rows "QS to fill" (ARENA `*` pro
 Rebuild:
 ```
 pip install python-docx openpyxl matplotlib
-cd src && python3 figures_tro.py ../build && python3 build_docx.py "../build/FRI_template_Sack_truck_EU_(V1).docx" ../build
+cd src && python3 figures_tro.py ../build && python3 ../../common/fri_builder.py "../build/FRI_template_Sack_truck_EU_(V1).docx" ../build content_tro .
 ```
 Content lives in `src/content_tro.py` (single content source).

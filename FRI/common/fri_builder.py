@@ -6,7 +6,8 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
 from docx.enum.section import WD_ORIENT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
-import content_tro as C
+import importlib
+C = None  # content module, set in main()
 
 W_TOTAL = 11330  # dxa usable width
 NAVY, CORAL, BLUE = "151F37", "DC5733", "006293"
@@ -313,16 +314,81 @@ def build_header_footer(doc):
     fmt_run(p.add_run("Page "), 7.5); field(p, "PAGE"); fmt_run(p.add_run(" / "), 7.5); field(p, "NUMPAGES")
 
 
+def gi(key, default=None):
+    d = getattr(C, "GI", {})
+    return d.get(key, C.PH if default is None and key != "ally" else default)
+
+
+def sku_table(doc):
+    skus = getattr(C, "SKUS", None)
+    if not skus:
+        w = [1400, 1600, 1700, 2830, 1200, 1200, 1400]
+        t = table(doc, w)
+        header_row(t, [("SKU / Item no.", "Mã hàng"), ("Ally art. no.", "Mã Ally"), ("EAN", "EAN"), ("Description", "Mô tả"),
+                       ("Order qty", "SL đặt"), ("Presented qty", "SL trình"), ("Cartons", "Số thùng")])
+        for _ in range(3):
+            r = add_row(t)
+            for c in r.cells:
+                text(c, C.PH, 8.5)
+            cant_split(r)
+        return
+    w = [450, 1000, 1150, 950, 1700, 3330, 850, 900, 1000]
+    t = table(doc, w)
+    header_row(t, ["No.", ("Picture", "Hình"), ("Supplier ref.", "Mã NCC"), ("Ally code", "Mã Ally"), ("EAN product / outer", "EAN SP / thùng"),
+                   ("Description (P.O.)", "Mô tả (P.O.)"), ("Order qty", "SL đặt"), ("Presented", "SL trình"), ("pcs/ctn · ctns", "SL/thùng · số thùng")])
+    for k in skus:
+        r = add_row(t)
+        text(r.cells[0], str(k.get("no") or "–"), 7.5, True)
+        if k.get("img_path"):
+            pp = r.cells[1].paragraphs[0]; pp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            from PIL import Image as _I
+            with _I.open(k["img_path"]) as _im:
+                _w, _h = _im.size
+            if _h / _w > 0.9:
+                pp.add_run().add_picture(k["img_path"], height=Inches(0.5))
+            else:
+                pp.add_run().add_picture(k["img_path"], width=Inches(0.55))
+        text(r.cells[2], k["ref"], 7.5, True)
+        text(r.cells[3], k["ally"], 7.5)
+        text(r.cells[4], k["ean"], 6.5)
+        text(r.cells[5], k["desc"], 6.5)
+        text(r.cells[6], str(k["qty"]), 7.5)
+        text(r.cells[7], C.PH, 7.5)
+        def _n(v):
+            try:
+                f = float(v)
+                return str(int(f)) if f.is_integer() else f"{f:.2f} (!)"
+            except (TypeError, ValueError):
+                return str(v)
+        text(r.cells[8], f'{_n(k["pcs"])} · {_n(k["ctns"])}', 7.5, color="C00000" if "(!)" in _n(k["ctns"]) else None)
+        cant_split(r)
+    t1 = getattr(C, "TABLE1", None)
+    if t1:
+        spacer(doc)
+        p = doc.add_paragraph()
+        fmt_run(p.add_run("Table 1 – sample size per SKU (ISO 2859-1, computed from order qty – update if presented qty differs) | Bảng 1 – cỡ mẫu theo SKU"), 8.5, True)
+        w = [1250, 1100, 900, 900, 1700, 1700, 1000, 1180, 1600]
+        t = table(doc, w)
+        header_row(t, [("Supplier ref.", "Mã NCC"), ("Lot (qty)", "Lô"), ("Code", "Mã"), ("n (II)", "n"), ("Major 1.5 Ac/Re", "Nặng"),
+                       ("Minor 4.0 Ac/Re", "Nhẹ"), ("S-3 n", "S-3"), ("Cartons to open", "Thùng mở"), ("Special check", "Đo đặc biệt")])
+        for row in t1:
+            r = add_row(t)
+            for c, v in zip(r.cells, row):
+                text(c, str(v), 7.5, color="C00000" if "VERIFY" in str(v) else None)
+            cant_split(r)
+
+
 def general_info(doc):
     section_bar(doc, "GENERAL INFORMATION", "THÔNG TIN CHUNG")
     w = [2300, 3365, 2300, 3365]
     t = table(doc, w, rows=0)
     rows = [
         (("Ally", "Khách hàng"), "ALLY"), (("Inspection date", "Ngày kiểm"), C.PH),
-        (("Supplier", "Nhà cung cấp"), C.PH), (("Inspection type", "Loại kiểm"), "Final Random Inspection (FRI)"),
-        (("Factory (name, address)", "Nhà máy (tên, địa chỉ)"), C.PH), (("Inspection place", "Nơi kiểm"), C.PH),
-        (("P.O. / P.I. no.", "Số P.O. / P.I."), C.PH), (("ETD / Port of loading", "ETD / Cảng xếp"), C.PH),
-        (("Destination market", "Thị trường đến"), C.MARKET), (("Legal stream", "Khung pháp lý"), "GPSR (EU) 2023/988 – NO CE marking"),
+        (("Supplier", "Nhà cung cấp"), gi("supplier")), (("Inspection type", "Loại kiểm"), "Final Random Inspection (FRI)"),
+        (("Factory (name, address)", "Nhà máy (tên, địa chỉ)"), gi("factory")), (("Inspection place", "Nơi kiểm"), gi("place")),
+        (("P.O. / P.I. no.", "Số P.O. / P.I."), gi("po")), (("ETD / Port of loading", "ETD / Cảng xếp"), gi("etd")),
+        (("Destination market", "Thị trường đến"), C.MARKET), (("Legal stream", "Khung pháp lý"), C.LEGAL_STREAM),
+        (("Brand / GPSR manufacturer", "Thương hiệu / NSX theo GPSR"), gi("brand")), (("Country of origin / POD", "Xuất xứ / Cảng đến"), gi("origin")),
     ]
     for i in range(0, len(rows), 2):
         r = add_row(t)
@@ -331,21 +397,13 @@ def general_info(doc):
             lc = r.cells[j * 2]; vc = r.cells[j * 2 + 1]
             shade(lc, "E8ECF4"); bi(lc, en, vi, 8.5, True)
             if val == "ALLY":
-                dropdown(vc.paragraphs[0], C.ALLIES)
+                sel = gi("ally", None)
+                dropdown(vc.paragraphs[0], C.ALLIES, selected=sel)
             else:
                 text(vc, val, 8.5)
         cant_split(r)
     spacer(doc)
-    # item table per SKU
-    w = [1400, 1600, 1700, 2830, 1200, 1200, 1400]
-    t = table(doc, w)
-    header_row(t, [("SKU / Item no.", "Mã hàng"), ("Ally art. no.", "Mã Ally"), ("EAN", "EAN"), ("Description", "Mô tả"),
-                   ("Order qty", "SL đặt"), ("Presented qty", "SL trình"), ("Cartons", "Số thùng")])
-    for _ in range(3):
-        r = add_row(t)
-        for c in r.cells:
-            text(c, C.PH, 8.5)
-        cant_split(r)
+    sku_table(doc)
     spacer(doc)
     # documents
     w = [1300, 8030, 2000]
@@ -364,7 +422,7 @@ def general_info(doc):
     for (en, vi), val in [
         (("Sampling plan", "Kế hoạch lấy mẫu"), C.SAMPLING),
         (("AQL", "AQL"), C.AQL + "  (branded goods per QSD)"),
-        (("Table 1 – sample size per SKU", "Bảng 1 – cỡ mẫu theo SKU"), "Paste the Excel Table 1 per P.O. here (lot, code letter, n, Ma/Mi Ac/Re, Cri 0/1, S-3 n, cartons ≥ √N). Update if presented qty differs. | Dán Bảng 1 Excel theo P.O."),
+        (("Table 1 – sample size per SKU", "Bảng 1 – cỡ mẫu theo SKU"), ("See Table 1 under the SKU list (computed from order qty); update if presented qty differs. Cri Ac 0 / Re 1. | Xem Bảng 1 dưới danh sách SKU." if getattr(C, "TABLE1", None) else "Paste the Excel Table 1 per P.O. here (lot, code letter, n, Ma/Mi Ac/Re, Cri 0/1, S-3 n, cartons ≥ √N). Update if presented qty differs. | Dán Bảng 1 Excel theo P.O.")),
     ]:
         r = add_row(t)
         shade(r.cells[0], "E8ECF4"); bi(r.cells[0], en, vi, 8.5, True)
@@ -462,8 +520,7 @@ def details(doc, figs):
     cant_split(r)
     r = add_row(t)
     c = merge(r, 0, 4)
-    bi(c, "Critical points – see Fig. 1 (A side, B front, C tilted) and Fig. 2 (test set-ups):",
-       "Điểm quan trọng – xem Hình 1 và Hình 2:", 8.5, True)
+    bi(c, C.FIG_CAPTION[0], C.FIG_CAPTION[1], 8.5, True)
     picture(c, figs[0], 7.6)
     cant_split(r)
     r = add_row(t)
@@ -478,8 +535,7 @@ def details(doc, figs):
         text(rr.cells[0], id_, 7, True); text(rr.cells[1], ref, 8, True, "C00000")
         bi(rr.cells[2], en, vi, 7.5); text(rr.cells[3], how, 7); text(rr.cells[4], lim, 7.5); text(rr.cells[5], tool, 7)
         cant_split(rr)
-    text(c, "Matrix note: no OJ-cited EN exists for manual sack trucks (SoA). Limits = approved supplier drawing per SKU (fill in P.O. annex) or ARENA proposals marked * – QS to confirm before release. | Ghi chú: không có EN hài hòa; giới hạn theo bản vẽ đã duyệt hoặc đề xuất ARENA *.",
-         7.5, italic=True, color="555555", first=False)
+    text(c, C.MATRIX_NOTE, 7.5, italic=True, color="555555", first=False)
     cant_split(r)
     # item 6
     en, vi, rows = C.ITEMS[6]
@@ -497,34 +553,49 @@ def details(doc, figs):
         text(r.cells[2], sample, 8)
         result_dd(r.cells[3])
         cant_split(r)
-    r = add_row(t)
-    c = merge(r, 0, 4)
-    picture(c, figs[1], 7.6)
-    cant_split(r)
+    for f in figs[1:]:
+        r = add_row(t)
+        c = merge(r, 0, 4)
+        picture(c, f, 7.6)
+        cant_split(r)
 
 
 def table2(doc):
-    p = doc.add_paragraph(); p.add_run().add_break(WD_BREAK.PAGE)
-    section_bar(doc, "TABLE 2 – SPECIAL CHECK LIST / CRITICAL-POINT MEASUREMENTS (3 pcs per SKU)",
-                "BẢNG 2 – DANH SÁCH KIỂM TRA ĐẶC BIỆT / ĐO ĐIỂM QUAN TRỌNG (3 mẫu / SKU)")
-    w = [1200, 2600, 1900, 1050, 1050, 1050, 1180, 1300]
-    t = table(doc, w)
-    header_row(t, [("ID", "Mã"), ("Parameter", "Thông số"), ("Specification (drawing)", "Yêu cầu (bản vẽ)"),
-                   "S1", "S2", "S3", ("Worst", "Kém nhất"), ("Result", "Kết quả")])
-    r = add_row(t)
-    c = merge(r, 0, 7)
-    bi(c, f"SKU: {C.PH}   Drawing ref./rev.: {C.PH}   Rated load: {C.PH} kg   Wheel type: {C.PH}",
-       "Mã hàng / Bản vẽ / Tải định mức / Loại bánh", 8.5, True)
-    cant_split(r, keep_next=True)
-    for id_, ref, en, vi, fig, how, lim, tool, ph in C.MATRIX:
+    blocks = getattr(C, "TABLE2_BLOCKS", None)
+    if not blocks:
+        blocks = [dict(title=C.T2_SKU_LINE, page_break=True,
+                       head=[("ID", "Mã"), ("Parameter", "Thông số"), ("Specification (drawing)", "Yêu cầu (bản vẽ)"),
+                             "S1", "S2", "S3", ("Worst", "Kém nhất"), ("Result", "Kết quả")],
+                       widths=[1200, 2600, 1900, 1050, 1050, 1050, 1180, 1300],
+                       rows=[[id_, (f"{ref} – {en}", f"{ref} – {vi}"), C.PH + "  " + lim, "", "", "", "", None]
+                             for id_, ref, en, vi, fig, how, lim, tool, ph in C.MATRIX])]
+    first = True
+    for b in blocks:
+        if first or b.get("page_break"):
+            p = doc.add_paragraph(); p.add_run().add_break(WD_BREAK.PAGE)
+        if first:
+            section_bar(doc, "TABLE 2 – SPECIAL CHECK LIST / CRITICAL-POINT MEASUREMENTS (3 pcs per SKU)",
+                        "BẢNG 2 – DANH SÁCH KIỂM TRA ĐẶC BIỆT / ĐO ĐIỂM QUAN TRỌNG (3 mẫu / SKU)")
+            first = False
+        else:
+            spacer(doc)
+        t = table(doc, b["widths"])
+        header_row(t, b["head"])
         r = add_row(t)
-        text(r.cells[0], id_, 7.5, True)
-        bi(r.cells[1], f"{ref} – {en}", f"{ref} – {vi}", 8)
-        text(r.cells[2], C.PH + "  " + lim, 7.5)
-        result_dd(r.cells[7])
-        cant_split(r)
-    text(t.add_row().cells[0], "", 2)
-    t._tbl.remove(t.rows[-1]._tr)
+        c = merge(r, 0, len(b["widths"]) - 1)
+        shade(c, "D9E2F3")
+        bi(c, b["title"][0], b["title"][1], 8.5, True)
+        cant_split(r, keep_next=True)
+        for row in b["rows"]:
+            r = add_row(t)
+            for ci, v in enumerate(row):
+                if v is None:
+                    result_dd(r.cells[ci])
+                elif isinstance(v, tuple):
+                    bi(r.cells[ci], v[0], v[1], 7.5)
+                else:
+                    text(r.cells[ci], str(v), 7.5, bold=(ci == 0))
+            cant_split(r)
 
 
 def defects(doc):
@@ -623,15 +694,15 @@ def photos(doc):
 
 def guideline(doc, figs):
     p = doc.add_paragraph(); p.add_run().add_break(WD_BREAK.PAGE)
-    section_bar(doc, f"ARENA FRI STANDARD – SACK TRUCK (NON-POWERED) – {C.DOC_ID}",
-                f"TIÊU CHUẨN FRI ARENA – XE ĐẨY TAY 2 BÁNH (KHÔNG ĐỘNG CƠ) – {C.DOC_ID}", fill=CORAL)
+    section_bar(doc, f"ARENA FRI STANDARD – {C.TITLE_EN} – {C.DOC_ID}",
+                f"TIÊU CHUẨN FRI ARENA – {C.TITLE_VI} – {C.DOC_ID}", fill=CORAL)
     # control block
     w = [2600, 3065, 2600, 3065]
     t = table(doc, w, rows=0)
     ctl = [(("Document ID", "Mã tài liệu"), C.DOC_ID), (("Version", "Phiên bản"), C.VERSION),
            (("Status", "Tình trạng"), C.STATUS + " – DRAFT, not usable as validation benchmark"), (("Owner", "Chủ sở hữu"), "QS"),
            (("Approver (name, date)", "Người duyệt (tên, ngày)"), C.PH), (("Effective date", "Ngày hiệu lực"), C.PH),
-           (("Destination market", "Thị trường"), C.MARKET), (("P.O. annex", "Phụ lục P.O."), "Generic – P.O. " + C.PH)]
+           (("Destination market", "Thị trường"), C.MARKET), (("P.O. annex", "Phụ lục P.O."), getattr(C, "PO_ANNEX", "Generic – P.O. " + C.PH))]
     for i in range(0, len(ctl), 2):
         r = add_row(t)
         for j in range(2):
@@ -647,7 +718,7 @@ def guideline(doc, figs):
     fmt_run(gp.add_run("Luật EU và tiêu chuẩn được trích dẫn OJ → quy trình Ally / QC Pack → Tiêu chuẩn FRI ARENA → thực hành của người kiểm."), 7.5, italic=True, color="7F7F7F")
     gp = doc.add_paragraph()
     fmt_run(gp.add_run("Scope | Phạm vi: "), 8.5, True)
-    fmt_run(gp.add_run("Used by A.R.E.N.A. QC or an appointed inspection body for FRI of manual two-wheel sack trucks (steel or aluminium frame, fixed or folding toe plate, solid / pneumatic / puncture-proof wheels) shipped to the EU-27, EEA-3 or Northern Ireland. Legal stream: GPSR (EU) 2023/988 only – NO CE marking. Manual sack trucks are outside the Machinery Regulation (EU) 2023/1230 (no drive other than directly applied human effort, no lifting function) – stair-climbers or nose-lift designs must be re-classified (O3). A.R.E.N.A. is a sourcing office only: never manufacturer, importer or GPSR responsible person."), 8.5)
+    fmt_run(gp.add_run(C.SCOPE), 8.5)
     spacer(doc)
     bi_heading(doc, "Standards and legal sources referenced", "Tiêu chuẩn và văn bản pháp lý tham chiếu")
     w = [700, 2400, 2700, 2730, 2800]
@@ -669,7 +740,7 @@ def guideline(doc, figs):
         cant_split(r)
     para(doc, "Record instrument ID and calibration due date in the report; out-of-calibration tools are not used. | Ghi mã thiết bị và hạn hiệu chuẩn; không dùng dụng cụ quá hạn.", 7.5, italic=True, color="555555")
     # C sampling
-    spacer(doc); bi_heading(doc, "C. Sampling and acceptance numbers (ISO 2859-1, single normal, Level II, AQL Ma 1.5 / Mi 4.0, Cri 0)", "C. Lấy mẫu và số chấp nhận")
+    spacer(doc); bi_heading(doc, f"C. Sampling and acceptance numbers (ISO 2859-1, single normal, Level II, AQL {C.AQL}, Cri 0)", "C. Lấy mẫu và số chấp nhận")
     t = table(doc, [2000, 1300, 1300, 2600, 2130, 2000])
     header_row(t, [("Lot size", "Cỡ lô"), ("Code", "Mã"), ("n", "n"), ("Major 1.5 Ac/Re", "Nặng Ac/Re"), ("Minor 4.0 Ac/Re", "Nhẹ Ac/Re"), ("S-3 n", "S-3 n")])
     for row in C.SAMPLING_TABLE:
@@ -702,8 +773,8 @@ def guideline(doc, figs):
     # E special check list
     p = doc.add_paragraph(); p.add_run().add_break(WD_BREAK.PAGE)
     bi_heading(doc, "E. Special check list – figures and method", "E. Danh sách kiểm tra đặc biệt – hình và phương pháp")
-    picture(doc, figs[0], 7.6)
-    picture(doc, figs[1], 7.6)
+    for f in figs:
+        picture(doc, f, 7.6)
     t = table(doc, [1150, 500, 2300, 600, 3300, 2280, 1200])
     header_row(t, [("ID", "Mã"), "Ref", ("Check point", "Điểm kiểm"), "Fig.", ("How to measure", "Cách đo"), ("Limit (EU)", "Giới hạn"), ("Photo", "Ảnh")])
     for id_, ref, en, vi, fig, how, lim, tool, ph in C.MATRIX:
@@ -762,8 +833,10 @@ def ensure_cell_end_paragraph(doc):
             tc.append(el("w:p"))
 
 
-def main(out, figdir):
-    figs = [f"{figdir}/fig1_tro_points.png", f"{figdir}/fig2_tro_tests.png"]
+def main(out, figdir, module):
+    global C
+    C = importlib.import_module(module)
+    figs = [f"{figdir}/{f}" for f in C.FIGS]
     doc = Document()
     setup(doc)
     build_header_footer(doc)
@@ -785,4 +858,5 @@ def main(out, figdir):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2])
+    sys.path.insert(0, sys.argv[4] if len(sys.argv) > 4 else ".")
+    main(sys.argv[1], sys.argv[2], sys.argv[3])
