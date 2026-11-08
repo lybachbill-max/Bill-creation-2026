@@ -1,6 +1,6 @@
 from seminar_helpers import *
 
-N = 8
+N = 9
 VNC = "3C6E8F"  # Globe Blue tint for Vietnamese lines
 
 def header(s, n, title, vn):
@@ -80,17 +80,18 @@ text(s, 8.75, 1.5, 4.0, 0.5, [[("Agenda", {"bold": True, "size": 16})], [("Chư�
 ag = [("How we work together", "Cách chúng ta phối hợp"),
       ("Compliance and technical documents", "Hồ sơ tuân thủ và kỹ thuật"),
       ("Supplier qualification and production control", "Đánh giá nhà cung cấp và kiểm soát sản xuất"),
+      ("QMS and CSR requirements", "Yêu cầu QMS và CSR"),
       ("Packaging and artwork L0–L3", "Bao bì và thiết kế in L0–L3"),
       ("Inspection, shipment release and CAPA", "Kiểm tra, phát hành lô hàng và CAPA"),
       ("Regulatory watch 2026–2027", "Cập nhật quy định 2026–2027")]
-y = 2.35
+y = 2.2
 for i, (en, vn) in enumerate(ag):
     rect(s, 8.75, y + 0.05, 0.42, 0.42, CORAL, shape=MSO_SHAPE.OVAL)
     text(s, 8.75, y + 0.05, 0.42, 0.42, str(i + 3), size=11, bold=True, color=WHITE, align=PP_ALIGN.CENTER,
          anchor=MSO_ANCHOR.MIDDLE, margin=0)
     text(s, 9.3, y, 3.45, 0.7, [[(en, {"size": 11, "bold": True})], [(vn, {"size": 10, "italic": True, "font": "Arial Narrow", "color": "BFD8E4"})]],
          color=WHITE)
-    y += 0.75
+    y += 0.66
 
 # ---------------- 3. How we work together ----------------
 s = prs.slides.add_slide(BL)
@@ -216,9 +217,54 @@ for v, en, vn in kp:
          anchor=MSO_ANCHOR.MIDDLE)
     y += 1.03
 
-# ---------------- 6. Packaging & artwork ----------------
+# ---------------- 6. QMS & CSR ----------------
 s = prs.slides.add_slide(BL)
-header(s, 6, "Packaging and artwork L0–L3", "Bao bì và thiết kế in L0–L3")
+header(s, 6, "QMS and CSR requirements and references", "Yêu cầu và tài liệu tham chiếu về QMS và CSR")
+label(s, 0.55, 1.4, 6, "Quality management (QMS)", "Hệ thống quản lý chất lượng", BLUE)
+rect(s, 0.55, 1.72, 6.0, 3.95, BLUE_T)
+text(s, 0.65, 1.76, 5.8, 3.9, bi([
+    ("Valid accredited ISO 9001 certificate (scope, body, expiry) — or QMI grade A/B.",
+     "Chứng nhận ISO 9001 còn hiệu lực, được công nhận (phạm vi, tổ chức, hạn) — hoặc QMI hạng A/B."),
+    ("Quality manual, signed quality policy, KPIs and management review.",
+     "Sổ tay chất lượng, chính sách chất lượng có ký duyệt, KPI và xem xét của lãnh đạo."),
+    ("CAPA with root cause (5-Why, Fishbone, 8D); internal audits at least yearly.",
+     "CAPA có phân tích nguyên nhân gốc (5-Why, Xương cá, 8D); đánh giá nội bộ ít nhất mỗi năm."),
+    ("Non-conforming product: tag, segregate, quarantine, re-inspect after rework.",
+     "Sản phẩm không phù hợp: gắn thẻ, tách riêng, cách ly, kiểm tra lại sau khi sửa."),
+    ("Product-safety complaint: inform A.R.E.N.A. within 24 hours.",
+     "Khiếu nại an toàn sản phẩm: báo A.R.E.N.A. trong vòng 24 giờ."),
+    ("A.R.E.N.A. FPC / QMS audit renewed at least every 3 years.",
+     "Đánh giá FPC / QMS của A.R.E.N.A. được thực hiện lại ít nhất 3 năm một lần."),
+], size=10.5), spacing=2)
+label(s, 6.85, 1.4, 6, "Social and environmental (CSR)", "Trách nhiệm xã hội và môi trường", CORAL_D)
+rect(s, 6.85, 1.72, 6.0, 3.95, CORAL_T)
+text(s, 6.95, 1.76, 5.8, 3.9, bi([
+    ("Signed Supplier Agreement, Quality Guideline and amfori BSCI terms.",
+     "Ký Thỏa thuận Nhà cung cấp, Hướng dẫn Chất lượng và điều khoản amfori BSCI."),
+    ("Recognised social audit within 2 years (amfori BSCI, SMETA, SA8000; Fair Stone for stone) covering the factory address.",
+     "Đánh giá xã hội được công nhận trong 2 năm (amfori BSCI, SMETA, SA8000; Fair Stone cho đá) đúng địa chỉ nhà máy."),
+    ("No child labour, no forced or bonded labour, no recruitment fees; legal hours and wages.",
+     "Không lao động trẻ em, không lao động cưỡng bức, không thu phí tuyển dụng; giờ làm và lương đúng luật."),
+    ("Environment and safety: ISO 14001 or amfori BEPI, permits, chemicals with SDS, fire safety.",
+     "Môi trường và an toàn: ISO 14001 hoặc amfori BEPI, giấy phép, hóa chất có SDS, an toàn PCCC."),
+    ("Wood / paper products: valid FSC or PEFC chain-of-custody certificate.",
+     "Sản phẩm gỗ / giấy: chứng nhận chuỗi hành trình FSC hoặc PEFC còn hiệu lực."),
+], size=10.5), spacing=2)
+label(s, 0.55, 5.8, 12, "References", "Tài liệu tham chiếu", NAVY)
+refs = [("ISO 9001", "Quality management"), ("ISO 14001", "Environmental mgmt"), ("amfori BSCI", "Code of Conduct"),
+        ("SMETA / SA8000", "Social audit / cert."), ("amfori BEPI", "Environmental"), ("FSC / PEFC CoC", "Chain of custody"),
+        ("ILO C29 · C138 · C182", "Forced / child labour")]
+x = 0.55
+for i, (r, d) in enumerate(refs):
+    w = 1.7 if i < 6 else 2.0
+    rect(s, x, 6.1, w - 0.05, 0.8, NAVY if i % 2 == 0 else BLUE)
+    text(s, x, 6.1, w - 0.05, 0.8, [[(r, {"bold": True, "size": 10})], [(d, {"size": 8.5})]],
+         color=WHITE, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE, margin=0.03)
+    x += w
+
+# ---------------- 7. Packaging & artwork ----------------
+s = prs.slides.add_slide(BL)
+header(s, 7, "Packaging and artwork L0–L3", "Bao bì và thiết kế in L0–L3")
 label(s, 0.55, 1.4, 5, "How to submit artwork", "Cách nộp file thiết kế", CORAL_D)
 rect(s, 0.55, 1.72, 4.6, 5.2, CORAL_T)
 text(s, 0.65, 1.78, 4.4, 5.1, bi([
@@ -260,7 +306,7 @@ for i, (lv, en, vn, d, dv) in enumerate(levels):
 
 # ---------------- 7. Inspection, release, CAPA ----------------
 s = prs.slides.add_slide(BL)
-header(s, 7, "Phase 3 · Inspection, shipment release and CAPA", "Giai đoạn 3 · Kiểm tra, phát hành lô hàng và CAPA")
+header(s, 8, "Phase 3 · Inspection, shipment release and CAPA", "Giai đoạn 3 · Kiểm tra, phát hành lô hàng và CAPA")
 label(s, 0.55, 1.4, 6, "Inspections", "Kiểm tra", NAVY)
 rect(s, 0.55, 1.72, 6.0, 2.75, NAVY_T)
 text(s, 0.65, 1.78, 5.8, 2.65, bi([
@@ -300,7 +346,7 @@ text(s, 0.7, 6.42, 12.1, 0.5,
 
 # ---------------- 8. Regulatory watch ----------------
 s = prs.slides.add_slide(BL)
-header(s, 8, "Regulatory watch 2026–2027", "Cập nhật quy định 2026–2027")
+header(s, 9, "Regulatory watch 2026–2027", "Cập nhật quy định 2026–2027")
 cols = [(0.55, 2.55, "Regulation · Quy định"), (3.13, 3.55, "Key dates · Mốc thời gian"), (6.71, 6.14, "What you need to do · Quý vị cần làm gì")]
 for x, w, h in cols:
     rect(s, x, 1.38, w, 0.36, NAVY)
