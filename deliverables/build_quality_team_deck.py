@@ -62,9 +62,9 @@ rect(s, 9.75, 1.3, 4.3, 4.3, CORAL, shape=MSO_SHAPE.OVAL)
 rect(s, 9.95, 1.62, 4.0, 4.0, NAVY, shape=MSO_SHAPE.OVAL)
 rect(s, 10.35, 2.05, 3.2, 3.2, BLUE, shape=MSO_SHAPE.OVAL)
 text(s, 0.8, 0.7, 6, 0.5, "a.r.e.n.a.", size=22, bold=True, color=WHITE)
-text(s, 0.8, 2.3, 9, 1.6, ["The Quality Team", "across the 3-Phase Flow"], size=40, bold=True, color=WHITE)
+text(s, 0.8, 2.3, 9, 1.6, ["Quality & PPS Team", "across the 3-Phase Flow"], size=40, bold=True, color=WHITE)
 rect(s, 0.85, 4.05, 1.6, 0.06, CORAL)
-text(s, 0.8, 4.3, 9, 0.5, "Đội ngũ Chất lượng theo 3 Giai đoạn", size=20, color="BFD8E4", font="Arial Narrow")
+text(s, 0.8, 4.3, 9, 0.5, "Đội ngũ Chất lượng & PPS theo 3 Giai đoạn", size=20, color="BFD8E4", font="Arial Narrow")
 text(s, 0.8, 5.0, 9, 0.9,
      ["Compliance & Technical  →  Sourcing Support  →  Quality Control",
       "Who does what at each phase · aligned to ARENA-SOP-00-00-INT (P1–P7, gates G1–G5)"],
@@ -76,13 +76,13 @@ text(s, 0.8, 6.6, 9, 0.4, "A.R.E.N.A. Vietnam · Quality & Compliance · Novembe
 s = prs.slides.add_slide(BL)
 header(s, 2, "One team, three phases", "Một đội ngũ, ba giai đoạn — cơ cấu và luồng công việc")
 # org column
-text(s, 0.55, 1.5, 4.2, 0.3, "QUALITY TEAM STRUCTURE · CƠ CẤU", size=10, bold=True, color=CORAL_D)
+text(s, 0.55, 1.5, 4.2, 0.3, "TEAM STRUCTURE · CƠ CẤU ĐỘI NGŨ", size=10, bold=True, color=CORAL_D)
 org = [("Quality Director", "Giám đốc Chất lượng", "Policy, governance, TPA/DOA decisions", NAVY, WHITE),
-       ("Quality Manager", "Trưởng phòng Chất lượng", "Planning, territories, KPI follow-up", BLUE, WHITE),
-       ("Quality Assistant", "Trợ lý Chất lượng", "Document control, trackers, data", BLUE_T, INK),
        ("9 Quality Supervisors (QS)", "9 Giám sát Chất lượng", "One product-family territory each · own SRC", CORAL_D, WHITE),
-       ("QC Inspectors", "Kiểm tra viên QC", "On-site inspection CP1–CP10", NAVY_T, INK),
-       ("IQA — Internal Quality Auditor", "Kiểm toán Chất lượng Nội bộ", "Independent audit & QCP review · advisory", "FFFFFF", INK)]
+       ("Quality Controller (QC)", "Nhân viên Kiểm soát Chất lượng", "On-site inspection DPI / FRI CP1–CP10", BLUE, WHITE),
+       ("PPS Production (PPS-P)", "PPS Sản xuất", "Production follow-up, inspection booking", NAVY_T, INK),
+       ("PPS Packaging (PPS-Pkg)", "PPS Bao bì", "Artwork file routing, packaging L0–L3", CORAL_T, INK),
+       ("PPS Logistics (PPS-L)", "PPS Logistics", "Export-side documents, loading", BLUE_T, INK)]
 y = 1.85
 for t, vn, d, f, c in org:
     r = rect(s, 0.55, y, 4.2, 0.74, f, line=NAVY if f == "FFFFFF" else None)
@@ -115,7 +115,7 @@ rect(s, 5.25, 5.4, 7.6, 1.45, "FFFFFF", line=CORAL)
 text(s, 5.35, 5.45, 7.4, 1.4,
      [[("Two ETD gates run through all phases · Hai mốc ETD", {"bold": True, "color": CORAL_D, "size": 10})],
       "• ETD − 45 days: test reports, declarations and technical file complete (accredited reports valid 2 yrs and still valid at ETD).",
-      "• SRC issued by QS at least 7 days (default buffer) before ETD. IQA advises; QS owns the gate."],
+      "• SRC issued by QS at least 7 days (default buffer) before ETD. QS owns the gate."],
      size=10, spacing=3)
 
 # ---------- Slide 3: matrix ----------
@@ -132,26 +132,26 @@ rows = [
   ["Sets compliance policy and pathway governance", "Decides per TPA/DOA matrix (SOP-00-05)"],
   ["Strategic layer with factory GM + Head of Sourcing", "Final call on supplier qualification escalations"],
   ["Owns 21-KPI quality review", "Escalation point for critical NCs / recalls"]),
- ("Quality Manager", "Trưởng phòng CL",
-  ["Allocates QS territories and workload", "Reviews pathway register and QSD quality"],
-  ["Assigns QS to RFx (T1/T2/T3) technical review", "Reviews VQA / SVR and FPC audit results"],
-  ["Plans inspection resources", "Tracks FRI pass rate and CAPA closure"]),
- ("Quality Assistant", "Trợ lý CL",
-  ["Files test reports, DoC/DoP, TCF (ARENA TechFile)", "Tracks report validity vs ETD"],
-  ["Sends supplier document requests (CDF)", "Maintains VQA workbook and supplier tracker"],
-  ["Supports inspection booking and report filing", "Updates IQS / QS Daily Alert data"]),
  ("Quality Supervisor (QS) ×9", "Giám sát CL",
   ["4-step pathway determination (A, B-CPR, B, C, D, E)", "QSD, QCP, standards edition check, ECT/test plan, GPSR RA"],
   ["Technical input to RFx; VQA pre-qualification (PASS ≥ 80%)", "Line audit, FPC, golden sample, artwork review L0–L3"],
   ["Docs complete at ETD − 45; FRI review", "Issues SRC (≥ 7 d pre-ETD); leads 8D/CAPA"]),
- ("QC Inspector", "Kiểm tra viên QC",
+ ("Quality Controller (QC)", "Kiểm soát CL",
   ["Reviews QC Pack and inspection brief readiness"],
   ["Verifies golden sample; supports factory audits"],
   ["DPI and FRI CP1–CP10 (ISO 2859-1; AQL Cr 0 · Ma 2.5)", "CP5/CP6 packaging and loading checks"]),
- ("IQA", "Kiểm toán CL Nội bộ",
-  ["Audits pathway / QSD vs rulebook and Register", "Adds retailer QCP layer"],
-  ["QCP artwork conformance review (NB-9 / BR-6)", "Cross-checks supplier audit evidence"],
-  ["FRI validation audit; advises on SRC", "Decides rework feasibility on CP5/CP6 fail"]),
+ ("PPS Production", "PPS Sản xuất",
+  ["Coordinates lab and golden samples with supplier", "Shares production schedule vs test plan"],
+  ["Builds P.O. milestone plan with Merchandiser", "Confirms supplier capacity and lead time"],
+  ["Daily in-process monitoring log (P4)", "Books inspections; confirms factory readiness"]),
+ ("PPS Packaging", "PPS Bao bì",
+  ["Receives QS marking obligations per level L0–L3", "Sets packaging specs and dielines"],
+  ["Sole receipt point for artwork; file check", "Consolidates mark-ups; version-locks and releases files"],
+  ["Tracks packaging materials in production", "L0–L3 checklist; supports CP5/CP6"]),
+ ("PPS Logistics", "PPS Logistics",
+  ["Flags export packaging needs (ISPM 15, L3 marks)"],
+  ["Aligns ETD and loading plan in milestones"],
+  ["Export-side documents only (no import clearance)", "Container loading; shipment notice to QS / Merch"]),
 ]
 RH, y = 0.79, TOP + 0.55
 for k, (t, vn, *cells) in enumerate(rows):
@@ -173,10 +173,10 @@ cols = [
    "TCF opened on lead item"],
   "Gate: QSD complete before P3", "SO-2 · 100% QSD completeness before P3"),
  (["VQA pre-qualification score (PASS ≥ 80%)", "Production line audit / SVR",
-   "FPC set-up and audit", "Golden sample approved", "Artwork released L0–L3 (QS + IQA + Ally)"],
+   "FPC set-up and audit", "Golden sample approved", "Artwork released L0–L3 (PPS-Pkg)"],
   "Gate: supplier qualified, artwork released", "SO-3 · Supplier FPC audit score ≥ 80%"),
  (["Test reports, DoC/DoP, technical file at ETD − 45", "DPI and FRI CP1–CP10 reports",
-   "CE / conformity marking verified", "SRC issued ≥ 7 days pre-ETD", "8D / CAPA on complaints"],
+   "CE / conformity marking verified", "SRC issued ≥ 7 days pre-ETD", "Export docs and loading (PPS-L)", "8D / CAPA on complaints"],
   "Gate: SRC release (QS)", "SO-4 · FRI pass ≥ 95% first submission\nSO-5 · CAPA closure ≤ 30 days"),
 ]
 x = 0.55
@@ -201,13 +201,13 @@ text(s, 0.55, 6.55, 12.3, 0.3,
 # ---------- Slide 5: interfaces & boundaries ----------
 s = prs.slides.add_slide(BL)
 header(s, 5, "Interfaces and role boundaries", "Phối hợp liên phòng ban và giới hạn vai trò")
-text(s, 0.55, 1.5, 6.0, 0.3, "WHO THE QUALITY TEAM WORKS WITH · PHỐI HỢP", size=10, bold=True, color=CORAL_D)
+text(s, 0.55, 1.5, 6.0, 0.3, "WHO THE TEAM WORKS WITH · PHỐI HỢP", size=10, bold=True, color=CORAL_D)
 ifs = [("Merchandiser", "Milestones, inspection timing, corrective-action negotiation"),
        ("DCO", "Department category ownership (SOP-00-06)"),
-       ("PPS-P", "Production follow-up, inspection booking"),
-       ("PPS-Pkg", "Single receipt point for artwork files; version lock"),
-       ("PPS-L", "Export-side documents only; no import clearance"),
-       ("Ally", "Commercial approval; manufacturer on own-brand items")]
+       ("IQA", "Independent audit, retailer QCP review; advises on SRC"),
+       ("Ally", "Commercial approval; manufacturer on own-brand items"),
+       ("Supplier", "Executes production, testing evidence, CAPA"),
+       ("Labs", "Accredited test reports (valid 2 yrs, valid at ETD)")]
 y = 1.85
 for r, d in ifs:
     rect(s, 0.55, y, 1.45, 0.66, BLUE)
@@ -224,7 +224,7 @@ text(s, 7.1, 1.95, 5.65, 3.3, [
     [("CBAM (EU / UK): ", {"bold": True}), ("drafts only, on written Ally request, case by case.", {})],
     [("Standards: ", {"bold": True}), ("never block a cited edition, never inject a non-cited one; no cited edition = current CEN/ISO (SoA).", {})],
     [("Markets: ", {"bold": True}), ("EU-27 · EEA-3 · CH · GB · NI · CA · US. NI follows EU rules (CE; UKCA not valid).", {})],
-    [("SRC: ", {"bold": True}), ("owned by QS; IQA advises, not the gate owner.", {})],
+    [("SRC: ", {"bold": True}), ("owned by QS; IQA advises, not the gate owner. PPS-L: export side only.", {})],
 ], size=11, spacing=7)
 rect(s, 6.95, 5.45, 5.9, 0.6, CORAL_D)
 text(s, 7.05, 5.45, 5.7, 0.6, "QC Pack outputs are always bilingual: English line above Vietnamese.",
