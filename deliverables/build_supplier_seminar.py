@@ -241,8 +241,8 @@ rect(s, 6.85, 1.72, 6.0, 3.95, CORAL_T)
 text(s, 6.95, 1.76, 5.8, 3.9, bi([
     ("Signed Supplier Agreement, Quality Guideline and amfori BSCI terms.",
      "Ký Thỏa thuận Nhà cung cấp, Hướng dẫn Chất lượng và điều khoản amfori BSCI."),
-    ("Recognised social audit within 2 years (amfori BSCI, SMETA, SA8000; Fair Stone for stone) covering the factory address.",
-     "Đánh giá xã hội được công nhận trong 2 năm (amfori BSCI, SMETA, SA8000; Fair Stone cho đá) đúng địa chỉ nhà máy."),
+    ("Social audit within 2 years covering the factory address: amfori BSCI minimum grade C (or SMETA, SA8000; Fair Stone for stone).",
+     "Đánh giá xã hội trong 2 năm, đúng địa chỉ nhà máy: amfori BSCI tối thiểu hạng C (hoặc SMETA, SA8000; Fair Stone cho đá)."),
     ("No child labour, no forced or bonded labour, no recruitment fees; legal hours and wages.",
      "Không lao động trẻ em, không lao động cưỡng bức, không thu phí tuyển dụng; giờ làm và lương đúng luật."),
     ("Environment and safety: ISO 14001 or amfori BEPI, permits, chemicals with SDS, fire safety.",
@@ -251,7 +251,7 @@ text(s, 6.95, 1.76, 5.8, 3.9, bi([
      "Sản phẩm gỗ / giấy: chứng nhận chuỗi hành trình FSC hoặc PEFC còn hiệu lực."),
 ], size=10.5), spacing=2)
 label(s, 0.55, 5.8, 12, "References", "Tài liệu tham chiếu", NAVY)
-refs = [("ISO 9001", "Quality management"), ("ISO 14001", "Environmental mgmt"), ("amfori BSCI", "Code of Conduct"),
+refs = [("ISO 9001", "Quality management"), ("ISO 14001", "Environmental mgmt"), ("amfori BSCI", "Min. grade C"),
         ("SMETA / SA8000", "Social audit / cert."), ("amfori BEPI", "Environmental"), ("FSC / PEFC CoC", "Chain of custody"),
         ("ILO C29 · C138 · C182", "Forced / child labour")]
 x = 0.55
