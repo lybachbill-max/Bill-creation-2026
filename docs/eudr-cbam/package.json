@@ -1,0 +1,13 @@
+{
+  "name": "arena-eudr-cbam-guideline",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Generators for the EUDR & CBAM alignment guideline (.docx) and training deck (.pptx)",
+  "scripts": {
+    "build": "node src/build_guideline.js && node src/build_slides.js"
+  },
+  "dependencies": {
+    "docx": "^9.7.1",
+    "pptxgenjs": "^3.12.0"
+  }
+}
