@@ -101,17 +101,17 @@ const next = () => { n += 1; return pptx.addSlide(); };
 // ---------- 3. Position
 {
   const s = next();
-  frame(s, n, 'A.R.E.N.A. position', 'Vị trí của A.R.E.N.A.');
-  s.addText(biRuns(C.POSITION, { en: 17, vn: 13.5, bullet: true, gap: 14 }), { x: 0.5, y: 1.6, w: 12.33, h: 2.4, fontFace: F, valign: 'top', margin: 0 });
-  callout(s, hdr('EUDR — no A.R.E.N.A. role.   CBAM — drafts only, on written Ally request, case by case.', 'EUDR — A.R.E.N.A. không có vai trò.   CBAM — chỉ soạn dự thảo, khi Ally yêu cầu bằng văn bản, từng trường hợp.'), 4.3, 1.0);
-  s.addText(biRuns([hdr('Source: ARENA Rulebook rev. c2, §2 — wins over skills and memory on ARENA roles.', 'Nguồn: ARENA Rulebook rev. c2, §2 — được ưu tiên hơn skill và bộ nhớ về vai trò ARENA.')], { en: 12, vn: 10.5 }), { x: 0.5, y: 5.6, w: 12.33, h: 0.8, fontFace: F, margin: 0 });
+  frame(s, n, 'A.R.E.N.A. role: supporting sourcing office', 'Vai trò của A.R.E.N.A.: văn phòng tìm nguồn hàng hỗ trợ');
+  s.addText(biRuns(C.POSITION.slice(0, 3), { en: 15, vn: 12, bullet: true, gap: 10 }), { x: 0.5, y: 1.55, w: 12.33, h: 3.3, fontFace: F, valign: 'top', margin: 0 });
+  callout(s, hdr('Supporting office.   EUDR — no regulatory role.   CBAM — drafts only, on written Ally request, case by case.', 'Văn phòng hỗ trợ.   EUDR — không có vai trò pháp lý.   CBAM — chỉ soạn dự thảo, khi Ally yêu cầu bằng văn bản, từng trường hợp.'), 5.0, 1.0);
+  s.addText(biRuns([hdr('Basis: ARENA Rulebook rev. c2, §2 — regulatory roles unchanged; "supporting" describes the overall function only.', 'Cơ sở: ARENA Rulebook rev. c2, §2 — vai trò pháp lý không đổi; "hỗ trợ" chỉ mô tả chức năng chung.')], { en: 11, vn: 9.5 }), { x: 0.5, y: 6.2, w: 12.33, h: 0.7, fontFace: F, margin: 0 });
 }
 
 // ---------- 4. Role matrix
 {
   const s = next();
   frame(s, n, 'Who does what', 'Ai làm gì');
-  table(s, [hdr('Regime', 'Quy định'), hdr('A.R.E.N.A.', 'A.R.E.N.A.'), hdr('Supplier', 'Nhà cung cấp'), hdr('Ally / importer', 'Ally / nhà nhập khẩu')], C.ROLE_MATRIX, [1.9, 3.45, 3.49, 3.49], 1.55, { en: 12, vn: 10, boldFirst: true });
+  table(s, [hdr('Regime', 'Quy định'), hdr('A.R.E.N.A. (supporting)', 'A.R.E.N.A. (hỗ trợ)'), hdr('Supplier', 'Nhà cung cấp'), hdr('Ally / importer', 'Ally / nhà nhập khẩu')], C.ROLE_MATRIX, [1.9, 3.45, 3.49, 3.49], 1.55, { en: 12, vn: 10, boldFirst: true });
   s.addText(biRuns([C.ROLE_NOTE], { en: 10, vn: 9 }), { x: 0.5, y: 6.45, w: 12.33, h: 0.5, fontFace: F, margin: 0 });
 }
 

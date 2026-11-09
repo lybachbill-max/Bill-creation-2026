@@ -48,11 +48,17 @@ const SCOPE = [
 ];
 
 // ---------------------------------------------------------------- 2. Position
+const POSITION_HEADLINE = b('A.R.E.N.A. role: SUPPORTING sourcing office',
+  'Vai trò của A.R.E.N.A.: văn phòng tìm nguồn hàng HỖ TRỢ');
 const POSITION = [
-  b('A.R.E.N.A. is a pure sourcing office. It is not a party to the sale: contracts, invoices and payments run directly between the Supplier and the Ally.',
-    'A.R.E.N.A. là văn phòng tìm nguồn hàng thuần túy, không phải một bên của giao dịch: hợp đồng, hóa đơn và thanh toán diễn ra trực tiếp giữa Nhà cung cấp và Ally.'),
-  b('A.R.E.N.A. is never the manufacturer, importer, Operator, trader, CBAM declarant, registrant or payer.',
-    'A.R.E.N.A. không bao giờ là nhà sản xuất, nhà nhập khẩu, Operator, trader, người khai CBAM, người đăng ký hay người nộp tiền.'),
+  b('A.R.E.N.A. plays a supporting role: it connects Asian suppliers with retail Allies and supports sourcing, quality and communication between them.',
+    'A.R.E.N.A. giữ vai trò hỗ trợ: kết nối nhà cung cấp châu Á với các Ally bán lẻ và hỗ trợ tìm nguồn, chất lượng và trao đổi thông tin giữa hai bên.'),
+  b('It is not a party to the sale: contracts, invoices and payments run directly between the Supplier and the Ally.',
+    'A.R.E.N.A. không phải một bên của giao dịch: hợp đồng, hóa đơn và thanh toán diễn ra trực tiếp giữa Nhà cung cấp và Ally.'),
+  b('Supporting never means a regulatory role: A.R.E.N.A. is never the manufacturer, importer, Operator, trader, CBAM declarant, registrant or payer. Legal obligations and liability stay with the Supplier and the Ally.',
+    'Hỗ trợ không có nghĩa là có vai trò pháp lý: A.R.E.N.A. không bao giờ là nhà sản xuất, nhà nhập khẩu, Operator, trader, người khai CBAM, người đăng ký hay người nộp tiền. Nghĩa vụ và trách nhiệm pháp lý thuộc về Nhà cung cấp và Ally.'),
+  b('Within that supporting role: EUDR — no regulatory task (EUDR data run directly between Supplier and Ally). CBAM — drafts only, on written Ally request, case by case.',
+    'Trong vai trò hỗ trợ đó: EUDR — không có nhiệm vụ pháp lý (dữ liệu EUDR trao đổi trực tiếp giữa Nhà cung cấp và Ally). CBAM — chỉ soạn dự thảo, khi Ally yêu cầu bằng văn bản, từng trường hợp.'),
 ];
 
 // Role matrix rows: [Regime, A.R.E.N.A., Supplier, Ally / importer]
@@ -281,7 +287,7 @@ const SOURCES = [
 ];
 
 module.exports = {
-  META, PURPOSE, SCOPE, POSITION, ROLE_MATRIX, ROLE_NOTE,
+  META, PURPOSE, SCOPE, POSITION_HEADLINE, POSITION, ROLE_MATRIX, ROLE_NOTE,
   EUDR_STATUS, EUDR_COMMODITIES, EUDR_OPERATOR_DUTIES, EUDR_ARENA_RULES,
   CBAM_STATUS, CBAM_CN, CBAM_CN_NOTE, CBAM_MARKETS, CBAM_DECLARANT_DUTIES,
   CBAM_WORKFLOW, CBAM_SUPPLIER_DATA, CBAM_ARENA_RULES,

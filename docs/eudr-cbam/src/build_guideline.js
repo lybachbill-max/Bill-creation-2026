@@ -109,10 +109,11 @@ const body = [
   ...heading(H('1.1 Purpose', '1.1 Mục đích'), 2), ...biList(C.PURPOSE),
   ...heading(H('1.2 Scope', '1.2 Phạm vi'), 2), ...biList(C.SCOPE),
 
-  ...heading(H('2. A.R.E.N.A. position and role matrix', '2. Vị trí của A.R.E.N.A. và ma trận vai trò')),
+  ...heading(H('2. A.R.E.N.A. supporting role and role matrix', '2. Vai trò hỗ trợ của A.R.E.N.A. và ma trận vai trò')),
+  callout(C.POSITION_HEADLINE, BLUE),
   ...biList(C.POSITION),
-  callout(H('Rule: EUDR — no A.R.E.N.A. role. CBAM — drafts only, on written Ally request, case by case.', 'Quy tắc: EUDR — A.R.E.N.A. không có vai trò. CBAM — chỉ soạn dự thảo, khi Ally yêu cầu bằng văn bản, từng trường hợp.')),
-  table([H('Regime', 'Quy định'), H('A.R.E.N.A.', 'A.R.E.N.A.'), H('Supplier', 'Nhà cung cấp'), H('Ally / importer', 'Ally / nhà nhập khẩu')], C.ROLE_MATRIX, [0.14, 0.28, 0.29, 0.29]),
+  callout(H('Rule: supporting office overall. EUDR — no regulatory role. CBAM — drafts only, on written Ally request, case by case.', 'Quy tắc: văn phòng hỗ trợ. EUDR — không có vai trò pháp lý. CBAM — chỉ soạn dự thảo, khi Ally yêu cầu bằng văn bản, từng trường hợp.')),
+  table([H('Regime', 'Quy định'), H('A.R.E.N.A. (supporting office)', 'A.R.E.N.A. (văn phòng hỗ trợ)'), H('Supplier', 'Nhà cung cấp'), H('Ally / importer', 'Ally / nhà nhập khẩu')], C.ROLE_MATRIX, [0.14, 0.28, 0.29, 0.29]),
   ...note(C.ROLE_NOTE),
 
   ...heading(H('3. EUDR — EU requirements', '3. EUDR — Yêu cầu của EU')),
