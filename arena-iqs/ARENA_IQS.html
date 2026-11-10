@@ -2466,6 +2466,7 @@ function friSetF(i, key, val){
 }
 function friAddFinding(pre){
   const f = Object.assign({ ref:'', type:'F', cp:'', sev:'Major', pattern:'', title:'', action:'', resp:'QC', status:'Open' }, pre || {});
+  if (f.title && (friCur.source || (friCur.docs || []).length)) friLinkRefs(friCur, f);
   friCur.findings.push(f); friRenumber(); friDirty = true; friRenderFindings(); friRefreshDerived();
 }
 function friDelFinding(i){ friCur.findings.splice(i,1); friRenumber(); friDirty = true; friRenderFindings(); friRefreshDerived(); }
@@ -2741,7 +2742,9 @@ function friRenderFindings(){
     <td><textarea class="fc" onchange="friSetF(${i},'action',this.value)">${friE(f.action)}</textarea></td>
     <td><select class="fc" onchange="friSetF(${i},'resp',this.value)">${FRI_RESP.map(r => `<option${r===f.resp?' selected':''}>${r}</option>`).join('')}</select></td>
     <td><select class="fc" onchange="friSetF(${i},'status',this.value);friRenderFindings()">${['Open','Closed'].map(s => `<option${s===f.status?' selected':''}>${s}</option>`).join('')}</select></td>
-    <td><button class="btn btn-tx" title="Remove" onclick="friDelFinding(${i})">✕</button></td></tr>`).join('')}</tbody></table></div>`;
+    <td><button class="btn btn-tx" title="Remove" onclick="friDelFinding(${i})">✕</button></td></tr>
+    <tr style="${f.status==='Closed'?'opacity:.55':''}"><td></td><td colspan="9" style="padding-top:0;background:#FCFCFD"><div class="fri-note" style="margin-bottom:4px">Evidence / reference</div>${friEvHtml(f, i)}</td></tr>`).join('')}</tbody></table></div>`;
+  friHydrateImgs(el);
 }
 function friRefreshDerived(){
   if (!friCur) return;
@@ -2772,8 +2775,9 @@ function friRefreshDerived(){
 }
 
 // ── Print (validation assessment summary) ──
-function friPrint(){
+async function friPrint(){
   if (!friCur) return;
+  const evImgs = {}; for (const f of friCur.findings) evImgs[f.ref] = await friFindingImages(f, 4);
   const v = friCur, c = friCompute(v), aq = friAqlCheck(v);
   const meta = [['Validation ref', (v.ref||'(not saved)') + (v.rev?` · Rev.${v.rev}`:'')],['Ally',v.ally],['P.O. · lot',`${v.po} · ${v.lot}`],['Supplier',v.sup],['Department / product',`${v.dept} / ${v.pf}`],
     ['FRI report no. / date',`${v.reportNo||'—'} / ${v.inspDate||'—'}`],['Inspection body / inspector',`${v.inspBody||'—'} / ${v.inspector||'—'}`],['Basis',v.basis?`${v.basis} (${v.basisStatus})`:'No ARENA FRI Standard for this category / P.O.'],['Validator / date',`${v.validator} / ${v.valDate}`]];
@@ -2791,6 +2795,10 @@ function friPrint(){
     <table><thead><tr><th>Ref</th><th>CP / ID</th><th>Severity</th><th>What is wrong</th><th>Required action</th><th>Responsibility</th><th>Status</th></tr></thead><tbody>
       ${F.length ? F.map(f => `<tr><td>${friE(f.ref)}</td><td>${friE(f.cp)}</td><td>${friE(f.sev)}</td><td>${friE(f.title)}</td><td>${friE(f.action)}</td><td>${friE(f.resp)}</td><td>${friE(f.status)}</td></tr>`).join('') : '<tr><td colspan="7" style="text-align:center">No finding</td></tr>'}</tbody></table>
     ${F.some(f => f.type==='NC') ? '' : '<p style="font-size:9pt">No product nonconformance identified — report findings only.</p>'}
+    ${F.length ? `<h3 style="color:#F4811F">Evidence per finding</h3>${F.map(f => `<div style="page-break-inside:avoid;margin-bottom:8pt;border-bottom:0.5pt solid #ddd;padding-bottom:6pt"><b>${friE(f.ref)} (${friE(f.cp)}, ${friE(f.sev)})</b> ${friE(f.title)}
+      ${(f.refs||[]).filter(r => r.kind!=='photo').map(r => `<div style="font-size:8.5pt;color:#444">${r.kind==='master'?'Master file':friE(r.label)}: “${friE(r.excerpt)}”</div>`).join('')}
+      <div style="display:flex;gap:6pt;flex-wrap:wrap;margin-top:4pt">${(evImgs[f.ref]||[]).map(im => `<div style="width:150pt;font-size:7.5pt"><img src="${im.url}" style="width:150pt;max-height:115pt;object-fit:contain;border:0.5pt solid #ccc"/><div>${friE(im.label)}</div></div>`).join('')}</div>
+      ${(f.refs||[]).some(r => r.kind==='photo' && !r.doc) ? '' : '<div style="font-size:8.5pt;font-style:italic">Reference photo: none available in the report.</div>'}</div>`).join('')}` : ''}
     <h3 style="color:#F4811F">AQL verification</h3>
     <table><tbody>${aq.rows.map(r => `<tr><td style="width:35%">${friE(r[0])}</td><td>${friE(r[1])} ${friE(r[2])}</td></tr>`).join('')}</tbody></table>
     ${v.notes ? `<h3 style="color:#F4811F">Notes / containment</h3><p style="font-size:9pt;white-space:pre-wrap">${friE(v.notes)}</p>` : ''}
@@ -2805,11 +2813,11 @@ function friExport(){
   if (!FRI_DB.length) { alert('The register is empty.'); return; }
   const wb = XLSX.utils.book_new();
   const reg = [['Validation ref','Rev','Status','P.O.','Lot','Ally','Supplier','Dept','Product family','FRI report no.','Inspection date','Inspection body','Inspector','Basis','Basis status','Critical','Major','Minor','NC-','RG-','OB-','Report verdict','Shipment status','Coverage %','Conformity %','Evidence %','Validator','Validation date','Updated']];
-  const fnd = [['Validation ref','Rev','P.O.','Lot','Ref','Type','CP / Req ID','Severity / grade','Pattern #','What is wrong','Required action','Responsibility','Status']];
+  const fnd = [['Validation ref','Rev','P.O.','Lot','Ref','Type','CP / Req ID','Severity / grade','Pattern #','What is wrong','Required action','Responsibility','Status','Evidence / reference']];
   const cpm = [['Validation ref','Rev','P.O.','Lot','CP','Checkpoint','Requirement source','What the report shows','Verdict']];
   FRI_DB.forEach(v => { const c = friCompute(v);
     reg.push([v.ref,v.rev||0,v.status,v.po,v.lot,v.ally,v.sup,v.dept,v.pf,v.reportNo,v.inspDate,v.inspBody,v.inspector,v.basis,v.basisStatus,c.cr,c.ma,c.mi,c.nc,c.rg,c.ob,c.verdict,c.ship,c.cov??'',c.conf??'',c.evid??'',v.validator,v.valDate,v.updated]);
-    v.findings.forEach(f => fnd.push([v.ref,v.rev||0,v.po,v.lot,f.ref,f.type,f.cp,f.sev,f.pattern,f.title,f.action,f.resp,f.status]));
+    v.findings.forEach(f => fnd.push([v.ref,v.rev||0,v.po,v.lot,f.ref,f.type,f.cp,f.sev,f.pattern,f.title,f.action,f.resp,f.status,(f.refs||[]).map(r => r.kind==='photo' ? r.label : `${r.kind==='master'?'Master file':r.label}: ${r.excerpt}`).join(' | ') + ((f.refs||[]).some(r => r.kind==='photo' && !r.doc) ? '' : ' | Reference photo: none available in the report.')]));
     v.cps.forEach((r,i) => cpm.push([v.ref,v.rev||0,v.po,v.lot,r.cp,FRI_CPS[i][1],r.src,r.shows,r.verdict])); });
   const add = (rows, name, widths) => { const ws = XLSX.utils.aoa_to_sheet(rows); ws['!cols'] = widths.map(w => ({wch:w})); XLSX.utils.book_append_sheet(wb, ws, name); };
   add(reg,'Register',[26,4,8,16,8,12,22,10,18,14,12,16,14,24,10,8,8,8,6,6,6,40,24,10,10,10,12,12,16]);
@@ -2933,7 +2941,10 @@ async function friImportAny(inp){
       msg(''); alert('Old Word 97–2003 (.doc) files cannot be read in the browser. Open the report in Word and save it as .docx (or PDF), then import it.'); return;
     } else { msg(''); alert('Import accepts Word (.docx), Excel (.xlsx, .xls, .csv) or PDF (.pdf).'); return; }
     if (!text.replace(/[\s|]/g, '').length) { msg(''); alert(`No text could be read from ${f.name}${kind==='PDF'?' — it may be a scanned PDF (image only). Ask the inspection body for the original .docx or a text PDF.':'.'}`); return; }
-    friStartFromReport(f.name, kind, f.size, text, photos);
+    let imgs = [];
+    if (!['xls','csv'].includes(ext)) imgs = await friExtractImages(f, 'S' + Date.now(), { onProgress: n => msg(`Extracting photos from ${friE(f.name)}… ${n}`) });
+    if (kind === 'Excel' && imgs.length) photos = imgs.length;
+    friStartFromReport(f.name, kind, f.size, text, photos, imgs);
     msg('');
   } catch(err) { msg(''); alert(`Import failed (${f.name}): ${err.message}`); }
 }
@@ -2993,7 +3004,7 @@ function friParseReport(text){
   m = flat.match(/(?:Overall\s*(?:inspection\s*)?result|Final\s*result|Conclusion|Inspection\s*result)\s*(?:[:：]|\|)?(?:\s*\|)?\s*(Pass(?:ed)?|Fail(?:ed)?|Pending|On\s*hold|Accept(?:ed)?|Reject(?:ed)?)/i); pick('overall', 'Overall result in report', m, m && m[1], false);
   return found;
 }
-function friStartFromReport(name, kind, size, text, photos){
+function friStartFromReport(name, kind, size, text, photos, imgs){
   if (friDirty && !confirm('Discard the unsaved changes in the workbench?')) return;
   const found = friParseReport(text);
   const keep = (friCur && !friCur.source && (friCur.docs || []).length) ? friCur : null;   // documents uploaded first → attach the report to that validation
@@ -3009,7 +3020,7 @@ function friStartFromReport(name, kind, size, text, photos){
     const p = f.key.split('.'); if (p.length === 2) friCur[p[0]][p[1]] = f.value; else friCur[f.key] = f.value; });
   if (photos !== null) friCur.photos = photos > 0 ? 'Original report with photos' : 'Text / PDF export without photos';
   const ov = get('overall');
-  friCur.source = { name, kind, size, photos, read: found.map(f => ({ label:f.label, value:f.value, snippet:f.snippet })), text: text.slice(0, 20000), at: new Date().toISOString().slice(0,16).replace('T',' ') };
+  friCur.source = { name, kind, size, photos, imgs: imgs || [], read: found.map(f => ({ label:f.label, value:f.value, snippet:f.snippet })), text: text.slice(0, 20000), at: new Date().toISOString().slice(0,16).replace('T',' ') };
   friCur.notes = `Imported from ${name} (${kind}${photos!==null?`, ${photos} embedded image(s)`:''}) on ${friCur.source.at}.${ov ? ` Report overall result: ${ov.value}.` : ''} Check every pre-filled field against the report.`;
   friTab('wb'); friApplyPre(true);
   const nAuto = friCur.findings.filter(f => f.auto).length;
@@ -3055,7 +3066,7 @@ function _friCrc(u8){ let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c 
 function friZip(files){ // files: [[name, string]]
   const enc = new TextEncoder(), parts = [], cen = []; let off = 0;
   files.forEach(([name, str]) => {
-    const data = enc.encode(str), nm = enc.encode(name), crc = _friCrc(data);
+    const data = typeof str === 'string' ? enc.encode(str) : str, nm = enc.encode(name), crc = _friCrc(data);
     const lh = new DataView(new ArrayBuffer(30));
     lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true);
     lh.setUint32(14, crc, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, nm.length, true);
@@ -3083,17 +3094,23 @@ function friTbl(head, rows, widths){
     ${head ? `<w:tr><w:trPr><w:tblHeader/></w:trPr>${head.map((h, i) => cell(h, widths[i], true)).join('')}</w:tr>` : ''}
     ${rows.map((r, ri) => `<w:tr>${r.map((c, i) => cell(c, widths[i], false, sevFill(c) || (ri % 2 ? 'EEEEEE' : ''))).join('')}</w:tr>`).join('')}</w:tbl>${friP('', { before:0, after:0 })}`;
 }
-function friDocx(bodyXml, landscape){
+function friDocxImg(rid, id, w, h){ const cx = Math.round(2.2 * 914400), cy = Math.round(cx * (h || 3) / (w || 4));
+  return `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${id}" name="Picture ${id}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${id}" name="img${id}.jpeg"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r><w:r><w:t xml:space="preserve">  </w:t></w:r>`; }
+function friB64(u){ const s = atob(u.split(',')[1]), a = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; }
+function friDocx(bodyXml, landscape, media){
+  media = media || [];
   const pg = landscape ? '<w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>' : '<w:pgSz w:w="11906" w:h="16838"/>';
-  const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${bodyXml}<w:sectPr>${pg}<w:pgMar w:top="850" w:right="850" w:bottom="850" w:left="850" w:header="425" w:footer="425" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><w:body>${bodyXml}<w:sectPr>${pg}<w:pgMar w:top="850" w:right="850" w:bottom="850" w:left="850" w:header="425" w:footer="425" w:gutter="0"/></w:sectPr></w:body></w:document>`;
   return friZip([
-    ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'],
+    ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpeg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'],
     ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'],
     ['word/document.xml', doc],
+    ['word/_rels/document.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${media.map(m => `<Relationship Id="${m.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${m.name}"/>`).join('')}</Relationships>`],
+    ...media.map(m => ['word/media/' + m.name, m.data]),
   ]);
 }
 function friDownload(blob, name){ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
-function friExportDocx(){
+async function friExportDocx(){
   const W = 10206; // A4 portrait text width (twips) with 1.5 cm margins
   if (friCur && friCur.po && g('fri-pane-wb')?.classList.contains('on')) {
     const v = friCur, c = friCompute(v), aq = friAqlCheck(v);
@@ -3118,13 +3135,25 @@ function friExportDocx(){
     if (RO.length) { b += friH('4. Requirement gaps (RG-) and observations (OB-)'); b += friTbl(['Ref', 'CP / ID', 'Description', 'Action', 'Owner', 'Status'], RO.map(f => [f.ref, f.cp, f.title, f.action, f.resp, f.status]), [700, 1200, 3600, 2806, 1200, 700]); }
     if ((v.docs || []).length) { b += friH('Requirement documents'); b += friTbl(['Type', 'File', 'Read'], v.docs.map(d => [FRI_DOC_LABEL[d.type] || d.type, d.name, d.std ? `${d.std.basis} · ${d.std.mand.length} mandatory IDs` : d.gtins.length ? 'GTIN ' + d.gtins.slice(0,4).join(', ') : d.kind]), [2600, 4806, 2800]); }
     { const rc = friReconcile(v); if (rc.rows.length) { b += friH('P.O. reconciliation (master file × report × documents)'); b += friTbl(['Check', 'Master file', 'FRI report', 'Documents', 'Result'], rc.rows.map(x => [x.check, String(x.master), String(x.report), String(x.doc), (x.res === 'ok' ? 'OK' : x.res === 'diff' ? 'Check' : '—') + (x.note ? ' — ' + x.note : '')]), [2200, 2100, 2100, 1806, 2000]); } }
+    { const media = []; let ev = '';
+      for (const f of v.findings) {
+        ev += friP(`${f.ref} (${f.cp}, ${f.sev}) — ${f.title}`, { b:true, keep:true, before:140 });
+        (f.refs || []).filter(r => r.kind !== 'photo').forEach(r => { ev += friP(`${r.kind === 'master' ? 'Master file' : r.label}: “${r.excerpt}”`, { sz:16, color:'444444', before:0, after:20 }); });
+        const ims = await friFindingImages(f, 4);
+        if (ims.length) { ev += '<w:p>' + ims.map(im => { const k = media.length + 1; media.push({ rid:'rIdImg' + k, name:`ev${k}.jpeg`, data: friB64(im.url) }); return friDocxImg('rIdImg' + k, 100 + k, im.w, im.h); }).join('') + '</w:p>';
+          ev += friP(ims.map(im => im.label).join('  |  '), { sz:14, color:'707070', before:0 }); }
+        if (!(f.refs || []).some(r => r.kind === 'photo' && !r.doc)) ev += friP('Reference photo: none available in the report.', { sz:16, color:'707070', before:0 });
+      }
+      if (v.findings.length) { b += friH('Evidence per finding'); b += ev; }
+      v._media = media; }
     b += friH('5. AQL verification');
     b += friTbl(null, aq.rows.map(r => [r[0], `${r[1]}${r[2] ? '  (' + r[2] + ')' : ''}`]), [3000, W - 3000]);
     b += friP('Source: ISO 2859-1 Tables 1 and 2-A (normal, single sampling).', { sz:15, color:'707070' });
     if (v.notes) { b += friH('6. Notes / containment record'); b += friP(v.notes); }
     b += friH('Sign-off');
     b += friTbl(['Validated by', 'QS Manager', 'Date'], [[v.validator, '', ''], ['', '', '']], [3402, 3402, 3402]);
-    friDownload(friDocx(b), `FRI_Validation_${String(v.po).replace(/[^\w\-]+/g, '_')}_${(v.lot || '').replace(/\s+/g, '')}${v.rev ? '_Rev' + v.rev : ''}.docx`);
+    const media = v._media || []; delete v._media;
+    friDownload(friDocx(b, false, media), `FRI_Validation_${String(v.po).replace(/[^\w\-]+/g, '_')}_${(v.lot || '').replace(/\s+/g, '')}${v.rev ? '_Rev' + v.rev : ''}.docx`);
     return;
   }
   if (!FRI_DB.length) { alert('The register is empty.'); return; }
@@ -3234,6 +3263,8 @@ function friPreValidate(v){
   // ── CP10: acknowledgement ──
   if (!out.cps.CP10.ev.length) { add({ cp:'CP10', sev:'Major', evid:true, title:'No close-meeting record / supplier acknowledgement signature.', action:'Attach the signed close-meeting acknowledgement.' }); cpIssue('CP10', 'gap'); }
 
+  // ── same photo file reused under another caption (pattern #17) ──
+  friDupPhotos(s.imgs).forEach(a => add({ pattern:17, cp:'CP9', sev:'Minor', title:`Same photo file ${a[0].media} used under ${a.length} different captions (${[...new Set(a.map(x => x.cap.slice(0,40)))].join(' / ')}).`, action:'Replace the reused photo with the photo of each check.', refs: a.slice(0,3).map(im => ({ kind:'photo', src:'dup', key: im.key, w: im.w, h: im.h, label:`Report photo ${im.n} — ${im.cap.slice(0,80)}` })) }));
   // ── P.O. reconciliation with the master file and the uploaded documents (Step 3d) ──
   friReconcile(v).issues.forEach(x => { add(Object.assign({}, x)); if (x.cp && out.cps[x.cp] && (x.type === 'F' || x.type === 'NC')) cpIssue(x.cp, x.type === 'NC' ? 'nc' : 'gap'); });
   // ── ARENA FRI Standard checklist (Step 3e): coverage = mandatory IDs found in the report ──
@@ -3271,6 +3302,7 @@ function friApplyPre(silent){
   friCur.findings = friCur.findings.filter(f => !(f.auto && f.status !== 'Closed'));
   const have = new Set(friCur.findings.map(f => f.title));
   pre.findings.forEach(f => { if (!have.has(f.title)) friCur.findings.push(f); });
+  friCur.findings.forEach(f => { if (f.auto) friLinkRefs(friCur, f); });
   friRenumber(); friCur.preAt = new Date().toISOString().slice(0,16).replace('T',' '); friDirty = true;
   friRenderWorkbench();
   if (!silent) { const m = g('fri-save-msg'); if (m) m.textContent = `Pre-validation: ${pre.findings.length} finding(s) extracted — review each "auto" item.`; }
@@ -3347,6 +3379,7 @@ async function friDocUpload(inp){
           if (s.basis && !friCur.basis) friCur.basis = s.basis;
           if (s.status) friCur.basisStatus = s.status; else if (friCur.basisStatus === 'None') friCur.basisStatus = 'Released'; }
       }
+      d.imgs = await friExtractImages(f, d.id, { maxImgs:24, maxPages:6 });
       d.stored = await friIdbPut(d.id, f);
       friCur.docs.push(d); n++;
     } catch(e) { alert(`Could not read ${f.name}: ${e.message}`); }
@@ -3402,6 +3435,7 @@ function friReconcile(v){
   const has = (t, s) => !!s && t.includes(String(s).toLowerCase().trim());
   const row = (check, master, report, doc, res, note) => out.rows.push({ check, master: master ?? '—', report: report ?? '—', doc: doc ?? '—', res, note: note || '' });
   const issue = x => out.issues.push(Object.assign({ type:'F', status:'Open', resp:'QC' }, x));
+  const mref = t => ({ kind:'master', src:'master', label:'Master file', excerpt: t });
   if (!fu) { row('P.O. in master file', 'not found', v.po, '', 'diff', 'Load the current master file, or check the P.O. number.'); return out; }
   const n = x => (x === '' || x == null || isNaN(+x)) ? null : +x;
   // Ally / supplier
@@ -3423,7 +3457,7 @@ function friReconcile(v){
     const eanArt = !artDocs.length ? null : !artG.length ? 'unreadable' : (gt.length ? gt.every(x => artG.includes(x)) : null);
     out.items.push({ code, desc: it.desc, ean: it.ean, itf: it.logCode, brand: it.brand, qty: it.qty, inRep, eanArt, brandRep: it.brand ? has(repN, it.brand) : null });
     if (rep && !inRep) issue({ cp:'CP1', sev:'Major', title:`P.O. line ${code || it.ean} (${(it.desc || '').slice(0, 40)}) not found in the FRI report — no inspection record for this code.`, action:'Inspect / report every P.O. line; each code needs its own FRI record.' });
-    if (eanArt === false) issue({ type:'NC', sev:'High', resp:'QS + Compliance Director', cp:'CP3', title:`Artwork GTIN does not match the P.O. for ${code || it.desc} (P.O.: ${gt.join(' / ')}; artwork: ${artG.slice(0,3).join(', ')}).`, action:'SRC blocked: confirm the released artwork and the barcode printed on the goods; relabel if wrong.' });
+    if (eanArt === false) issue({ type:'OB', sev:'—', resp:'QS', cp:'CP3', title:`GTIN ${gt.join(' / ')} of ${code || it.desc} not found in the uploaded artwork files (artwork GTINs read: ${artG.slice(0,3).join(', ')}).`, action:'Upload the released artwork of this item, or confirm its barcode visually.' });
     if (rep && it.brand && !has(repN, it.brand)) issue({ cp:'CP3', sev:'Minor', title:`Brand "${it.brand}" (master file) not mentioned in the report for ${code || it.desc}.`, action:'Record the brand checked on product / packaging.' });
   });
   if (items.length) {
@@ -3456,6 +3490,12 @@ function friReconcile(v){
   if (fu.srcDate || fu.srcIssued) { row('SRC in master file', fu.srcDate || 'issued', '', '', 'diff', 'lot already released');
     issue({ type:'OB', sev:'—', resp:'QS', cp:'CP9', title:`SRC already dated ${fu.srcDate || ''} in the master file — lot released before this validation.`, action:'If an NC- is found, check containment / read-across on the shipped goods.' }); }
   if (fu.status && fu.status !== 'Open') row('P.O. status', fu.status, '', '', 'diff', fu.status === 'Done' ? 'shipped' : '');
+  // master-file reference data for every reconciliation issue
+  const fuLine = `Order Fulfill — P.O. ${fu.po} · ${fu.lot || v.lot} · Ally ${fu.allyRaw || fu.ally || '—'} · supplier ${fu.sup || '—'} · P.O. qty ${fu.qty ?? '—'} · inspection ${fu.insp || '—'} ${fu.inspActual ? String(fu.inspActual).slice(0,10) : ''} ${fu.inspCompany || ''} · ETD ${fu.realEtd || fu.etd || '—'} · gates tech docs ${fu.techDocs || '—'} / golden sample ${fu.goldenSample || '—'} / artwork ${fu.artwork || '—'}${fu.srcDate ? ' · SRC ' + fu.srcDate : ''}`;
+  out.issues.forEach(x => { x.refs = x.refs || [];
+    const it = items.find(i => [i.allyRef, i.supRef, i.ean, i.logCode].filter(Boolean).some(k => x.title.includes(String(k))));
+    if (it) x.refs.push(mref(`Orders Data — ${it.allyRef || it.supRef || ''} · ${it.desc || ''} · EAN ${it.ean || '—'} · ITF ${it.logCode || '—'} · brand ${it.brand || '—'} · qty ${it.qty ?? '—'}`));
+    x.refs.push(mref(fuLine)); });
   return out;
 }
 function friReconPanel(){
@@ -3473,6 +3513,210 @@ function friReconPanel(){
     ${r.issues.length ? `<div style="margin-top:8px">${r.issues.map(x => `<div style="display:flex;gap:8px;align-items:center;margin-top:5px;font-size:12px"><span class="tag ${x.type==='NC'?'t-r':x.type==='RG'?'t-p':x.type==='OB'?'t-gray':x.sev==='Major'?'t-o':'t-gray'}">${x.type==='F'?x.sev:x.type+'-'}</span><span style="flex:1">${friE(x.title)}</span>
         ${titles.has(x.title) ? '<span class="fri-note">logged</span>' : `<button class="btn btn-d btn-sm" onclick='friAddFinding(${JSON.stringify(x).replace(/'/g,"&#39;")})'>+ Add</button>`}</div>`).join('')}</div>` : ''}
   </div>`;
+}
+
+</script>
+<script>
+// ═════════════ FRI VALIDATION — evidence: report photos, report text, master data, document pictures per finding ═════════════
+// Step 2b (photo index with captions) + Step 7 (reference photos under each finding; "Reference photo: none available in the report."
+// when none matches — never an unrelated image). Pictures are stored as JPEG thumbnails in IndexedDB; validations keep only the index.
+const _friImgCache = {};
+async function friImgGet(key){ if (_friImgCache[key]) return _friImgCache[key]; const v = await friIdbGet(key); if (typeof v === 'string') _friImgCache[key] = v; return typeof v === 'string' ? v : null; }
+async function friImgPut(key, url){ _friImgCache[key] = url; await friIdbPut(key, url); }
+const FRI_MIME = { jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif', bmp:'image/bmp', webp:'image/webp' };
+async function friToThumb(blob, max){
+  max = max || 720;
+  try { const bm = await createImageBitmap(blob); const s = Math.min(1, max / Math.max(bm.width, bm.height)); const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(bm.width * s)); c.height = Math.max(1, Math.round(bm.height * s));
+    const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(bm, 0, 0, c.width, c.height);
+    return { url: c.toDataURL('image/jpeg', .78), w: c.width, h: c.height }; } catch(e) { return null; }
+}
+function friRels(xml){ const m = {}; (xml.match(/<Relationship\b[^>]*>/g) || []).forEach(t => { const id = (t.match(/\bId="([^"]+)"/) || [])[1], tg = (t.match(/\bTarget="([^"]+)"/) || [])[1]; if (id && tg) m[id] = tg; }); return m; }
+function friJoin(base, rel){ const p = base.split('/'); p.pop(); rel.split('/').forEach(s => { if (s === '..') p.pop(); else if (s && s !== '.') p.push(s); }); return p.join('/'); }
+
+// Extract pictures from a Word / Excel / PDF / image file → [{n, media, cap, ctx, key, w, h}]
+async function friExtractImages(f, prefix, opt){
+  opt = Object.assign({ maxImgs:150, maxPages:30, onProgress:null }, opt || {});
+  const ext = (f.name.split('.').pop() || '').toLowerCase(), out = [];
+  const put = async (blob, meta) => { if (out.length >= opt.maxImgs) return; const t = await friToThumb(blob); if (!t) return; const key = `img:${prefix}:${out.length}`; await friImgPut(key, t.url); out.push(Object.assign({ key, w: t.w, h: t.h }, meta)); if (opt.onProgress) opt.onProgress(out.length); };
+  try {
+    if (FRI_MIME[ext]) { await put(f, { n: f.name, media: f.name, cap: f.name, ctx: f.name }); return out; }
+    if (ext === 'docx' || ext === 'docm') {
+      const z = await friUnzip(await f.arrayBuffer());
+      const rels = friRels(new TextDecoder().decode(await z.read('word/_rels/document.xml.rels') || new Uint8Array()));
+      const xml = new TextDecoder().decode(await z.read('word/document.xml'));
+      const paras = xml.match(/<w:p[ >][\s\S]*?<\/w:p>/g) || [];
+      const txt = paras.map(p => friXmlText(p).replace(/[|\s]+/g, ' ').trim());
+      const near = (i, d) => { for (let k = 1; k <= 3; k++) { const j = i + d * k; if (j < 0 || j >= txt.length) break; if (txt[j]) return txt[j]; } return ''; };
+      for (let i = 0; i < paras.length && out.length < opt.maxImgs; i++) {
+        const ids = [...paras[i].matchAll(/r:(?:embed|id)="(rId\d+)"/g)].map(m => m[1]).filter(id => /media\//.test(rels[id] || ''));
+        for (const id of ids) {
+          const name = 'word/' + rels[id].replace(/^\/?word\//, ''), e2 = (name.split('.').pop() || '').toLowerCase();
+          if (!FRI_MIME[e2]) continue;
+          const bytes = await z.read(name); if (!bytes) continue;
+          const own = txt[i], before = near(i, -1), after = near(i, 1);
+          await put(new Blob([bytes], { type: FRI_MIME[e2] }), { n: name.split('/').pop().replace(/\.\w+$/, ''), media: name.split('/').pop(), cap: own || after || before || '(no caption)', ctx: [before, own, after].filter(Boolean).join(' · ') });
+        }
+      }
+      return out;
+    }
+    if (['xlsx','xlsm'].includes(ext)) {
+      const buf = await f.arrayBuffer(), z = await friUnzip(buf), wb = XLSX.read(new Uint8Array(buf), { type:'array' });
+      const wbx = new TextDecoder().decode(await z.read('xl/workbook.xml')), wrels = friRels(new TextDecoder().decode(await z.read('xl/_rels/workbook.xml.rels')));
+      const sheets = [...wbx.matchAll(/<sheet\b[^>]*name="([^"]+)"[^>]*r:id="([^"]+)"/g)].map(m => ({ name: m[1], path: friJoin('xl/workbook.xml', wrels[m[2]] || '') }));
+      for (const sh of sheets) {
+        const sr = await z.read(sh.path.replace(/([^/]+)$/, '_rels/$1.rels')); if (!sr) continue;
+        const srels = friRels(new TextDecoder().decode(sr));
+        for (const tg of Object.values(srels).filter(t => /drawings\/drawing/.test(t))) {
+          const dpath = friJoin(sh.path, tg), dx = await z.read(dpath); if (!dx) continue;
+          const drels = friRels(new TextDecoder().decode(await z.read(dpath.replace(/([^/]+)$/, '_rels/$1.rels')) || new Uint8Array()));
+          const ws = wb.Sheets[sh.name] || {}, aoa = ws['!ref'] ? XLSX.utils.sheet_to_json(ws, { header:1, raw:false, defval:'' }) : [];
+          for (const a of (new TextDecoder().decode(dx).match(/<xdr:(?:two|one)CellAnchor[\s\S]*?<\/xdr:(?:two|one)CellAnchor>/g) || [])) {
+            const row = +((a.match(/<xdr:from>[\s\S]*?<xdr:row>(\d+)<\/xdr:row>/) || [])[1] || 0), rid = (a.match(/r:embed="([^"]+)"/) || [])[1];
+            if (!rid || !drels[rid]) continue;
+            const mpath = friJoin(dpath, drels[rid]), e2 = (mpath.split('.').pop() || '').toLowerCase(); if (!FRI_MIME[e2]) continue;
+            const bytes = await z.read(mpath); if (!bytes) continue;
+            const cells = r => (aoa[r] || []).map(c => String(c).trim()).filter(Boolean).join(' · ');
+            const cap = cells(row) || cells(row - 1) || cells(row + 1) || `${sh.name} row ${row + 1}`;
+            await put(new Blob([bytes], { type: FRI_MIME[e2] }), { n: `${sh.name}!R${row + 1}`, media: mpath.split('/').pop(), cap, ctx: [cells(row - 1), cells(row), cells(row + 1)].filter(Boolean).join(' · ') });
+          }
+        }
+      }
+      return out;
+    }
+    if (ext === 'pdf' || ext === 'ai') {
+      const pdfjs = await friLoadPdfJs(), doc = await pdfjs.getDocument({ data: new Uint8Array(await f.arrayBuffer()) }).promise;
+      for (let p = 1; p <= Math.min(doc.numPages, opt.maxPages); p++) {
+        const page = await doc.getPage(p), vp0 = page.getViewport({ scale:1 }), vp = page.getViewport({ scale: Math.min(2, 900 / vp0.width) });
+        const c = document.createElement('canvas'); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+        await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+        const t = (await page.getTextContent()).items.map(i => i.str).join(' ').replace(/\s+/g, ' ').trim();
+        const blob = await new Promise(ok => c.toBlob(ok, 'image/jpeg', .8));
+        await put(blob, { n: `page ${p}`, media: `page ${p}`, cap: t.slice(0, 120) || `page ${p}`, ctx: t.slice(0, 3000) });
+      }
+      return out;
+    }
+  } catch(e) { console.warn('image extraction', f.name, e); }
+  return out;
+}
+
+// ── link evidence to a finding ──
+const FRI_EV_RULES = [
+  [/disposal/i, /disposal|packaging\s*weight|material\s*type|PPWR/i],
+  [/close-meeting|acknowledg|signature/i, /meeting|sign|acknowledg|stamp|representative/i],
+  [/batch|lot\s*code/i, /batch|lot\s*code|date\s*code|production\s*code/i],
+  [/golden|reference\s*sample/i, /golden|reference\s*sample|approved\s*sample|compar/i],
+  [/shipping\s*mark/i, /shipping\s*mark|side\s*mark|main\s*mark|carton\s*mark/i],
+  [/ISPM|pallet/i, /pallet|ISPM|\bHT\b|\bMB\b/i],
+  [/GPSR|identity/i, /GPSR|manufacturer|importer|address|hang\s*card/i],
+  [/brand/i, /brand|logo|hang\s*card/i],
+  [/artwork|print[-\s]*file|GTIN|barcode|EAN|ITF/i, /barcode|scan|EAN|GTIN|ITF|artwork|print\s*file|hang\s*card|sticker/i],
+  [/deviation|weigh|dimension|tolerance/i, /weight|scale|dimension|measur|\bkg\b|\bcm\b|\bmm\b/i],
+  [/test/i, /test|drop|load|torque|hardness|HRC|stability|function|assembly/i],
+  [/AQL|defect|lot\s*size|packed\s*qty|sample\s*size|n\s*inspected|\bAc\b/i, /defect|AQL|sample\s*size|lot\s*size|packed|critical|major|minor/i],
+  [/reviewer|inspector|report\s*number|inspection\s*date|overall\s*result|mandatory\s*field/i, /inspector|reviewer|report\s*no|inspection\s*date|overall\s*result/i],
+  [/expired|document|COPY\s*ONLY/i, /QC\s*Pack|document|certificate|expired|available|copy\s*only/i],
+  [/qty|quantity|P\.O\.\s*line/i, /quantity|qty|carton\s*count|packed/i],
+];
+function friEvRx(f){
+  const t = f.title || '';
+  const tok = [...new Set((t.match(/\b\d{13,14}\b|\b[A-Z]{2,}[-_]?\d{2,}[A-Z0-9-]*\b/g) || []))].map(x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const r = FRI_EV_RULES.find(([k]) => k.test(t));
+  const base = r ? r[1].source : (FRI_CP_KEYS[(f.cp || '').toUpperCase()] || {}).kw?.source || '';
+  return new RegExp([...tok, base].filter(Boolean).join('|') || '$^', 'i');
+}
+function friLinkRefs(v, f){
+  const refs = (f.refs || []).filter(r => r.src !== 'report-auto');
+  const rx = friEvRx(f), src = v.source;
+  if (src && src.text) {
+    const lines = src.text.replace(/\n[ \t]*\|/g, ' |').split('\n').map(l => l.replace(/\s*\|\s*/g, ' | ').replace(/( \| )+/g, ' | ').replace(/^ \| | \| $/g, '').trim()).filter(l => l.replace(/[|\s]/g, '').length > 2);
+    const capOnly = im => (im.cap && im.cap !== '(no caption)') ? im.cap : im.ctx;   // own caption only — neighbours belong to other photos
+    lines.filter(l => rx.test(l) && !(src.imgs || []).some(im => im.cap === l)).slice(0, 2).forEach(l => refs.push({ kind:'data', src:'report-auto', label:'Report text', excerpt: l.slice(0, 200) }));
+    (src.imgs || []).filter(im => rx.test(capOnly(im)) && !refs.some(r => r.key === im.key)).slice(0, 3).forEach(im => refs.push({ kind:'photo', src:'report-auto', key: im.key, w: im.w, h: im.h, label:`Report photo ${im.n} — ${im.cap.slice(0, 90)}` }));
+    if (!refs.some(r => (r.kind === 'data' || r.kind === 'photo') && !r.doc && r.src !== 'master')) {
+      // the finding is an absence: record what was searched and the report's own claim for the checkpoint
+      const cpk = FRI_CP_KEYS[(f.cp || '').toUpperCase()];
+      const claim = cpk ? lines.find(l => friIsSummaryRow(l) && cpk.label.test(l)) : null;
+      if (claim) refs.push({ kind:'data', src:'report-auto', label:'Report claim', excerpt: claim });
+      refs.push({ kind:'data', src:'report-auto', label:'Report checked', excerpt: `No text or photo caption in "${src.name}" matches: ${rx.source.replace(/\\s\*/g, ' ').replace(/\\b|\(\?:|\)|\\/g, '').split('|').slice(0, 6).join(', ')}` });
+    }
+  }
+  const named = (v.docs || []).filter(d => (f.title || '').includes(d.name));   // a finding about one file references that file only
+  (named.length ? named : (v.docs || [])).filter(d => (d.imgs || []).length || d.text).forEach(d => {
+    const hit = (d.text && rx.test(d.text)) || (d.imgs || []).some(im => rx.test(im.cap + ' ' + im.ctx));
+    if (!hit || refs.some(r => r.doc === d.id)) return;
+    if (!/CP3|CP4|CP5|CP7|CP9/.test(f.cp || '') && !(f.title || '').match(/\d{13,14}/)) return;
+    const line = d.text ? (d.text.split('\n').find(l => rx.test(l)) || '').trim().slice(0, 200) : '';
+    if (line) refs.push({ kind:'data', src:'report-auto', doc: d.id, label:`${FRI_DOC_LABEL[d.type] || 'Document'} — ${d.name}`, excerpt: line });
+    const im = (d.imgs || []).find(i => rx.test(i.cap + ' ' + i.ctx)) || (d.type === 'art' && (f.title || '').includes(d.name) ? (d.imgs || [])[0] : null);
+    if (im && refs.some(r => r.key === im.key)) return;
+    if (im) refs.push({ kind:'photo', src:'report-auto', doc: d.id, key: im.key, w: im.w, h: im.h, label:`${d.name} — ${im.n}` });
+  });
+  const seen = new Set(); f.refs = refs.filter(r => { const k = r.key || (r.label + '|' + r.excerpt); if (seen.has(k)) return false; seen.add(k); return true; });
+}
+
+// ── evidence row under each finding ──
+function friEvHtml(f, i){
+  const refs = f.refs || [];
+  const photos = refs.filter(r => r.kind === 'photo'), data = refs.filter(r => r.kind !== 'photo');
+  const repPhoto = photos.some(r => !r.doc);
+  return `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start">
+    ${photos.map(r => `<figure style="margin:0;width:118px"><img class="fri-ev-img" data-k="${friE(r.key)}" style="width:118px;height:88px;object-fit:cover;border-radius:4px;border:1px solid var(--bd);cursor:zoom-in;background:#f5f5f5" onclick="friLightbox('${friE(r.key)}', this.nextElementSibling.textContent)"/><figcaption class="fri-note" style="font-size:10.5px;line-height:1.25;margin-top:2px">${friE(r.label)}</figcaption></figure>`).join('')}
+    <div style="flex:1;min-width:260px;font-size:12px">
+      ${data.map(r => `<div style="margin-bottom:4px"><span class="tag ${r.kind==='master'?'t-teal':r.doc?'t-b':'t-gray'}">${r.kind==='master'?'Master file':r.doc?'Document':'Report text'}</span> ${r.label && r.kind!=='data' ? `<b>${friE(r.label)}</b> ` : r.doc ? `<span class="fri-note">${friE(r.label)}</span> ` : ''}<span style="color:var(--t2)">“${friE(r.excerpt)}”</span></div>`).join('')}
+      ${repPhoto ? '' : '<div class="fri-note" style="font-style:italic">Reference photo: none available in the report.</div>'}
+      ${!refs.length ? '<div class="fri-warn">No reference data linked — add evidence (photo, report text, document) before issuing.</div>' : ''}
+    </div>
+    <button class="btn btn-d btn-sm" onclick="friEvPicker(${i})">＋ evidence</button></div>`;
+}
+async function friHydrateImgs(root){
+  for (const im of (root || document).querySelectorAll('img.fri-ev-img[data-k]')) { if (im.src) continue; const u = await friImgGet(im.dataset.k); if (u) im.src = u; else { im.alt = 'image not stored in this browser'; im.style.background = '#FDEBD0'; } }
+}
+async function friLightbox(key, cap){
+  const u = await friImgGet(key); if (!u) return;
+  let m = g('fri-lightbox'); if (!m) { m = document.createElement('div'); m.id = 'fri-lightbox'; m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;cursor:zoom-out'; m.onclick = () => m.remove(); }
+  m.innerHTML = `<img src="${u}" style="max-width:92vw;max-height:84vh;border-radius:6px;background:#fff"/><div style="color:#fff;font-size:13px;margin-top:10px;max-width:90vw;text-align:center">${friE(cap || '')}</div>`;
+  document.body.appendChild(m);
+}
+
+// ── manual linking (picker) ──
+function friEvPicker(i){
+  const f = friCur.findings[i]; if (!f) return;
+  const pool = [...((friCur.source && friCur.source.imgs) || []).map(im => ({ key: im.key, w: im.w, h: im.h, label:`Report photo ${im.n} — ${im.cap.slice(0, 90)}` })),
+    ...(friCur.docs || []).flatMap(d => (d.imgs || []).map(im => ({ key: im.key, w: im.w, h: im.h, doc: d.id, label:`${d.name} — ${im.n}` })))];
+  const on = new Set((f.refs || []).filter(r => r.kind === 'photo').map(r => r.key));
+  let m = document.createElement('div'); m.id = 'fri-picker';
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9998;display:flex;align-items:center;justify-content:center';
+  m.innerHTML = `<div style="background:#fff;border-radius:10px;width:min(980px,94vw);max-height:88vh;display:flex;flex-direction:column;padding:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b>Evidence for ${friE(f.ref)} — ${friE((f.title || '').slice(0, 80))}</b><button class="btn btn-tx" onclick="g('fri-picker').remove()">✕</button></div>
+    <div class="fri-note" style="margin-bottom:8px">Tick the report photos / document pictures that show this finding. Only link a photo that really shows it (Step 7).</div>
+    <div style="overflow:auto;flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">
+      ${pool.length ? pool.map((p, k) => `<label style="border:1px solid var(--bd);border-radius:6px;padding:6px;cursor:pointer;font-size:11px"><input type="checkbox" data-k="${k}" ${on.has(p.key) ? 'checked' : ''}/> <img class="fri-ev-img" data-k="${friE(p.key)}" style="width:100%;height:100px;object-fit:cover;border-radius:4px;display:block;margin:4px 0;background:#f5f5f5"/>${friE(p.label)}</label>`).join('') : '<div class="fri-note">No pictures available: import the report (.docx / PDF / .xlsx with photos) or upload documents with images.</div>'}
+    </div>
+    <div style="margin-top:10px"><label class="fl2">Reference data (report text, master file value, document excerpt)</label><textarea id="fri-picker-txt" class="fc" style="width:100%;min-height:52px;height:auto;padding:6px 8px;font-family:inherit" placeholder="e.g. Report §5 Product weight: 12.55 kg vs spec 12.0 kg"></textarea></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px"><button class="btn btn-d" onclick="g('fri-picker').remove()">Cancel</button><button class="btn btn-p" id="fri-picker-ok">Link evidence</button></div></div>`;
+  document.body.appendChild(m); friHydrateImgs(m);
+  g('fri-picker-ok').onclick = () => {
+    const keep = (f.refs || []).filter(r => r.kind !== 'photo');
+    const sel = [...m.querySelectorAll('input[type=checkbox]:checked')].map(c => pool[+c.dataset.k]);
+    const t = g('fri-picker-txt').value.trim();
+    f.refs = [...keep, ...sel.map(p => ({ kind:'photo', src:'manual', key:p.key, w:p.w, h:p.h, doc:p.doc, label:p.label }))];
+    if (t) f.refs.push({ kind:'data', src:'manual', label:'Validator note', excerpt:t });
+    f.auto = false; friDirty = true; m.remove(); friRenderFindings();
+  };
+}
+
+// ── duplicate photo files under different captions (pattern #17) ──
+function friDupPhotos(imgs){
+  const by = {}; (imgs || []).forEach(im => { if (im.media && /^image/i.test(im.media)) (by[im.media] = by[im.media] || []).push(im); });
+  return Object.values(by).filter(a => a.length > 1 && new Set(a.map(x => x.cap)).size > 1);
+}
+
+// ── images for exports ──
+async function friFindingImages(f, max){
+  const out = [];
+  for (const r of (f.refs || []).filter(r => r.kind === 'photo').slice(0, max || 4)) { const u = await friImgGet(r.key); if (u) out.push({ url: u, w: r.w || 320, h: r.h || 240, label: r.label }); }
+  return out;
 }
 
 </script>
