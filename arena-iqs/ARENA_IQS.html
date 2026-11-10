@@ -2485,6 +2485,8 @@ function friApplyPO(key, silent){
     if (!friCur.inspBody) friCur.inspBody = r.inspCompany || '';
     if (!friCur.inspDate && r.inspActual) friCur.inspDate = String(r.inspActual).slice(0,10);
     if (!friCur.aql.poQty && r.qty) friCur.aql.poQty = String(r.qty);
+    const od = (typeof MASTER_ORDER_DATA !== 'undefined' ? MASTER_ORDER_DATA : []).filter(x => String(x.po) === String(po) && (x.lot || 'Lot 1') === lot && +x.qty > 0);
+    if (!(friCur.aql.items || []).length && od.length) friCur.aql.items = od.map(x => ({ ref: x.allyRef || x.supRef || '', desc: x.desc || '', ship: +x.qty, packed: '', nII: '', nS3: '', src:'master' }));
     const outdoorFurn = /furniture|bench|chair|table|lounger|sofa/i.test(r.pf || '') && /GARDEN|OUTDOOR/i.test(r.dept || '');
     if (outdoorFurn) { friCur.aql.aqlMa = '1.0'; friCur.aql.spec = 'S1'; }
   }
@@ -2493,21 +2495,49 @@ function friApplyPO(key, silent){
 
 // ── Rules: AQL check, CP traceability, verdict, shipment status ──
 function friAqlCheck(v){
+  // ARENA sampling method (confirmed by QS, 10 Nov 2026 — fri-validation v3.0):
+  //  · lot size = ORDER (shipment) q'ty, never the packed qty; packed qty only for the ≥80% FRI-validity check
+  //  · one item  → normal single sampling: General II + Special S3 on that item's order qty
+  //  · several items (across P.O. lots) → General II on the COMBINED order total, allocated per item
+  //    round(n × item order qty ÷ total order qty); Special S3 per item on its own order qty; Ac/Re at the combined n
   const a = v.aql, num = x => (x===''||x==null) ? null : +x;
-  const poQty = num(a.poQty), packed = num(a.packed), lotUsed = num(a.lotUsed), nInsp = num(a.nInsp);
+  const items = (a.items || []).filter(it => num(it.ship) > 0);
+  const multi = items.length > 1;
+  const totShip = items.length ? items.reduce((s, it) => s + +it.ship, 0) : num(a.poQty);
+  const totPacked = items.length && items.every(it => num(it.packed) != null) ? items.reduce((s, it) => s + +it.packed, 0) : num(a.packed);
+  const lotUsed = num(a.lotUsed), nInsp = num(a.nInsp);
   const fCr = num(a.fCr), fMa = num(a.fMa), fMi = num(a.fMi), acMa = num(a.acMa), acMi = num(a.acMi);
-  const out = { rows:[], issues:[], aqlVerdict:'' };
-  const lot = lotUsed || packed;
+  const out = { rows:[], issues:[], aqlVerdict:'', items:[], method: multi ? 'combined' : 'single' };
+  const lot = totShip;
   const code = friCode(lot, a.gen); const idx = code ? FRI_CODES.indexOf(code) : -1;
   const pMa = idx>=0 ? friPlanByIdx(idx, a.aqlMa) : null, pMi = idx>=0 ? friPlanByIdx(idx, a.aqlMi) : null;
+  out.rows.push(['Method', multi ? `Combined across ${items.length} items — General ${a.gen} on the total order qty, allocated per item; Special ${a.spec} per item` : `Normal single sampling — General ${a.gen} + Special ${a.spec} on the item order qty`, '']);
   out.rows.push(['AQL levels', `Critical 0 · Major ${a.aqlMa} · Minor ${a.aqlMi}`, '']);
-  out.rows.push(['Sampling level / lot', `General ${a.gen} · Special ${a.spec} · lot size ${lot ?? '—'}${code?` → code ${code}, n = ${FRI_N[idx]}`:''}`, '']);
-  if (pMa) out.rows.push(['Table 2-A (n for the lot)', `Major Ac ${pMa.ac} / Re ${pMa.re} (n ${pMa.n}${pMa.note?', '+pMa.note:''}) · Minor Ac ${pMi.ac} / Re ${pMi.re} (n ${pMi.n}${pMi.note?', '+pMi.note:''}) · Critical Ac 0 / Re 1`, '']);
-  // CP1 quantity rules
-  if (packed!=null && lotUsed!=null && packed !== lotUsed)
-    out.issues.push({ pattern:5, cp:'CP1', sev:'Major', title:`Lot size used for AQL (${lotUsed}) ≠ packed qty (${packed})`, action:'Recompute the sample size and Ac/Re on the packed qty.', resp:'QC' });
-  if (poQty && packed!=null && packed < 0.8*poQty)
-    out.issues.push({ pattern:'', cp:'CP1', sev:'Major', title:`Packed qty ${packed} = ${Math.round(packed/poQty*100)}% of P.O. qty ${poQty} (< 80% required for FRI validity)`, action:'Re-inspect at ≥80% packed, or record a written waiver.', resp:'QC + QS' });
+  out.rows.push(['Lot size (order qty)', `${lot ?? '—'}${code ? ` → General ${a.gen} code ${code}, n = ${FRI_N[idx]}` : ''}`, lotUsed != null && lotUsed !== lot ? `report uses ${lotUsed}` : '']);
+  if (pMa) out.rows.push(['Table 2-A at n', `Major Ac ${pMa.ac} / Re ${pMa.re} (n ${pMa.n}${pMa.note?', '+pMa.note:''}) · Minor Ac ${pMi.ac} / Re ${pMi.re} (n ${pMi.n}${pMi.note?', '+pMi.note:''}) · Critical Ac 0 / Re 1`, '']);
+  // packed ≥ 80 % of order qty (FRI validity)
+  if (lot && totPacked != null) {
+    out.rows.push(['Packed vs order qty', `${totPacked} / ${lot} = ${Math.round(totPacked / lot * 1000) / 10}%`, totPacked >= .8 * lot ? '≥ 80% ✓' : '< 80%']);
+    if (totPacked < .8 * lot) out.issues.push({ pattern:'', cp:'CP1', sev:'Major', title:`Packed qty ${totPacked} = ${Math.round(totPacked/lot*100)}% of order qty ${lot} (< 80% required for FRI validity)`, action:'Re-inspect at ≥80% packed, or record a written waiver.', resp:'QC + QS' });
+  }
+  if (lotUsed != null && lot != null && lotUsed !== lot)
+    out.issues.push({ pattern:5, cp:'CP1', sev:'Major', title:`Lot size used for AQL (${lotUsed}) ≠ order (shipment) qty ${lot}${totPacked===lotUsed?' — packed qty used instead of order qty':''}`, action:'Recompute the sample sizes and Ac/Re on the order qty (ARENA method).', resp:'QC' });
+  // per-item sample sizes
+  if (items.length && pMa) {
+    const nG = FRI_N[idx];
+    items.forEach(it => {
+      const allocII = multi ? Math.floor(nG * +it.ship / lot + 0.5) : nG;
+      const cS = friCode(+it.ship, a.spec), nS3 = cS ? FRI_N[FRI_CODES.indexOf(cS)] : null;
+      const r = { ref: it.ref, desc: it.desc, ship: +it.ship, packed: num(it.packed), nII: num(it.nII), nS3: num(it.nS3), expII: allocII, expS3: nS3 };
+      r.okII = r.nII == null || r.nII === allocII; r.okS3 = r.nS3 == null || r.nS3 === nS3;
+      out.items.push(r);
+    });
+    const badII = out.items.filter(r => !r.okII), badS3 = out.items.filter(r => !r.okS3);
+    if (badII.length) out.issues.push({ pattern:5, cp:'CP6', sev:'Major', title:`General ${a.gen} sample per item not allocated on order qty for ${badII.map(r => `${r.ref||r.desc} (${r.nII} vs ${r.expII})`).slice(0,4).join(', ')}`, action:`Allocate n = ${nG} per item: round(n × item order qty ÷ ${lot}).`, resp:'QC' });
+    if (badS3.length) out.issues.push({ pattern:6, cp:'CP7', sev:'Major', title:`Special ${a.spec} sample per item not per its order qty for ${badS3.map(r => `${r.ref||r.desc} (${r.nS3} vs ${r.expS3})`).slice(0,4).join(', ')}`, action:`Take ${a.spec} per item on its order qty (ISO 2859-1 Table 1).`, resp:'QC' });
+    const sumII = out.items.reduce((s, r) => s + r.expII, 0), sumS3 = out.items.reduce((s, r) => s + (r.expS3 || 0), 0);
+    out.rows.push(['Per-item samples', `General ${a.gen}: ${multi ? `${nG} allocated (Σ rounded ${sumII})` : nG} · Special ${a.spec}: Σ ${sumS3}`, badII.length || badS3.length ? `${badII.length + badS3.length} item(s) differ from the report` : 'report matches ✓']);
+  }
   // Ac/Re keyed to the n actually inspected
   let ref = null;
   if (nInsp) {
@@ -2515,11 +2545,12 @@ function friAqlCheck(v){
     if (ii >= 0) {
       ref = { ma: friPlanByIdx(ii, a.aqlMa), mi: friPlanByIdx(ii, a.aqlMi) };
       out.rows.push(['Ac/Re for n inspected', `n ${nInsp} (code ${FRI_CODES[ii]}) → Major Ac ${ref.ma.ac} · Minor Ac ${ref.mi.ac}`, '']);
-      if (pMa && nInsp < pMa.n) out.issues.push({ pattern:6, cp:'CP6', sev:'Major', title:`n inspected ${nInsp} < n required ${pMa.n} for lot ${lot} at level ${a.gen}`, action:'Re-inspect with the required sample size.', resp:'QC' });
+      if (pMa && nInsp < pMa.n) out.issues.push({ pattern:6, cp:'CP6', sev:'Major', title:`n inspected ${nInsp} < n required ${pMa.n} for order qty ${lot} at level ${a.gen}`, action:'Re-inspect with the required sample size.', resp:'QC' });
       if ((acMa!=null && acMa !== ref.ma.ac) || (acMi!=null && acMi !== ref.mi.ac))
         out.issues.push({ pattern:14, cp:'CP6', sev:'Critical', title:`Ac used (Ma ${acMa ?? '—'} / Mi ${acMi ?? '—'}) ≠ Ac for n ${nInsp} (Ma ${ref.ma.ac} / Mi ${ref.mi.ac})`, action:'Restate the AQL verdict with the Ac/Re of the sample actually inspected.', resp:'QC' });
     }
-  }
+  } else if (pMa && ((acMa!=null && acMa !== pMa.ac) || (acMi!=null && acMi !== pMi.ac)))
+    out.issues.push({ pattern:14, cp:'CP6', sev:'Critical', title:`Ac used (Ma ${acMa ?? '—'} / Mi ${acMi ?? '—'}) ≠ Ac at n ${pMa.n} (Ma ${pMa.ac} / Mi ${pMi.ac})`, action:'Restate the AQL verdict with the Ac/Re of the combined sample.', resp:'QC' });
   const use = ref || (pMa ? { ma:pMa, mi:pMi } : null);
   if (use && (fCr!=null || fMa!=null || fMi!=null)) {
     const crOk = !(fCr > 0), maOk = fMa==null || fMa <= use.ma.ac, miOk = fMi==null || fMi <= use.mi.ac;
@@ -2533,6 +2564,26 @@ function friAqlCheck(v){
   out.rows.push(['AQL verdict (recomputed)', out.aqlVerdict || '—', a.rep ? `report states: ${a.rep}` : '']);
   return out;
 }
+// "Table of shipment items and sampling details": … | ship | packed | n II | n S3
+function friParseItems(text){
+  const lines = text.split('\n').map(l => l.replace(/\s*\|\s*/g, ' | ').replace(/( \| )+/g, ' | ').replace(/^ \| | \| $/g, '').trim());
+  const items = []; let acMa = null, acMi = null, aqlMa = null, aqlMi = null, tot = null;
+  const N = s => +String(s).replace(/[,\s]/g, '');
+  lines.forEach(l => {
+    let m = l.match(/Acceptance\s*major[^|]*\|\s*([\d.]+)\s*\|\s*(\d+)/i); if (m) { aqlMa = m[1]; acMa = m[2]; return; }
+    m = l.match(/Acceptance\s*minor[^|]*\|\s*([\d.]+)\s*\|\s*(\d+)/i); if (m) { aqlMi = m[1]; acMi = m[2]; return; }
+    m = l.match(/Total\s*:?\s*\|\s*([\d.,]+)\s*\|\s*([\d.,]+)\s*\|\s*(\d+)\s*\|\s*(\d+)\s*$/i); if (m) { tot = { ship:N(m[1]), packed:N(m[2]), nII:+m[3], nS3:+m[4] }; return; }
+    m = l.match(/^(.*?)\|\s*([\d][\d.,]*)\s*\|\s*([\d][\d.,]*)\s*\|\s*(\d{1,4})\s*\|\s*(\d{1,4})\s*$/);
+    if (!m || /total|sample\s*size|q'?ty/i.test(m[1])) return;
+    const cells = m[1].split('|').map(c => c.trim()).filter(Boolean);
+    const desc = cells.slice().sort((x, y) => y.length - x.length)[0] || '';
+    const codes = cells.filter(c => c !== desc && /\d/.test(c) && c.length <= 20);
+    const ref = codes.length > 1 ? codes[codes.length - 2] : codes[0] || '';   // Ally ref (PO# may sit in the first merged cell)
+    items.push({ ref, sref: codes[codes.length - 1] || '', desc, ship: N(m[2]), packed: N(m[3]), nII: +m[4], nS3: +m[5] });
+  });
+  return { items: items.filter(it => it.ship > 0 && it.packed >= 0 && it.packed <= it.ship * 1.2), tot, acMa, acMi, aqlMa, aqlMi };
+}
+
 function friCompute(v){
   const open = v.findings.filter(f => f.status !== 'Closed');
   const F = open.filter(f => f.type==='F');
@@ -2680,8 +2731,8 @@ function friRenderWorkbench(){
     <div class="card mb0">
       <div class="fri-sec">3 · AQL verification (ISO 2859-1, normal, single)</div>
       <div class="fri-grid" style="grid-template-columns:repeat(3,1fr)">
-        <div><label class="fl2">P.O. qty</label>${friIn('aql.poQty',a.poQty,{type:'number'})}</div>
-        <div><label class="fl2">Packed qty (= lot size)</label>${friIn('aql.packed',a.packed,{type:'number'})}</div>
+        <div><label class="fl2">Order qty (= lot size)</label>${friIn('aql.poQty',a.poQty,{type:'number'})}</div>
+        <div><label class="fl2">Packed qty (≥80% check)</label>${friIn('aql.packed',a.packed,{type:'number'})}</div>
         <div><label class="fl2">Lot size used in report</label>${friIn('aql.lotUsed',a.lotUsed,{type:'number'})}</div>
         <div><label class="fl2">General level</label>${friIn('aql.gen',a.gen,{sel:['I','II','III']})}</div>
         <div><label class="fl2">Special level (tests)</label>${friIn('aql.spec',a.spec,{sel:['S1','S2','S3','S4']})}</div>
@@ -2766,7 +2817,9 @@ function friRefreshDerived(){
     ao.innerHTML = `<table class="tbl" style="font-size:12px"><tbody>${aq.rows.map(r => `<tr><td style="width:150px;color:var(--t2)">${friE(r[0])}</td><td><b>${friE(r[1])}</b>${r[2]?` <span class="fri-note">${friE(r[2])}</span>`:''}</td></tr>`).join('')}</tbody></table>
       ${aq.issues.map((x,j) => `<div style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:12px"><span class="tag ${x.type==='NC'?'t-r':x.sev==='Critical'?'t-r':'t-o'}">${x.type==='NC'?'NC-':x.sev}</span><span style="flex:1">${x.pattern?`#${x.pattern} · `:''}${friE(x.title)}</span>
         ${existing.has(x.title) ? '<span class="fri-note">logged</span>' : `<button class="btn btn-d btn-sm" onclick='friAddFinding(${JSON.stringify(Object.assign({type:'F'},x)).replace(/'/g,"&#39;")})'>+ Add</button>`}</div>`).join('')}
-      <div class="fri-note" style="margin-top:6px">Source: ISO 2859-1 Tables 1 and 2-A (the Quality matrix sampling tool is not embedded in IQS). Critical class: Ac 0.</div>`;
+      ${aq.items.length ? `<div class="fri-note" style="margin:8px 0 3px"><b>Per-item sample sizes — report vs ARENA method</b></div><div class="tw"><table class="tbl" style="font-size:11.5px"><thead><tr><th>ITEM</th><th>ORDER</th><th>PACKED</th><th>${friE(friCur.aql.gen)} REPORT / METHOD</th><th>${friE(friCur.aql.spec)} REPORT / METHOD</th></tr></thead><tbody>
+        ${aq.items.map(r => `<tr><td>${friE(r.ref)} <span class="fri-note">${friE((r.desc||'').slice(0,34))}</span></td><td>${r.ship}</td><td>${r.packed ?? '—'}</td><td>${r.nII ?? '—'} / <b>${r.expII}</b> ${r.nII==null?'':r.okII?'✓':'⚠'}</td><td>${r.nS3 ?? '—'} / <b>${r.expS3 ?? '—'}</b> ${r.nS3==null?'':r.okS3?'✓':'⚠'}</td></tr>`).join('')}</tbody></table></div>` : ''}
+      <div class="fri-note" style="margin-top:6px">ARENA method (fri-validation v3.0): lot size = order qty; one item → normal single sampling (General ${friE(friCur.aql.gen)} + ${friE(friCur.aql.spec)}); several items → General ${friE(friCur.aql.gen)} on the combined order total, allocated per item by order qty, ${friE(friCur.aql.spec)} per item. Packed qty only for the ≥80% check. Tables: ISO 2859-1 Tables 1 and 2-A. Critical class: Ac 0.</div>`;
   }
   const co = g('fri-cov-out');
   if (co) co.innerHTML = (c.cov===null && c.conf===null && c.evid===null) ? '<div class="fri-note">No ARENA FRI Standard figures entered.</div>' :
@@ -2877,6 +2930,8 @@ async function friUnzip(buf){
   return { names: Object.keys(files), read };
 }
 function friXmlText(xml){
+  // one line per table row: paragraphs inside a cell become spaces
+  xml = xml.replace(/<w:tc[ >][\s\S]*?<\/w:tc>/g, tc => tc.replace(/<\/w:p>/g, ' '));
   return xml.replace(/<w:tab\/>/g, '\t').replace(/<w:br[^>]*\/>/g, '\n').replace(/<\/w:tc>/g, ' | ').replace(/<\/w:p>/g, '\n').replace(/<\/w:tr>/g, '\n')
     .replace(/<[^>]+>/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&')
     .replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n');
@@ -3018,6 +3073,18 @@ function friStartFromReport(name, kind, size, text, photos, imgs){
     if (r) friApplyPO(`${r.po}||${friLotOf(r)}`, true); else { friCur.po = get('po').value; friCur.lot = lot; } }
   found.forEach(f => { if (f.apply === false || f.key === 'po' || f.key === 'lot') return;
     const p = f.key.split('.'); if (p.length === 2) friCur[p[0]][p[1]] = f.value; else friCur[f.key] = f.value; });
+  const pit = friParseItems(text);
+  if (pit.items.length) {
+    friCur.aql.items = pit.items;
+    const sumShip = pit.items.reduce((x, i) => x + i.ship, 0), sumPacked = pit.items.reduce((x, i) => x + i.packed, 0);
+    friCur.aql.poQty = String(pit.tot ? pit.tot.ship : sumShip); friCur.aql.packed = String(pit.tot ? pit.tot.packed : sumPacked);
+    if (pit.tot) friCur.aql.nInsp = String(pit.tot.nII);
+    if (pit.aqlMa) friCur.aql.aqlMa = (+pit.aqlMa).toFixed(1); if (pit.aqlMi) friCur.aql.aqlMi = (+pit.aqlMi).toFixed(1);
+    if (pit.acMa != null) friCur.aql.acMa = String(pit.acMa); if (pit.acMi != null) friCur.aql.acMi = String(pit.acMi);
+    found.push({ key:'items', label:'Shipment items table', value:`${pit.items.length} item(s) · order ${sumShip} · packed ${sumPacked}${pit.tot ? ` · n ${pit.tot.nII} / ${pit.tot.nS3}` : ''}`, snippet:`${pit.items[0].ref} ${pit.items[0].desc.slice(0, 40)} | ${pit.items[0].ship} | ${pit.items[0].packed} | ${pit.items[0].nII} | ${pit.items[0].nS3}` });
+    ['P.O. / shipment qty','Packed qty','Sample size inspected'].forEach(l => { if (!found.some(f => f.label === l)) found.push({ key:'_', label:l, value:'from items table', snippet:'Table of shipment items and sampling details' }); });
+    if (pit.acMa != null) found.push({ key:'_', label:'AQL Major', value:`${pit.aqlMa} · Ac ${pit.acMa}`, snippet:'Acceptance major defects' });
+  }
   if (photos !== null) friCur.photos = photos > 0 ? 'Original report with photos' : 'Text / PDF export without photos';
   const ov = get('overall');
   friCur.source = { name, kind, size, photos, imgs: imgs || [], read: found.map(f => ({ label:f.label, value:f.value, snippet:f.snippet })), text: text.slice(0, 20000), at: new Date().toISOString().slice(0,16).replace('T',' ') };
@@ -3188,7 +3255,7 @@ function friResultWord(s){ const m = String(s).match(FRI_RESULT_RX); if (!m) ret
 function friIsSummaryRow(l){ return /^(?:(?:CP\s?)?\d{1,2}\.?\s*\|\s*)?[A-Za-zÀ-ỹ][A-Za-zÀ-ỹ &\/\-–]{2,40}\s*\|\s*(?:passed|pass|failed|fail|n\/a|not\s*applicable|pending|on\s*hold|not\s*tested|conform(?:ed|ing)?|accepted|rejected)\s*$/i.test(l.trim()) && Object.values(FRI_CP_KEYS).some(k => k.label.test(l)); }
 function friPreValidate(v){
   const s = v.source; if (!s || !s.text) return null;
-  const lines = s.text.replace(/\n[ \t]*\|/g, ' |').split('\n').map(l => l.replace(/\s*\|\s*/g, ' | ').replace(/( \| )+/g, ' | ').replace(/^ \| | \| $/g, '').replace(/["“”]/g, '').trim()).filter(l => l.replace(/[|\s]/g, '').length > 1);
+  const lines = s.text.split('\n').map(l => l.replace(/\s*\|\s*/g, ' | ').replace(/( \| )+/g, ' | ').replace(/^ \| | \| $/g, '').replace(/["“”]/g, '').trim()).filter(l => l.replace(/[|\s]/g, '').length > 1);
   const all = lines.join('\n');
   const read = new Set((s.read || []).map(r => r.label.replace(/ \(.*\)$/, '')));
   const noPhotos = !(s.photos > 0);
@@ -3629,7 +3696,7 @@ function friLinkRefs(v, f){
   const refs = (f.refs || []).filter(r => r.src !== 'report-auto');
   const rx = friEvRx(f), src = v.source;
   if (src && src.text) {
-    const lines = src.text.replace(/\n[ \t]*\|/g, ' |').split('\n').map(l => l.replace(/\s*\|\s*/g, ' | ').replace(/( \| )+/g, ' | ').replace(/^ \| | \| $/g, '').trim()).filter(l => l.replace(/[|\s]/g, '').length > 2);
+    const lines = src.text.split('\n').map(l => l.replace(/\s*\|\s*/g, ' | ').replace(/( \| )+/g, ' | ').replace(/^ \| | \| $/g, '').trim()).filter(l => l.replace(/[|\s]/g, '').length > 2);
     const capOnly = im => (im.cap && im.cap !== '(no caption)') ? im.cap : im.ctx;   // own caption only — neighbours belong to other photos
     lines.filter(l => rx.test(l) && !(src.imgs || []).some(im => im.cap === l)).slice(0, 2).forEach(l => refs.push({ kind:'data', src:'report-auto', label:'Report text', excerpt: l.slice(0, 200) }));
     (src.imgs || []).filter(im => rx.test(capOnly(im)) && !refs.some(r => r.key === im.key)).slice(0, 3).forEach(im => refs.push({ kind:'photo', src:'report-auto', key: im.key, w: im.w, h: im.h, label:`Report photo ${im.n} — ${im.cap.slice(0, 90)}` }));
