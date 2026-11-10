@@ -1,6 +1,6 @@
 # ARENA IQS — Quality Platform (single file)
 
-**Removed 10 Nov 2026:** Compliance Pathway, Master File Cross-Check, CBAM Communication Console and EUDR – Radix Tree Guideline (sidebar entries, pages and code). PPWR Packaging Forms stays under Compliance. Kept: IQA data corrections applied on master-file load, and the EUDR Annex I table used by the EUDR flags.
+**Removed 10 Nov 2026:** Compliance Pathway, Master File Cross-Check, CBAM Communication Console, EUDR – Radix Tree Guideline and PPWR Packaging Forms (sidebar entries, pages and code; the Compliance sidebar section is gone). The PPWR DoC register (opened from the Dashboard alert) stays. Kept: IQA data corrections applied on master-file load, and the EUDR Annex I table used by the EUDR flags.
 
 Open `ARENA_IQS.html` in a browser and load `New_Master_File.xlsx` from the top bar.
 
