@@ -9334,7 +9334,7 @@ function srcGetBasePool(scope) {
   const sc = scope || srcScope;
   if (sc === 'issued') return all.filter(r => r.srcDate || r.srcIssued);
   if (sc === 'open')   return all.filter(r => r.status === 'Open' && !r.srcDate && !r.srcIssued);
-  return all.filter(r => r.insp === 'PASS' && !r.srcDate && !r.srcIssued);
+  return all.filter(r => r.status === 'Open' && r.insp === 'PASS' && !r.srcDate && !r.srcIssued);
 }
 function srcSetScope(sc, btn) {
   srcScope = sc; srcPoPage = 1;
@@ -9349,7 +9349,7 @@ function srcPopulateAllyFilter() {
   const current = sel.value;
   while (sel.options.length > 1) sel.remove(1);
   const allies = [...new Set((MASTER_FU_DATA.length ? MASTER_FU_DATA : ORDERS_DATA)
-    .filter(r => r.insp === 'PASS').map(r => r.ally).filter(Boolean))].sort();
+    .filter(r => r.status === 'Open').map(r => r.ally).filter(Boolean))].sort();
   allies.forEach(a => { const o = document.createElement('option'); o.value = a; o.textContent = a; sel.appendChild(o); });
   sel.value = current;
 }
@@ -9480,6 +9480,7 @@ function srcRenderPoTable() {
 function srcSelectPO(po, lot) {
   srcSelectedPO = {po, lot};
   srcRenderPoTable();
+  srcEnsurePoOption(po, lot);
   // Pre-select in dropdown and trigger fill
   const sel = g('src-po-select');
   if (sel) {
@@ -9523,6 +9524,7 @@ function goIssueSRC(po, lot) {
   go('src', null);
   // Wait for page render then set the dropdown and trigger change
   setTimeout(() => {
+    srcEnsurePoOption(po, lot);
     const sel = g('src-po-select');
     if (!sel) return;
     // Find option matching po (and lot if possible)
@@ -9548,9 +9550,21 @@ function populateSrcPoSelect() {
   // Pool: PASS inspection + no SRC date yet — consistent with Inspection Booking base pool
   // v70.1 — every non-cancelled PO# + Lot# can be previewed / printed (as in the Issue SRC sheet);
   // issuing stays limited to PASS lots without an SRC date (issueSRC)
-  const combined = (MASTER_FU_DATA.length ? MASTER_FU_DATA : ORDERS_DATA).filter(o => o.status !== 'Cancel');
+  // v70.2 consolidated — open P.O.s only (status Open: not shipped, not cancelled).
+  // A shipped lot picked from the "SRC on record (re-print)" view is added on demand by srcEnsurePoOption.
+  const combined = (MASTER_FU_DATA.length ? MASTER_FU_DATA : ORDERS_DATA).filter(o => o.status === 'Open');
 
-  combined.sort((a,b) => (a.po||'').localeCompare(b.po||'')).forEach(o => {
+  combined.sort((a,b) => (a.po||'').localeCompare(b.po||'')).forEach(o => sel.appendChild(srcMakePoOption(o)));
+}
+
+function srcEnsurePoOption(po, lot) {
+  const sel = g('src-po-select'); if (!sel) return;
+  if (Array.from(sel.options).some(o => o.value === po && (o.dataset.lot === lot || !lot))) return;
+  const row = (MASTER_FU_DATA.length ? MASTER_FU_DATA : ORDERS_DATA).find(o => o.po === po && (!lot || (o.lot || 'Lot 1') === lot));
+  if (row) sel.appendChild(srcMakePoOption(row));
+}
+
+function srcMakePoOption(o) {
     const opt = document.createElement('option');
     opt.value = o.po;
     // Embed all header data so onSrcPoChange doesn't need array search
@@ -9569,8 +9583,7 @@ function populateSrcPoSelect() {
     const badge = o.srcIssued ? ' ✓' : '';
     opt.textContent = `${o.po} · ${o.lot||'Lot 1'} · ${o.ally||''} · ${o.dept||''}${badge}`;
     if (o.srcIssued) opt.style.color = '#8c8c8c';
-    sel.appendChild(opt);
-  });
+    return opt;
 }
 
 function onSrcPoChange() {
