@@ -606,6 +606,10 @@ html *{scrollbar-width:auto;scrollbar-color:#9AA3AF #ECEEF1}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
       Order Fulfilment<span class="nb2 nb-b" id="nav-orders-cnt">739</span>
     </div>
+    <div class="ni" onclick="go('fri-val',this)" title="FRI Validation Report — validate the submitted Final Random Inspection report before SRC: CP1–CP10 matrix, findings F- / NC- / RG- / OB-, AQL Ac/Re check, report verdict and shipment status (fri-validation v2.9)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg>
+      FRI Validation Report<span class="nb2 nb-r" id="nav-fri-cnt" style="display:none"></span>
+    </div>
     <div class="ni" onclick="go('src',this)" title="Issue Shipment Release Certificate — same layout and wording as the Issue SRC sheet of New_Master_File">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><path d="M12 3l7 4v5c0 4.5-3 8.3-7 9-4-.7-7-4.5-7-9V7z"/></svg>
       Issue SRC
@@ -614,10 +618,6 @@ html *{scrollbar-width:auto;scrollbar-color:#9AA3AF #ECEEF1}
     <div class="ni" onclick="go('order-book',this)" title="A.R.E.N.A. order book — turnover on ETD / SRC date, P.O. lots, suppliers, on-time SRC; filters by year, Ally, department, supplier">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V3H6.5A2.5 2.5 0 004 5.5z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20v-5"/><path d="M9 8h7M9 12h5"/></svg>
       A.R.E.N.A. Order Book
-    </div>
-    <div class="nav-grp">INSPECTIONS</div>
-    <div class="ni" onclick="bkSetType('final');go('new-order',this)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>Final Inspection Booking
     </div>
 
     <div class="nav-grp">DOCUMENTS</div>
@@ -1591,7 +1591,7 @@ html *{scrollbar-width:auto;scrollbar-color:#9AA3AF #ECEEF1}
       <div class="card mb0">
         <div class="ch2"><div class="ct">Quick Actions</div></div>
         <div style="display:flex;flex-direction:column;gap:7px">
-          <button class="btn btn-p" style="width:100%;justify-content:center" onclick="bkSetType('final');go('new-order',null)">+ Inspection Booking</button>
+          <button class="btn btn-p" style="width:100%;justify-content:center" onclick="go('fri-val',null)">+ FRI Validation</button>
           <button class="btn btn-d" style="width:100%;justify-content:center" onclick="go('inspection-form',null)">📋 Fill Inspection Report</button>
           <button class="btn btn-d" style="width:100%;justify-content:center" onclick="go('orders',null)">📦 View All POs →</button>
         </div>
@@ -1730,7 +1730,7 @@ html *{scrollbar-width:auto;scrollbar-color:#9AA3AF #ECEEF1}
   <div class="ph"><div class="ph-l"><h2>Order Fulfilment</h2><p id="orders-ph-sub">SRC tracking — filter by Supplier, Ally and SRC year</p></div><div class="ph-r" style="position:relative">
     <div id="orders-col-panel" class="col-chooser-panel" style="display:none"></div>
     <button class="btn btn-d" onclick="exportOrdersCSV()">↓ Export CSV</button>
-    <button class="btn btn-p" onclick="bkSetType('final');go('new-order',null)">+ Inspection Booking</button>
+    <button class="btn btn-p" onclick="go('fri-val',null)">+ FRI Validation</button>
   </div></div>
 
   <!-- FILTER BAR — hierarchy: ETD Year → Ally → Supplier → P.O. -->
@@ -2233,194 +2233,590 @@ html *{scrollbar-width:auto;scrollbar-color:#9AA3AF #ECEEF1}
 .bk-progress-bar{height:100%;background:var(--p);border-radius:2px;transition:width .4s}
 </style>
 
-<div id="page-new-order" class="page">
-  <div class="bc"><a onclick="go('orders',null)">Order Fulfilment</a><span class="sep">›</span><span class="cur" id="bk-page-crumb">Inspection Booking</span></div>
-  <div class="ph">
-    <div class="ph-l">
-      <h2 id="bk-page-title">Inspection Booking</h2>
-      <p id="bk-ph-sub">Search a PO from Order Fulfill → review items from Orders Data → configure inspection</p>
-    </div>
-    <div class="ph-r">
-      <button class="btn btn-d" onclick="go('orders',null)">Cancel</button>
-
-    </div>
-  </div>
-
-  <!-- NO MASTER FILE NOTICE -->
-  <div id="bk-no-master" style="background:var(--wl);border:1px solid var(--wb);border-radius:var(--ra);padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:12px">
-    <span style="font-size:18px">📂</span>
-    <div style="flex:1;font-size:12.5px;color:#7C5F00">No Master File loaded yet. Click <strong>Load Master File</strong> in the top bar to import your Order Fulfill and Orders Data worksheets. Once loaded, POs auto-populate below.</div>
-    <button class="btn btn-o btn-sm" onclick="openMfModal()">Load Master File</button>
-  </div>
-  <div id="bk-has-master" style="display:none;background:var(--gl);border:1px solid var(--gb);border-radius:var(--ra);padding:10px 16px;margin-bottom:14px;font-size:12.5px;color:#3A6A1A;display:none;align-items:center;gap:10px">
-    <span>✓</span><span id="bk-master-info">Master File loaded</span>
-  </div>
-
-  <!-- ══ COUNTDOWN / NOTIFICATION PANEL ══ -->
-  <div id="bk-notif-panel" style="display:none;margin-bottom:14px"></div>
-
-  <div style="display:grid;grid-template-columns:1fr 280px;gap:14px;align-items:flex-start">
-
-    <!-- ── LEFT MAIN ── -->
-    <div>
-
-      <!-- ══ STEP 1: PO SEARCH ══ -->
-      <div class="bk-step active" id="bk-step1" onclick="bkActivate(1)">
-        <div class="bk-step-num">1</div>
-        <div style="flex:1">
-          <div class="bk-step-title">Select Purchase Order</div>
-          <div class="bk-step-sub" id="bk-step1-sub">Search by PO #, supplier, or ally — data from Order Fulfill worksheet</div>
-        </div>
-        <div class="bk-step-badge" id="bk-step1-badge"></div>
-        <span class="bk-chevron">›</span>
-      </div>
-      <div id="bk-step1-body" style="margin-bottom:12px">
-
-        <!-- FILTER BAR — hierarchy: ETD Year → Ally → Supplier → P.O. -->
-        <div class="fb" style="margin-bottom:10px">
-          <span class="fl">ETD Year</span>
-          <select class="fsel" id="bk-flt-etd-year" onchange="bkRenderTable()" style="width:80px">
-            <option value="">Year</option>
-          </select>
-          <span class="fl">Ally</span>
-          <select class="fsel" id="bk-flt-ally" onchange="bkRenderTable()">
-            <option value="">All</option>
-          </select>
-          <span class="fl">Supplier</span>
-          <select class="fsel" id="bk-flt-sup" onchange="bkRenderTable()" style="min-width:140px;max-width:200px">
-            <option value="">All</option>
-          </select>
-          <span class="fl">P.O.</span>
-          <select class="fsel" id="bk-flt-po" onchange="bkRenderTable()" style="min-width:140px;max-width:200px">
-            <option value="">All</option>
-          </select>
-          <div class="frgt"><button class="btn btn-d btn-sm" onclick="bkResetFilters()">Reset</button></div>
-        </div>
-
-        <!-- PO TABLE -->
-        <div class="card" style="padding:0">
-          <div id="bk-table-info" style="padding:8px 14px;font-size:12px;color:var(--t3);border-bottom:1px solid var(--bd)">
-            Load a Master File to populate the PO list
-          </div>
-          <div class="tw">
-            <table class="tbl">
-              <thead id="bk-po-thead"><tr>
-                <th>PO # FROM ALLY</th><th>LOT</th><th>ALLY</th><th>SUPPLIER</th>
-                <th>COUNTRY</th><th>DEPT</th><th>PRODUCT FAMILY</th>
-                <th>PI DATE</th><th>ETD</th><th>REAL ETD</th>
-                                <th>FINAL INSP ACT</th>
-                <th>SRC DATE</th>
-                <th>QTY</th><th>AMOUNT (USD)</th>
-                <th>INSP RESULT</th><th>FOLDER</th><th>SRC ACTION</th>
-              </tr></thead>
-              <tbody id="bk-po-table-body"></tbody>
-            </table>
-          </div>
-          <div class="pagination" id="bk-po-pg"></div>
-        </div>
-
-        <!-- SELECTED PO STRIP -->
-        <div id="bk-po-strip" style="display:none;margin-top:10px"></div>
-      </div>
-
-      <!-- ══ STEP 2: ORDER DATA ITEMS ══ -->
-      <div class="bk-step locked" id="bk-step2" onclick="bkActivate(2)">
-        <div class="bk-step-num">2</div>
-        <div style="flex:1">
-          <div class="bk-step-title">Review Line Items</div>
-          <div class="bk-step-sub" id="bk-step2-sub">Item-level detail from Orders Data worksheet — select all items for this inspection</div>
-        </div>
-        <div class="bk-step-badge" id="bk-step2-badge"></div>
-        <span class="bk-chevron">›</span>
-      </div>
-      <div id="bk-step2-body" style="display:none;margin-bottom:12px">
-        <div class="card" style="padding:0">
-          <div style="padding:12px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px">
-            <div style="font-size:13px;font-weight:600">📦 Order Line Items</div>
-            <span id="bk-items-count" class="tag t-b" style="font-size:10px"></span>
-            <div style="margin-left:auto;display:flex;gap:7px">
-              <button class="btn btn-d btn-xs" onclick="bkSelectAllItems(true)">Select All</button>
-              <button class="btn btn-d btn-xs" onclick="bkSelectAllItems(false)">Deselect All</button>
-            </div>
-          </div>
-          <div class="tw">
-            <table class="tbl" style="font-size:12px">
-              <thead><tr>
-                <th style="width:32px;text-align:center">✓</th>
-                <th>#</th>
-                <th>EAN / ALLY REF</th>
-                <th>PRODUCT DESCRIPTION</th>
-                <th>DEPT</th>
-                <th>FAMILY / SUB-FAMILY</th>
-                <th style="text-align:right">QTY</th>
-                <th>HS CODE</th>
-                <th>EUDR/CBAM</th>
-              </tr></thead>
-              <tbody id="bk-items-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- ══ STEP 3: INSPECTION CONFIGURATION ══ -->
-      <!-- Hidden fields for submit -->
-          <input type="hidden" id="no-po"/>
-          <input type="hidden" id="no-lot"/>
-          <input type="hidden" id="no-ally"/>
-          <input type="hidden" id="no-sup"/>
-          <input type="hidden" id="no-dept"/>
-          <input type="hidden" id="no-pf"/>
-          <input type="hidden" id="no-qty"/>
-          <input type="hidden" id="no-price"/>
-          <input type="hidden" id="no-country"/>
-          <input type="hidden" id="no-insp-type" value="FRI"/>
-          <input type="hidden" id="no-pi"/>
-          <input type="hidden" id="no-etd"/>
-          <input type="hidden" id="no-aql" value="2.5/4.0"/>
-
-    </div><!-- /left -->
-
-    <!-- ── RIGHT SIDEBAR ── -->
-    <div style="position:sticky;top:18px">
-
-      <!-- BOOKING SUMMARY -->
-      <div class="card" style="margin-bottom:12px">
-        <div class="ch2"><div class="ct">Booking Summary</div><span id="bk-completion-tag" class="tag t-gray" style="font-size:10px">0%</span></div>
-        <div class="bk-progress"><div class="bk-progress-bar" id="bk-prog-bar" style="width:0%"></div></div>
-        <div class="bk-sum-row"><span class="bk-sum-label">PO #</span><span class="bk-sum-value" id="sum-po" style="color:var(--p)">—</span></div>
-        <div class="bk-sum-row" style="border:none"><span class="bk-sum-label">Lot</span><span class="bk-sum-value" id="sum-lot">—</span></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0 6px">
-          <span style="font-size:12px;font-weight:700;color:var(--t2)">P.O. Compliance</span>
-          <span id="bk-comp-pct" class="tag t-gray" style="font-size:10px">—</span>
-        </div>
-        <div style="max-height:280px;overflow-y:auto;border:1px solid var(--bd2);border-radius:var(--rs)">
-          <table class="tbl" style="width:100%;font-size:11px">
-            <tbody id="bk-compliance-tbody"><tr><td style="padding:14px;text-align:center;color:var(--t3)">Select a P.O. to view its compliance checks.</td></tr></tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- CHECKLIST SCORE CARD -->
-
-      <!-- ORDER FOLDER TOGGLE -->
-      <button class="btn btn-p" id="bk-folder-toggle"
-        style="width:100%;height:40px;font-size:13px;opacity:.4;pointer-events:none"
-        onclick="bkOpenOrderFolder()">
-        📂 View Order Folder
-      </button>
-      <div style="margin-top:8px;font-size:11px;color:var(--t3);text-align:center" id="bk-folder-hint">
-        Select a P.O. to view its Order Folder
-      </div>
-    </div><!-- /right sidebar -->
-
-  </div><!-- /grid -->
-</div>
+<!-- Final Inspection Booking page removed (consolidated v70.2, 10 Nov 2026) — replaced by FRI Validation Report (page-fri-val) -->
 
 <style>
 .bk-chip{padding:0 10px;height:24px;border-radius:12px;border:1px solid var(--bd);background:#fff;font-size:11.5px;font-weight:500;color:var(--t2);cursor:pointer;transition:all .12s;white-space:nowrap}
 .bk-chip:hover{border-color:var(--p);color:var(--p)}
 .bk-chip.active{background:var(--p);border-color:var(--p);color:#fff}
 </style>
+
+<!-- ════════════ FRI VALIDATION REPORT (replaces Final Inspection Booking · consolidated v70.2, 10 Nov 2026) ════════════
+     Rules from the fri-validation skill v2.9: CP1–CP10 compliance matrix, finding types F- / NC- / RG- / OB-,
+     finding-pattern library #1–#26, verdict + independent shipment status, AQL Ac/Re per ISO 2859-1 (Tables 1 & 2-A),
+     requirement coverage (Step 3e). The Word deliverables (annotated report, supplier CAPA) stay with the skill. -->
+<style>
+#page-fri-val .fri-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px 14px}
+#page-fri-val .fri-grid label{display:block;margin-bottom:3px}
+#page-fri-val .fri-grid .fc,#page-fri-val .fri-grid select.fc{width:100%;height:32px;font-size:12px}
+#page-fri-val .fri-tabs{display:flex;gap:4px;margin-bottom:14px}
+#page-fri-val .fri-tab{padding:8px 16px;border-radius:var(--ra);cursor:pointer;font-size:13px;font-weight:500;color:var(--t2);background:#fff;border:1px solid var(--bd)}
+#page-fri-val .fri-tab.on{background:var(--p);color:#fff;border-color:var(--p)}
+#page-fri-val .fri-pane{display:none}#page-fri-val .fri-pane.on{display:block}
+#page-fri-val .fri-banner{border-radius:var(--ra);padding:14px 18px;display:flex;gap:18px;flex-wrap:wrap;align-items:center;margin-bottom:14px;border:1px solid var(--bd)}
+#page-fri-val .fri-banner .v{font-size:16px;font-weight:800}
+#page-fri-val .fri-banner .s{font-size:13px;font-weight:700;padding:4px 10px;border-radius:var(--rs)}
+#page-fri-val .sev-Critical{background:#FADBD8;color:#C0392B}#page-fri-val .sev-Major{background:#FDEBD0;color:#B9770E}
+#page-fri-val .sev-Minor{background:#F2F3F4;color:#707070}#page-fri-val .sev-Pass{background:#D5F5E3;color:#1E8449}
+#page-fri-val .tbl td .fc,#page-fri-val .tbl td select.fc{width:100%;height:28px;font-size:12px}
+#page-fri-val .tbl td textarea.fc{width:100%;min-height:44px;height:auto;padding:5px 8px;font-size:12px;resize:vertical;font-family:inherit}
+#page-fri-val .fri-warn{font-size:11.5px;color:#B9770E;margin-top:3px}
+#page-fri-val .fri-sec{font-size:13.5px;font-weight:700;color:#F4811F;margin:0 0 10px}
+#page-fri-val .fri-note{font-size:11.5px;color:var(--t3)}
+@media (max-width:900px){#page-fri-val .fri-grid{grid-template-columns:1fr 1fr}}
+</style>
+<div id="page-fri-val" class="page">
+  <div class="bc"><a onclick="go('orders',null)">Order Fulfilment</a><span class="sep">›</span><span class="cur">FRI Validation Report</span></div>
+  <div class="ph">
+    <div class="ph-l"><h2>FRI Validation Report</h2><p>Validate the submitted FRI report before SRC issue · Thẩm định báo cáo FRI trước khi cấp SRC — rules: fri-validation v2.9 (CP1–CP10, findings F- / NC- / RG- / OB-, AQL ISO 2859-1)</p></div>
+    <div class="ph-r" style="display:flex;gap:8px;flex-wrap:wrap">
+      <input type="file" id="fri-import-input" accept=".xlsx" style="display:none" onchange="friImport(this)"/>
+      <button class="btn btn-d" onclick="g('fri-import-input').click()" title="Import a register exported from this page">⬆ Import .xlsx</button>
+      <button class="btn btn-d" onclick="friExport()" title="Register, findings and CP matrix of every validation">⬇ Export .xlsx</button>
+      <button class="btn btn-p" onclick="friNew()">+ New validation</button>
+    </div>
+  </div>
+  <div class="g4" id="fri-kpis"></div>
+  <div class="fri-tabs">
+    <div class="fri-tab on" id="fri-tab-reg" onclick="friTab('reg')">📋 Register</div>
+    <div class="fri-tab" id="fri-tab-wb" onclick="friTab('wb')">🧾 Validation workbench</div>
+  </div>
+
+  <div class="fri-pane on" id="fri-pane-reg">
+    <div class="fb">
+      <input class="fc" id="fri-flt-q" oninput="friRenderRegister()" placeholder="Search ref, P.O., lot, Ally, supplier, report no.…" style="width:280px"/>
+      <span class="fl">Verdict</span>
+      <select class="fsel" id="fri-flt-v" onchange="friRenderRegister()"><option value="">All</option><option>CANNOT CONFIRM</option><option>CONDITIONAL PASS</option><option>PASS WITH NOTES</option><option>PASS — ACCEPTED</option></select>
+      <span class="fl">Shipment</span>
+      <select class="fsel" id="fri-flt-s" onchange="friRenderRegister()"><option value="">All</option><option>SRC BLOCKED</option><option>AUTHORISATION WITHHELD</option><option>SRC RELEASED</option></select>
+      <div class="frgt"><span id="fri-reg-info" class="fri-note"></span></div>
+    </div>
+    <div class="card"><div class="tw"><table class="tbl">
+      <thead><tr><th>VALIDATION REF</th><th>P.O. · LOT</th><th>ALLY</th><th>SUPPLIER</th><th>FRI REPORT</th><th>INSPECTION</th><th>FINDINGS Cr/Ma/Mi</th><th>NC · RG · OB</th><th>REPORT VERDICT</th><th>SHIPMENT</th><th>UPDATED</th></tr></thead>
+      <tbody id="fri-reg-tbody"></tbody>
+    </table></div></div>
+  </div>
+
+  <div class="fri-pane" id="fri-pane-wb"><div id="fri-wb"></div></div>
+</div>
+
+<script>
+// ═════════════ FRI VALIDATION REPORT ═════════════
+const FRI_STORE = 'arena_fri_validations_v1';
+const FRI_CPS = [
+  ['CP1','Quantity','100% carton count vs P.O.; packed qty ≥80% of P.O. qty; packed qty = AQL lot size'],
+  ['CP2','Packing','L1/L2/L3 packing vs export packaging spec; shipping marks complete; ISPM 15 mark on solid-wood pallets'],
+  ['CP3','Artwork & labelling','All levels vs RELEASED print files; EAN-13 / ITF-14 scan PASS; languages; GPSR Art. 9 identity + contact; batch code + carton no.'],
+  ['CP4','Sample comparison','Conforms to golden / reference sample (material, colour, construction)'],
+  ['CP5','Weight & dimensions','≥5 cartons weighed + measured; deviation ≤ ±3% vs QSD spec'],
+  ['CP6','Workmanship','AQL tally Cr 0 / Ma 2.5 (1.0 outdoor furniture) / Mi 4.0; Ac/Re per the sample size inspected'],
+  ['CP7','On-site tests','Department test rows at S3 (S1 outdoor furniture); clause + method + n + result recorded'],
+  ['CP8','Disposal data','Packaging weight + material type per SKU recorded (PPWR data feed)'],
+  ['CP9','Other requirements','Ally-specific + QSD watch-outs checked; QC Pack document list (AVAILABLE / EXPIRED)'],
+  ['CP10','Close meeting','Findings communicated; supplier representative acknowledgement signed'],
+];
+const FRI_SOURCES = ['ARENA FRI Standard (Released)','ARENA FRI Standard (Draft / Incomplete)','QC Pack for this P.O.','Product FRI template',"Report's own text only"];
+const FRI_CP_VERDICTS = ['','Compliant','Not Compliant','Cannot Confirm','N/A'];
+// Finding-pattern library (fri-validation v2.9, Step 4) — [no, pattern, default severity]
+const FRI_PATTERNS = [
+  [1,'Measurement outside tolerance but CP marked PASS','Critical'],[2,'AQL defects found > Ac but class marked PASS','Critical'],
+  [3,'Mandatory field blank / "?" (AQL level, lot size, inspector, overall result)','Critical'],[4,'Safety / regulatory mark (CE, GPSR Art. 9, warnings) absent in CP3 evidence','Critical'],
+  [5,'Lot size used for AQL ≠ packed qty','Major'],[6,'Special inspection level (S3/S1) does not match product template','Major'],
+  [7,'CP7 test row blank or NOT TESTED without justification','Major'],[8,'Defect tally inconsistent with defect photos / descriptions','Major'],
+  [9,'Expired / COPY ONLY document marked AVAILABLE','Major'],[10,'Photo caption missing or does not match checkpoint','Minor'],
+  [11,'Reviewer name absent (inspector present)','Minor'],[12,'Rounding / format errors not affecting verdict','Minor'],
+  [13,'Header sampling plan contradicts the report\'s own checkpoint sample-size column','Critical'],[14,'Ac/Re used belongs to another sample size than the one inspected','Critical'],
+  [15,'Recorded value ≠ value on the photographed scale / instrument (Critical if it supports a Pass)','Critical'],[16,'Evidence photo dated outside the inspection date / geotag at another site','Major'],
+  [17,'Same photo file reused under a different caption','Minor'],[18,'"Finding" copies the specification / claim, no measured value','Major'],
+  [19,'Test for a DoP / CE-label declared performance N/A while CP7 Passed','Critical'],[20,'Data entered in the wrong table column (Major if it hides missing data)','Minor'],
+  [21,'Test duration / condition not evidenced','Major'],[22,'Mandatory requirement ID of the ARENA FRI Standard not done (Critical if marked Passed)','Major'],
+  [23,'Evidence required by the checklist missing or not matching','Minor'],[24,'Overall verdict not given per the checklist verdict rules','Critical'],
+  [25,'Third-party report: no content maps to a mandatory requirement ID','Major'],[26,'Checklist row "QS to fill" / standard incomplete → RG- to QS','RG'],
+];
+const FRI_RESP = ['QC','QS','QC + QS','QS + Compliance Director','Supplier','QC + supplier'];
+
+let FRI_DB = [];
+try { FRI_DB = JSON.parse(localStorage.getItem(FRI_STORE) || '[]') || []; } catch(e) { FRI_DB = []; }
+let friCur = null;            // validation open in the workbench
+let friDirty = false;
+
+function friE(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function friPersist(){ try { localStorage.setItem(FRI_STORE, JSON.stringify(FRI_DB)); } catch(e) {} }
+function friRows(){ return (typeof MASTER_FU_DATA!=='undefined' && MASTER_FU_DATA.length) ? MASTER_FU_DATA : (typeof ORDERS_DATA!=='undefined' ? ORDERS_DATA : []); }
+function friLotOf(r){ return r.lot || 'Lot 1'; }
+function friTab(t){
+  ['reg','wb'].forEach(x => { g('fri-tab-'+x)?.classList.toggle('on', x===t); g('fri-pane-'+x)?.classList.toggle('on', x===t); });
+  if (t==='wb' && !friCur) friNew();
+}
+
+// ── ISO 2859-1 single sampling, normal inspection (Table 1 code letters, Table 2-A) ──
+const FRI_LOTS = [8,15,25,50,90,150,280,500,1200,3200,10000,35000,150000,500000,Infinity];
+const FRI_T1 = { S1:'AAAABBBBCCCCDDD', S2:'AAABBBCCCDDDEEE', S3:'AABBCCDDEEFFGGH', S4:'AABCCDEEFGGHJJK',
+                 I:'AABCCDEFGHJKLMN', II:'ABCDEFGHJKLMNPQ', III:'BCDEFGHJKLMNPQR' };
+const FRI_CODES = 'ABCDEFGHJKLMNPQR';
+const FRI_N = [2,3,5,8,13,20,32,50,80,125,200,315,500,800,1250,2000];
+const FRI_C0 = { '0.65':5, '1.0':4, '1.5':3, '2.5':2, '4.0':1, '6.5':0 };   // code letter index where Ac 0 / Re 1 sits
+const FRI_ACRE = {0:[0,1],3:[1,2],4:[2,3],5:[3,4],6:[5,6],7:[7,8],8:[10,11],9:[14,15],10:[21,22]};
+function friCode(lot, level){
+  const t = FRI_T1[level]; if (!t || !(lot>=2)) return null;
+  const i = FRI_LOTS.findIndex(x => lot <= x); return t[i];
+}
+function friPlanByIdx(idx, aql){
+  // Returns the plan that applies at code index idx for this AQL, following the arrows of Table 2-A
+  if (aql==='0' || aql===0) return { n: FRI_N[idx], ac:0, re:1, note:'' };
+  const c0 = FRI_C0[String(aql)]; if (c0===undefined || idx<0) return null;
+  const k = idx - c0; let use = idx;
+  if (k < 0) use = c0; else if (k === 1) use = c0; else if (k === 2) use = c0 + 3; else if (k > 10) use = c0 + 10;
+  use = Math.min(use, FRI_N.length-1);
+  const ar = FRI_ACRE[use - c0];
+  return { n: FRI_N[use], ac: ar[0], re: ar[1], note: use!==idx ? `arrow → use n = ${FRI_N[use]}` : '' };
+}
+function friIdxForN(n){ // code letter of the sample size actually inspected (nearest lower standard size)
+  if (!(n>=2)) return -1; let i = -1; FRI_N.forEach((x,j) => { if (x <= n) i = j; }); return i;
+}
+
+// ── New / open / save ──
+function friBlank(){
+  return { id:'', ref:'', rev:0, status:'Draft', po:'', lot:'', ally:'', sup:'', dept:'', pf:'',
+    reportNo:'', inspDate:'', inspBody:'', inspector:'', reviewer:'', inspType:'FRI',
+    basis:'', basisStatus:'None', photos:'Original report with photos', validator:'Lybachbill', valDate:new Date().toISOString().slice(0,10),
+    cps: FRI_CPS.map(c => ({ cp:c[0], src:'', shows:'', verdict:'' })),
+    aql: { poQty:'', packed:'', lotUsed:'', gen:'II', spec:'S3', aqlMa:'2.5', aqlMi:'4.0', nInsp:'', acMa:'', acMi:'', fCr:'', fMa:'', fMi:'', rep:'' },
+    cov: { mand:'', done:'', recorded:'', conform:'', evReq:'', evPresent:'' },
+    findings: [], notes:'', updated:'' };
+}
+function friNew(po, lot){
+  if (friDirty && !confirm('Discard the unsaved changes in the workbench?')) return;
+  friCur = friBlank(); friDirty = false;
+  if (po) friApplyPO(po + '||' + (lot || 'Lot 1'), true);
+  friTab('wb'); friRenderWorkbench();
+}
+function friOpen(id){
+  if (friDirty && !confirm('Discard the unsaved changes in the workbench?')) return;
+  const v = FRI_DB.find(x => x.id === id); if (!v) return;
+  friCur = JSON.parse(JSON.stringify(v)); friDirty = false;
+  friTab('wb'); friRenderWorkbench();
+}
+function friNextRef(v){
+  const dept = (v.dept || 'GEN').toUpperCase().replace(/[^A-Z]/g,'') || 'GEN';
+  const yr = (v.valDate || new Date().toISOString()).slice(0,4);
+  const pre = `ARENA-FRIVAL-${dept}-${yr}-`;
+  const max = FRI_DB.filter(x => (x.ref||'').startsWith(pre)).reduce((m,x) => Math.max(m, parseInt(x.ref.slice(pre.length))||0), 0);
+  return pre + String(max+1).padStart(3,'0');
+}
+function friSave(){
+  if (!friCur) return;
+  if (!friCur.po) { alert('Select the P.O. / lot first.'); return; }
+  if (!friCur.id) { friCur.id = 'FV' + Date.now(); friCur.ref = friNextRef(friCur); }
+  const c = friCompute(friCur); friCur.verdict = c.verdict; friCur.ship = c.ship;
+  friCur.updated = new Date().toISOString().slice(0,16).replace('T',' ');
+  const i = FRI_DB.findIndex(x => x.id === friCur.id);
+  if (i >= 0) FRI_DB[i] = JSON.parse(JSON.stringify(friCur)); else FRI_DB.unshift(JSON.parse(JSON.stringify(friCur)));
+  friPersist(); friDirty = false;
+  friRenderWorkbench(); friRenderKpis(); friRenderRegister(); friNavBadge();
+  if (typeof srcRenderPoTable === 'function') srcRenderPoTable();
+  const m = g('fri-save-msg'); if (m) { m.textContent = `Saved ${friCur.ref} · ${friCur.updated}`; }
+}
+function friDelete(){
+  if (!friCur || !friCur.id) { friCur = null; friDirty = false; friTab('reg'); return; }
+  if (!confirm(`Delete validation ${friCur.ref}? This cannot be undone.`)) return;
+  FRI_DB = FRI_DB.filter(x => x.id !== friCur.id); friPersist();
+  friCur = null; friDirty = false; friRenderAll(); friTab('reg');
+}
+function friNewRevision(){
+  if (!friCur || !friCur.id) { alert('Save the validation first.'); return; }
+  friSave();
+  const v = JSON.parse(JSON.stringify(friCur));
+  v.id = 'FV' + Date.now(); v.rev = (+v.rev || 0) + 1; v.status = 'Draft'; v.valDate = new Date().toISOString().slice(0,10);
+  friCur = v; friDirty = true; friRenderWorkbench();
+  const m = g('fri-save-msg'); if (m) m.textContent = `Rev.${v.rev} of ${v.ref} — not saved yet. Rev.${v.rev-1} is kept.`;
+}
+
+// ── Field binding ──
+function friSet(path, val){
+  if (!friCur) return;
+  const p = path.split('.'); let o = friCur;
+  for (let i=0;i<p.length-1;i++) o = o[p[i]];
+  o[p[p.length-1]] = val; friDirty = true;
+  friRefreshDerived();
+}
+function friSetF(i, key, val){
+  const f = friCur.findings[i]; if (!f) return;
+  f[key] = val; friDirty = true;
+  if (key === 'type') { f.sev = val==='F' ? (f.sev && ['Critical','Major','Minor'].includes(f.sev) ? f.sev : 'Major') : val==='NC' ? 'Medium' : '—'; f.ref = ''; friRenumber(); friRenderFindings(); }
+  if (key === 'pattern') {
+    const pt = FRI_PATTERNS.find(x => String(x[0]) === String(val));
+    if (pt) { if (pt[2]==='RG') { f.type='RG'; f.sev='—'; f.ref=''; friRenumber(); } else if (f.type==='F') f.sev = pt[2]; if (!f.title) f.title = pt[1]; }
+    friRenderFindings();
+  }
+  friRefreshDerived();
+}
+function friAddFinding(pre){
+  const f = Object.assign({ ref:'', type:'F', cp:'', sev:'Major', pattern:'', title:'', action:'', resp:'QC', status:'Open' }, pre || {});
+  friCur.findings.push(f); friRenumber(); friDirty = true; friRenderFindings(); friRefreshDerived();
+}
+function friDelFinding(i){ friCur.findings.splice(i,1); friRenumber(); friDirty = true; friRenderFindings(); friRefreshDerived(); }
+function friRenumber(){
+  const seq = {F:0,NC:0,RG:0,OB:0};
+  friCur.findings.forEach(f => { seq[f.type] = (seq[f.type]||0) + 1; f.ref = `${f.type}-${String(seq[f.type]).padStart(2,'0')}`; });
+}
+function friApplyPO(key, silent){
+  if (!friCur) return;
+  if (!key) { Object.assign(friCur, {po:'',lot:'',ally:'',sup:'',dept:'',pf:''}); friDirty = true; friRenderWorkbench(); return; }
+  const [po, lot] = key.split('||');
+  const r = friRows().find(x => x.po === po && friLotOf(x) === lot);
+  friCur.po = po; friCur.lot = lot;
+  if (r) {
+    friCur.ally = r.ally || ''; friCur.sup = r.sup || r.prod || ''; friCur.dept = r.dept || ''; friCur.pf = r.pf || '';
+    if (!friCur.inspBody) friCur.inspBody = r.inspCompany || '';
+    if (!friCur.inspDate && r.inspActual) friCur.inspDate = String(r.inspActual).slice(0,10);
+    if (!friCur.aql.poQty && r.qty) friCur.aql.poQty = String(r.qty);
+    const outdoorFurn = /furniture|bench|chair|table|lounger|sofa/i.test(r.pf || '') && /GARDEN|OUTDOOR/i.test(r.dept || '');
+    if (outdoorFurn) { friCur.aql.aqlMa = '1.0'; friCur.aql.spec = 'S1'; }
+  }
+  friDirty = !silent || friDirty; friRenderWorkbench();
+}
+
+// ── Rules: AQL check, CP traceability, verdict, shipment status ──
+function friAqlCheck(v){
+  const a = v.aql, num = x => (x===''||x==null) ? null : +x;
+  const poQty = num(a.poQty), packed = num(a.packed), lotUsed = num(a.lotUsed), nInsp = num(a.nInsp);
+  const fCr = num(a.fCr), fMa = num(a.fMa), fMi = num(a.fMi), acMa = num(a.acMa), acMi = num(a.acMi);
+  const out = { rows:[], issues:[], aqlVerdict:'' };
+  const lot = lotUsed || packed;
+  const code = friCode(lot, a.gen); const idx = code ? FRI_CODES.indexOf(code) : -1;
+  const pMa = idx>=0 ? friPlanByIdx(idx, a.aqlMa) : null, pMi = idx>=0 ? friPlanByIdx(idx, a.aqlMi) : null;
+  out.rows.push(['AQL levels', `Critical 0 · Major ${a.aqlMa} · Minor ${a.aqlMi}`, '']);
+  out.rows.push(['Sampling level / lot', `General ${a.gen} · Special ${a.spec} · lot size ${lot ?? '—'}${code?` → code ${code}, n = ${FRI_N[idx]}`:''}`, '']);
+  if (pMa) out.rows.push(['Table 2-A (n for the lot)', `Major Ac ${pMa.ac} / Re ${pMa.re} (n ${pMa.n}${pMa.note?', '+pMa.note:''}) · Minor Ac ${pMi.ac} / Re ${pMi.re} (n ${pMi.n}${pMi.note?', '+pMi.note:''}) · Critical Ac 0 / Re 1`, '']);
+  // CP1 quantity rules
+  if (packed!=null && lotUsed!=null && packed !== lotUsed)
+    out.issues.push({ pattern:5, cp:'CP1', sev:'Major', title:`Lot size used for AQL (${lotUsed}) ≠ packed qty (${packed})`, action:'Recompute the sample size and Ac/Re on the packed qty.', resp:'QC' });
+  if (poQty && packed!=null && packed < 0.8*poQty)
+    out.issues.push({ pattern:'', cp:'CP1', sev:'Major', title:`Packed qty ${packed} = ${Math.round(packed/poQty*100)}% of P.O. qty ${poQty} (< 80% required for FRI validity)`, action:'Re-inspect at ≥80% packed, or record a written waiver.', resp:'QC + QS' });
+  // Ac/Re keyed to the n actually inspected
+  let ref = null;
+  if (nInsp) {
+    const ii = friIdxForN(nInsp);
+    if (ii >= 0) {
+      ref = { ma: friPlanByIdx(ii, a.aqlMa), mi: friPlanByIdx(ii, a.aqlMi) };
+      out.rows.push(['Ac/Re for n inspected', `n ${nInsp} (code ${FRI_CODES[ii]}) → Major Ac ${ref.ma.ac} · Minor Ac ${ref.mi.ac}`, '']);
+      if (pMa && nInsp < pMa.n) out.issues.push({ pattern:6, cp:'CP6', sev:'Major', title:`n inspected ${nInsp} < n required ${pMa.n} for lot ${lot} at level ${a.gen}`, action:'Re-inspect with the required sample size.', resp:'QC' });
+      if ((acMa!=null && acMa !== ref.ma.ac) || (acMi!=null && acMi !== ref.mi.ac))
+        out.issues.push({ pattern:14, cp:'CP6', sev:'Critical', title:`Ac used (Ma ${acMa ?? '—'} / Mi ${acMi ?? '—'}) ≠ Ac for n ${nInsp} (Ma ${ref.ma.ac} / Mi ${ref.mi.ac})`, action:'Restate the AQL verdict with the Ac/Re of the sample actually inspected.', resp:'QC' });
+    }
+  }
+  const use = ref || (pMa ? { ma:pMa, mi:pMi } : null);
+  if (use && (fCr!=null || fMa!=null || fMi!=null)) {
+    const crOk = !(fCr > 0), maOk = fMa==null || fMa <= use.ma.ac, miOk = fMi==null || fMi <= use.mi.ac;
+    out.rows.push(['Defects found', `Critical ${fCr ?? '—'} ${crOk?'✓':'✗'} · Major ${fMa ?? '—'} ${maOk?'✓':'✗'} (Ac ${use.ma.ac}) · Minor ${fMi ?? '—'} ${miOk?'✓':'✗'} (Ac ${use.mi.ac})`, '']);
+    out.aqlVerdict = (crOk && maOk && miOk) ? 'PASS' : 'FAIL';
+    if (out.aqlVerdict === 'FAIL') {
+      out.issues.push({ type:'NC', pattern:'', cp:'CP6', sev:'Medium', title:`AQL reject — ${!crOk?'Critical ':''}${!maOk?'Major ':''}${!miOk?'Minor ':''}defects above Ac`, action:'Hold the full packed qty; supplier to sort / rework 100%; re-inspection.', resp:'QC + supplier' });
+      if (a.rep === 'Pass') out.issues.push({ pattern:2, cp:'CP6', sev:'Critical', title:'AQL defects found > Ac but the report states AQL Pass', action:'Correct the AQL result in the report.', resp:'QC' });
+    }
+  }
+  out.rows.push(['AQL verdict (recomputed)', out.aqlVerdict || '—', a.rep ? `report states: ${a.rep}` : '']);
+  return out;
+}
+function friCompute(v){
+  const open = v.findings.filter(f => f.status !== 'Closed');
+  const F = open.filter(f => f.type==='F');
+  const cr = F.filter(f => f.sev==='Critical').length, ma = F.filter(f => f.sev==='Major').length, mi = F.filter(f => f.sev==='Minor').length;
+  const nc = open.filter(f => f.type==='NC').length, rg = open.filter(f => f.type==='RG').length, ob = v.findings.filter(f => f.type==='OB').length;
+  const verdict = cr ? 'CANNOT CONFIRM — REPORT REQUIRES CORRECTION' : ma ? 'CONDITIONAL PASS — CORRECTIONS REQUIRED' : mi ? 'PASS WITH NOTES' : 'PASS — ACCEPTED';
+  const c = v.cov, n = x => (x===''||x==null) ? null : +x;
+  const cov = n(c.mand) ? Math.round(n(c.done)/n(c.mand)*100) : null;
+  const conf = n(c.recorded) ? Math.round(n(c.conform)/n(c.recorded)*100) : null;
+  const evid = n(c.evReq) ? Math.round(n(c.evPresent)/n(c.evReq)*100) : null;
+  const reasons = [];
+  if (nc) reasons.push(`${nc} open NC-`);
+  if (cr || ma) reasons.push(`${cr+ma} Critical/Major report finding(s)`);
+  if (rg) reasons.push(`${rg} open RG- (requirement gap)`);
+  if (cov !== null && cov < 100) reasons.push(`coverage ${cov}% < 100%`);
+  const ship = nc ? 'SRC BLOCKED' : reasons.length ? 'AUTHORISATION WITHHELD' : 'SRC RELEASED';
+  const warn = [];
+  v.cps.forEach((r,i) => {
+    const has = v.findings.some(f => (f.cp||'').toUpperCase().split(/[^A-Z0-9]+/).includes(r.cp));
+    if ((r.verdict==='Not Compliant' || r.verdict==='Cannot Confirm') && !has) warn.push(`${r.cp} is ${r.verdict} but no finding is linked to it (Step 3b: every such row needs an F- or NC-).`);
+    if (r.verdict==='N/A' && (v.inspType||'FRI')==='FRI' && ['CP1','CP2','CP3','CP6','CP7'].includes(r.cp)) warn.push(`${r.cp} marked N/A on a Final Random Inspection — confirm N/A is justified (CP7 N/A on an FRI is normally a Critical gap).`);
+    if (r.src === "Report's own text only" && r.verdict && r.verdict!=='N/A' && !v.findings.some(f => f.cp===r.cp && f.sev==='Minor')) warn.push(`${r.cp}: the report's own text is the only requirement source — log a Minor finding (Step 3b).`);
+  });
+  if (v.photos !== 'Original report with photos') warn.push('Photos not reviewed: photo-dependent findings are PROVISIONAL and capped at Major (Step 2a).');
+  if (['Draft','Incomplete'].includes(v.basisStatus)) warn.push(`ARENA FRI Standard is ${v.basisStatus}: rows "QS to fill" are "Cannot confirm — standard incomplete" → RG- to QS, authorisation withheld without a QS waiver.`);
+  return { cr, ma, mi, nc, rg, ob, verdict, ship, reasons, cov, conf, evid, warn };
+}
+function friShipCls(s){ return s==='SRC BLOCKED' ? 'sev-Critical' : s==='AUTHORISATION WITHHELD' ? 'sev-Major' : 'sev-Pass'; }
+function friVerdictCls(v){ return /^CANNOT/.test(v) ? 'sev-Critical' : /^CONDITIONAL/.test(v) ? 'sev-Major' : /NOTES/.test(v) ? 'sev-Minor' : 'sev-Pass'; }
+
+// Latest saved validation for a lot — used by Issue SRC
+function friLatestFor(po, lot){
+  return FRI_DB.filter(x => x.po === po && (x.lot || 'Lot 1') === (lot || 'Lot 1')).sort((a,b) => ((b.rev||0)-(a.rev||0)) || String(b.updated).localeCompare(String(a.updated)))[0] || null;
+}
+function friTag(po, lot){
+  const v = friLatestFor(po, lot); if (!v) return '';
+  const s = friCompute(v).ship, cls = s==='SRC BLOCKED' ? 't-r' : s==='AUTHORISATION WITHHELD' ? 't-o' : 't-g';
+  return ` <span class="tag ${cls}" title="FRI validation ${friE(v.ref)}: ${friE(s)}">FRI ${s==='SRC RELEASED'?'✓':s==='SRC BLOCKED'?'⛔':'⚠'}</span>`;
+}
+
+// ── Rendering ──
+function friRenderAll(){ friRenderKpis(); friRenderRegister(); friNavBadge(); if (friCur) friRenderWorkbench(); }
+function friNavBadge(){
+  const n = FRI_DB.filter(v => friCompute(v).ship !== 'SRC RELEASED').length, b = g('nav-fri-cnt');
+  if (b) { b.textContent = n; b.style.display = n ? '' : 'none'; b.title = `${n} validation(s) with SRC blocked or authorisation withheld`; }
+}
+function friRenderKpis(){
+  const el = g('fri-kpis'); if (!el) return;
+  const cs = FRI_DB.map(v => friCompute(v));
+  const k = [
+    ['nc-soon','🧾',FRI_DB.length,'Validations','in the register'],
+    ['nc-overdue','⛔',cs.filter(c => c.ship==='SRC BLOCKED').length,'SRC blocked','open product NC-'],
+    ['nc-urgent','⚠️',cs.filter(c => c.ship==='AUTHORISATION WITHHELD').length,'Authorisation withheld','report corrections / RG- / coverage'],
+    ['nc-ok','✅',cs.filter(c => c.ship==='SRC RELEASED').length,'SRC released','report accepted, no open NC-'],
+  ];
+  el.innerHTML = k.map(c => `<div class="bk-nc ${c[0]}" style="cursor:default"><div style="font-size:22px">${c[1]}</div><div><div class="bk-nc-val">${c[2]}</div><div class="bk-nc-lbl">${c[3]}</div><div class="bk-nc-sub">${c[4]}</div></div></div>`).join('');
+}
+function friRenderRegister(){
+  const tb = g('fri-reg-tbody'); if (!tb) return;
+  const q = (g('fri-flt-q')?.value || '').toLowerCase().trim(), fv = g('fri-flt-v')?.value || '', fs = g('fri-flt-s')?.value || '';
+  const rows = FRI_DB.map(v => ({ v, c: friCompute(v) })).filter(({v,c}) =>
+    (!q || [v.ref,v.po,v.lot,v.ally,v.sup,v.reportNo,v.inspBody].join(' ').toLowerCase().includes(q)) &&
+    (!fv || c.verdict.startsWith(fv)) && (!fs || c.ship === fs));
+  const info = g('fri-reg-info'); if (info) info.textContent = FRI_DB.length ? `${rows.length} of ${FRI_DB.length} validation(s) — click a row to open it` : '';
+  if (!rows.length) { tb.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:28px;color:var(--t3)">${FRI_DB.length ? 'No validation matches the filters.' : 'No validation yet — click <b>+ New validation</b> or <b>+ FRI Validation</b> on Order Fulfilment.'}</td></tr>`; return; }
+  tb.innerHTML = rows.map(({v,c}) => `<tr class="row-click" onclick="friOpen('${v.id}')">
+    <td><span class="col-id">${friE(v.ref)}</span>${v.rev?` <span class="tag t-gray">Rev.${v.rev}</span>`:''}${v.status==='Draft'?' <span class="tag t-gray">Draft</span>':''}</td>
+    <td style="white-space:nowrap">${friE(v.po)} · ${friE(v.lot)}</td><td>${friE(v.ally)||'—'}</td>
+    <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${friE(v.sup)||'—'}</td>
+    <td>${friE(v.reportNo)||'—'}</td><td style="white-space:nowrap">${friE(v.inspDate)||'—'}<div class="fri-note">${friE(v.inspBody)}</div></td>
+    <td style="white-space:nowrap"><b style="color:#C0392B">${c.cr}</b> / <b style="color:#B9770E">${c.ma}</b> / ${c.mi}</td>
+    <td style="white-space:nowrap">${c.nc} · ${c.rg} · ${c.ob}</td>
+    <td><span class="tag ${friVerdictCls(c.verdict)}" style="border:0">${friE(c.verdict.split(' — ')[0])}</span></td>
+    <td><span class="tag ${friShipCls(c.ship)}" style="border:0">${friE(c.ship)}</span></td>
+    <td class="col-g" style="white-space:nowrap">${friE(v.updated)}</td></tr>`).join('');
+}
+function friPoOptions(){
+  const seen = new Set();
+  const rows = friRows().filter(r => r.status === 'Open').sort((a,b) => String(a.po).localeCompare(String(b.po)));
+  let h = '<option value="">— Select open P.O. / lot —</option>';
+  const cur = friCur && friCur.po ? `${friCur.po}||${friCur.lot}` : '';
+  rows.forEach(r => { const k = `${r.po}||${friLotOf(r)}`; if (seen.has(k)) return; seen.add(k);
+    h += `<option value="${friE(k)}"${k===cur?' selected':''}>${friE(r.po)} · ${friE(friLotOf(r))} · ${friE(r.ally||'')} · ${friE(r.dept||'')}${r.insp?' · insp '+friE(r.insp):''}</option>`; });
+  if (cur && !seen.has(cur)) h += `<option value="${friE(cur)}" selected>${friE(friCur.po)} · ${friE(friCur.lot)} (not open)</option>`;
+  return h;
+}
+function friIn(path, val, opts){
+  opts = opts || {};
+  if (opts.sel) return `<select class="fc" onchange="friSet('${path}',this.value)">${opts.sel.map(o => `<option${String(o)===String(val)?' selected':''}>${friE(o)}</option>`).join('')}</select>`;
+  return `<input class="fc" ${opts.type?`type="${opts.type}"`:''} value="${friE(val)}" placeholder="${friE(opts.ph||'')}" onchange="friSet('${path}',this.value)"/>`;
+}
+function friRenderWorkbench(){
+  const el = g('fri-wb'); if (!el || !friCur) return;
+  const v = friCur, a = v.aql, c = v.cov;
+  el.innerHTML = `
+  <div class="card">
+    <div class="ch2"><div class="ct">${v.ref ? friE(v.ref) + (v.rev?` · Rev.${v.rev}`:'') : 'New FRI validation (not saved)'}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span id="fri-save-msg" class="fri-note"></span>
+        <button class="btn btn-d btn-sm" onclick="friPrint()">🖨 Print</button>
+        <button class="btn btn-d btn-sm" onclick="friNewRevision()" title="Keep this revision and start the next one">↻ New revision</button>
+        <button class="btn btn-d btn-sm" onclick="friDelete()" style="color:var(--r)">Delete</button>
+        <button class="btn btn-p btn-sm" onclick="friSave()">💾 Save</button></div></div>
+    <div class="fri-sec">1 · Report under validation</div>
+    <div class="fri-grid">
+      <div style="grid-column:span 2"><label class="fl2">P.O. · lot (open P.O.s)</label><select class="fc" onchange="friApplyPO(this.value)">${friPoOptions()}</select></div>
+      <div><label class="fl2">Ally</label>${friIn('ally',v.ally)}</div>
+      <div><label class="fl2">Supplier / factory</label>${friIn('sup',v.sup)}</div>
+      <div><label class="fl2">Department</label>${friIn('dept',v.dept)}</div>
+      <div><label class="fl2">Product family</label>${friIn('pf',v.pf)}</div>
+      <div><label class="fl2">FRI report no.</label>${friIn('reportNo',v.reportNo,{ph:'e.g. 260522-3'})}</div>
+      <div><label class="fl2">Inspection date</label>${friIn('inspDate',v.inspDate,{type:'date'})}</div>
+      <div><label class="fl2">Inspection body</label>${friIn('inspBody',v.inspBody,{ph:'in-house / DEKRA / SGS …'})}</div>
+      <div><label class="fl2">Inspector</label>${friIn('inspector',v.inspector)}</div>
+      <div><label class="fl2">Reviewer</label>${friIn('reviewer',v.reviewer)}</div>
+      <div><label class="fl2">Inspection type</label>${friIn('inspType',v.inspType,{sel:['FRI','DPI','PSI','Inline']})}</div>
+      <div style="grid-column:span 2"><label class="fl2">Basis — ARENA FRI Standard ID</label>${friIn('basis',v.basis,{ph:'ARENA-FRI-STD-<CAT>-Vx + P.O. annex, or blank if none'})}</div>
+      <div><label class="fl2">Standard status</label>${friIn('basisStatus',v.basisStatus,{sel:['None','Released','Draft','Incomplete']})}</div>
+      <div><label class="fl2">Source reviewed</label>${friIn('photos',v.photos,{sel:['Original report with photos','Text / PDF export without photos']})}</div>
+      <div><label class="fl2">Validator</label>${friIn('validator',v.validator)}</div>
+      <div><label class="fl2">Validation date</label>${friIn('valDate',v.valDate,{type:'date'})}</div>
+      <div><label class="fl2">Status</label>${friIn('status',v.status,{sel:['Draft','Issued']})}</div>
+    </div>
+  </div>
+  <div id="fri-banner"></div>
+  <div class="card">
+    <div class="fri-sec">2 · Checkpoint requirement compliance matrix (CP1–CP10)</div>
+    <div class="fri-note" style="margin-bottom:8px">Re-derive every checkpoint from an independent requirement source — the report's own "Passed" / "N/A" does not exempt a row. Source priority: Released ARENA FRI Standard → QC Pack for this P.O. → product FRI template → report's own text (last resort, Minor).</div>
+    <div class="tw"><table class="tbl" style="min-width:980px"><thead><tr><th style="width:150px">CHECKPOINT</th><th style="width:250px">ACCEPTANCE CRITERIA</th><th style="width:190px">REQUIREMENT SOURCE</th><th>WHAT THE REPORT SHOWS (value / photo / field)</th><th style="width:140px">VERDICT</th></tr></thead>
+    <tbody>${v.cps.map((r,i) => `<tr><td><b>${r.cp}</b> ${friE(FRI_CPS[i][1])}</td><td class="fri-note">${friE(FRI_CPS[i][2])}</td>
+      <td><select class="fc" onchange="friSet('cps.${i}.src',this.value)"><option value=""></option>${FRI_SOURCES.map(s => `<option${s===r.src?' selected':''}>${friE(s)}</option>`).join('')}</select></td>
+      <td><textarea class="fc" onchange="friSet('cps.${i}.shows',this.value)">${friE(r.shows)}</textarea></td>
+      <td><select class="fc" onchange="friSet('cps.${i}.verdict',this.value)">${FRI_CP_VERDICTS.map(s => `<option${s===r.verdict?' selected':''}>${s}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div>
+    <div id="fri-cp-warn"></div>
+  </div>
+  <div class="g2">
+    <div class="card mb0">
+      <div class="fri-sec">3 · AQL verification (ISO 2859-1, normal, single)</div>
+      <div class="fri-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div><label class="fl2">P.O. qty</label>${friIn('aql.poQty',a.poQty,{type:'number'})}</div>
+        <div><label class="fl2">Packed qty (= lot size)</label>${friIn('aql.packed',a.packed,{type:'number'})}</div>
+        <div><label class="fl2">Lot size used in report</label>${friIn('aql.lotUsed',a.lotUsed,{type:'number'})}</div>
+        <div><label class="fl2">General level</label>${friIn('aql.gen',a.gen,{sel:['I','II','III']})}</div>
+        <div><label class="fl2">Special level (tests)</label>${friIn('aql.spec',a.spec,{sel:['S1','S2','S3','S4']})}</div>
+        <div><label class="fl2">Report AQL result</label>${friIn('aql.rep',a.rep,{sel:['','Pass','Fail']})}</div>
+        <div><label class="fl2">AQL Major</label>${friIn('aql.aqlMa',a.aqlMa,{sel:['1.0','1.5','2.5','4.0']})}</div>
+        <div><label class="fl2">AQL Minor</label>${friIn('aql.aqlMi',a.aqlMi,{sel:['1.5','2.5','4.0','6.5']})}</div>
+        <div><label class="fl2">n inspected (workmanship)</label>${friIn('aql.nInsp',a.nInsp,{type:'number'})}</div>
+        <div><label class="fl2">Ac Major stated</label>${friIn('aql.acMa',a.acMa,{type:'number'})}</div>
+        <div><label class="fl2">Ac Minor stated</label>${friIn('aql.acMi',a.acMi,{type:'number'})}</div>
+        <div></div>
+        <div><label class="fl2">Critical found</label>${friIn('aql.fCr',a.fCr,{type:'number'})}</div>
+        <div><label class="fl2">Major found</label>${friIn('aql.fMa',a.fMa,{type:'number'})}</div>
+        <div><label class="fl2">Minor found</label>${friIn('aql.fMi',a.fMi,{type:'number'})}</div>
+      </div>
+      <div id="fri-aql-out" style="margin-top:10px"></div>
+    </div>
+    <div class="card mb0">
+      <div class="fri-sec">4 · Requirement coverage vs ARENA FRI Standard (Step 3e)</div>
+      <div class="fri-note" style="margin-bottom:8px">Fill only when an ARENA FRI Standard checklist exists for the category / P.O. Mandatory coverage must be 100% for acceptance.</div>
+      <div class="fri-grid" style="grid-template-columns:repeat(2,1fr)">
+        <div><label class="fl2">Mandatory IDs</label>${friIn('cov.mand',c.mand,{type:'number'})}</div>
+        <div><label class="fl2">Done or justified N/A</label>${friIn('cov.done',c.done,{type:'number'})}</div>
+        <div><label class="fl2">IDs with a value recorded</label>${friIn('cov.recorded',c.recorded,{type:'number'})}</div>
+        <div><label class="fl2">… of which conform</label>${friIn('cov.conform',c.conform,{type:'number'})}</div>
+        <div><label class="fl2">IDs requiring evidence</label>${friIn('cov.evReq',c.evReq,{type:'number'})}</div>
+        <div><label class="fl2">… evidence present</label>${friIn('cov.evPresent',c.evPresent,{type:'number'})}</div>
+      </div>
+      <div id="fri-cov-out" style="margin-top:10px"></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="ch2"><div class="ct" style="color:#F4811F;font-weight:700">5 · Findings &amp; action register</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-d btn-sm" onclick="friAddFinding({type:'F'})">+ F- report finding</button>
+        <button class="btn btn-d btn-sm" onclick="friAddFinding({type:'NC',sev:'Medium',resp:'QC + supplier'})">+ NC- product</button>
+        <button class="btn btn-d btn-sm" onclick="friAddFinding({type:'RG',sev:'—',resp:'QS + Compliance Director'})">+ RG- requirement gap</button>
+        <button class="btn btn-d btn-sm" onclick="friAddFinding({type:'OB',sev:'—',resp:'QS'})">+ OB- observation</button></div></div>
+    <div class="fri-note" style="margin-bottom:8px">F- = the report is wrong / incomplete (corrected by QC, no NCR) · NC- = the goods fail a defined requirement (containment, SRC blocked, RCA) · RG- = requirement undefined or approved documents conflict (QS + Compliance, no NCR) · OB- = observation, no requirement breached.</div>
+    <div id="fri-findings"></div>
+  </div>
+  <div class="card"><div class="fri-sec">6 · Notes / containment record</div>
+    <textarea class="fc" style="width:100%;min-height:70px;height:auto;padding:8px 10px;font-family:inherit" placeholder="Containment actions (action, qty affected, owner, date, effectiveness), waivers, revision line…" onchange="friSet('notes',this.value)">${friE(v.notes)}</textarea></div>`;
+  friRenderFindings(); friRefreshDerived();
+}
+function friRenderFindings(){
+  const el = g('fri-findings'); if (!el || !friCur) return;
+  const fs = friCur.findings;
+  if (!fs.length) { el.innerHTML = '<div style="padding:16px;text-align:center;color:var(--t3);font-size:12.5px">No finding logged. Add one with the buttons above, or from the AQL check.</div>'; return; }
+  const sevOpts = t => t==='F' ? ['Critical','Major','Minor'] : t==='NC' ? ['Low','Medium','High'] : ['—'];
+  el.innerHTML = `<div class="tw"><table class="tbl" style="min-width:1100px"><thead><tr><th style="width:62px">REF</th><th style="width:70px">TYPE</th><th style="width:110px">CP / REQ ID</th><th style="width:100px">SEVERITY / GRADE</th><th style="width:150px">PATTERN</th><th>WHAT IS WRONG (found in report)</th><th>REQUIRED ACTION</th><th style="width:130px">RESPONSIBILITY</th><th style="width:90px">STATUS</th><th style="width:30px"></th></tr></thead><tbody>
+  ${fs.map((f,i) => `<tr style="${f.status==='Closed'?'opacity:.55':''}">
+    <td><b>${friE(f.ref)}</b></td>
+    <td><select class="fc" onchange="friSetF(${i},'type',this.value)">${['F','NC','RG','OB'].map(t => `<option${t===f.type?' selected':''}>${t}</option>`).join('')}</select></td>
+    <td><input class="fc" value="${friE(f.cp)}" placeholder="CP6 / TIL-D09-03" onchange="friSetF(${i},'cp',this.value)"/></td>
+    <td><select class="fc ${f.type==='F'?'sev-'+f.sev:''}" onchange="friSetF(${i},'sev',this.value);friRenderFindings()">${sevOpts(f.type).map(s => `<option${s===f.sev?' selected':''}>${s}</option>`).join('')}</select></td>
+    <td><select class="fc" onchange="friSetF(${i},'pattern',this.value)"><option value=""></option>${FRI_PATTERNS.map(p => `<option value="${p[0]}"${String(p[0])===String(f.pattern)?' selected':''}>#${p[0]} ${friE(p[1].slice(0,60))}</option>`).join('')}</select></td>
+    <td><textarea class="fc" onchange="friSetF(${i},'title',this.value)">${friE(f.title)}</textarea></td>
+    <td><textarea class="fc" onchange="friSetF(${i},'action',this.value)">${friE(f.action)}</textarea></td>
+    <td><select class="fc" onchange="friSetF(${i},'resp',this.value)">${FRI_RESP.map(r => `<option${r===f.resp?' selected':''}>${r}</option>`).join('')}</select></td>
+    <td><select class="fc" onchange="friSetF(${i},'status',this.value);friRenderFindings()">${['Open','Closed'].map(s => `<option${s===f.status?' selected':''}>${s}</option>`).join('')}</select></td>
+    <td><button class="btn btn-tx" title="Remove" onclick="friDelFinding(${i})">✕</button></td></tr>`).join('')}</tbody></table></div>`;
+}
+function friRefreshDerived(){
+  if (!friCur) return;
+  const c = friCompute(friCur), aq = friAqlCheck(friCur);
+  const b = g('fri-banner');
+  if (b) b.innerHTML = `<div class="fri-banner ${friVerdictCls(c.verdict)}">
+      <div><div class="fri-note">Report verdict</div><div class="v">${friE(c.verdict)}</div>
+        <div style="font-size:12px;margin-top:2px">${c.cr} Critical · ${c.ma} Major · ${c.mi} Minor report finding(s) · ${c.nc} NC- · ${c.rg} RG- · ${c.ob} OB-${friCur.photos!=='Original report with photos'?' · <b>PROVISIONAL — photos not reviewed</b>':''}</div></div>
+      <div style="margin-left:auto;text-align:right"><div class="fri-note">Shipment status (independent of the report verdict)</div>
+        <span class="s ${friShipCls(c.ship)}" style="display:inline-block;border:1px solid currentColor">${friE(c.ship)}</span>
+        <div style="font-size:11.5px;margin-top:3px">${c.reasons.length ? friE(c.reasons.join(' · ')) : 'report accepted, no open NC-'}</div></div>
+      ${c.cov!==null||c.conf!==null||c.evid!==null ? `<div style="width:100%;font-size:12px">Coverage ${c.cov??'—'}% · Conformity ${c.conf??'—'}% · Evidence ${c.evid??'—'}%${friCur.basis?` — basis ${friE(friCur.basis)} (${friE(friCur.basisStatus)})`:''}</div>` : ''}
+    </div>`;
+  const w = g('fri-cp-warn');
+  if (w) w.innerHTML = c.warn.map(x => `<div class="fri-warn">⚠ ${friE(x)}</div>`).join('');
+  const ao = g('fri-aql-out');
+  if (ao) {
+    const existing = new Set(friCur.findings.map(f => f.title));
+    ao.innerHTML = `<table class="tbl" style="font-size:12px"><tbody>${aq.rows.map(r => `<tr><td style="width:150px;color:var(--t2)">${friE(r[0])}</td><td><b>${friE(r[1])}</b>${r[2]?` <span class="fri-note">${friE(r[2])}</span>`:''}</td></tr>`).join('')}</tbody></table>
+      ${aq.issues.map((x,j) => `<div style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:12px"><span class="tag ${x.type==='NC'?'t-r':x.sev==='Critical'?'t-r':'t-o'}">${x.type==='NC'?'NC-':x.sev}</span><span style="flex:1">${x.pattern?`#${x.pattern} · `:''}${friE(x.title)}</span>
+        ${existing.has(x.title) ? '<span class="fri-note">logged</span>' : `<button class="btn btn-d btn-sm" onclick='friAddFinding(${JSON.stringify(Object.assign({type:'F'},x)).replace(/'/g,"&#39;")})'>+ Add</button>`}</div>`).join('')}
+      <div class="fri-note" style="margin-top:6px">Source: ISO 2859-1 Tables 1 and 2-A (the Quality matrix sampling tool is not embedded in IQS). Critical class: Ac 0.</div>`;
+  }
+  const co = g('fri-cov-out');
+  if (co) co.innerHTML = (c.cov===null && c.conf===null && c.evid===null) ? '<div class="fri-note">No ARENA FRI Standard figures entered.</div>' :
+    `<div style="display:flex;gap:10px;flex-wrap:wrap">${[['Coverage',c.cov,100],['Conformity',c.conf,null],['Evidence',c.evid,null]].map(([l,val,min]) => `<div class="tag ${val===null?'t-gray':(min&&val<min)||val<100?'t-o':'t-g'}" style="height:auto;padding:6px 10px;font-size:12px">${l} <b style="margin-left:4px">${val??'—'}%</b></div>`).join('')}</div>
+     ${c.cov!==null && c.cov<100 ? '<div class="fri-warn">⚠ Mandatory coverage below 100% — the report cannot be accepted; log the missing IDs as F- (pattern #22 / #25).</div>' : ''}`;
+}
+
+// ── Print (validation assessment summary) ──
+function friPrint(){
+  if (!friCur) return;
+  const v = friCur, c = friCompute(v), aq = friAqlCheck(v);
+  const meta = [['Validation ref', (v.ref||'(not saved)') + (v.rev?` · Rev.${v.rev}`:'')],['Ally',v.ally],['P.O. · lot',`${v.po} · ${v.lot}`],['Supplier',v.sup],['Department / product',`${v.dept} / ${v.pf}`],
+    ['FRI report no. / date',`${v.reportNo||'—'} / ${v.inspDate||'—'}`],['Inspection body / inspector',`${v.inspBody||'—'} / ${v.inspector||'—'}`],['Basis',v.basis?`${v.basis} (${v.basisStatus})`:'No ARENA FRI Standard for this category / P.O.'],['Validator / date',`${v.validator} / ${v.valDate}`]];
+  const F = v.findings;
+  printToPDF(`
+    <table style="margin-bottom:8pt">${meta.map(m => `<tr><td style="width:35%"><b>${friE(m[0])}</b></td><td>${friE(m[1])}</td></tr>`).join('')}</table>
+    <div style="padding:8pt;border:2pt solid #333;margin-bottom:10pt"><b style="font-size:13pt">${friE(c.verdict)}</b><br/>
+      ${c.cr} Critical · ${c.ma} Major · ${c.mi} Minor · ${c.nc} NC- · ${c.rg} RG- · ${c.ob} OB-${v.photos!=='Original report with photos'?' · PROVISIONAL — photos not reviewed':''}<br/>
+      <b>Shipment status: ${friE(c.ship)}</b>${c.reasons.length?' — '+friE(c.reasons.join(' · ')):''}
+      ${c.cov!==null?`<br/>Coverage ${c.cov}% · Conformity ${c.conf??'—'}% · Evidence ${c.evid??'—'}%`:''}</div>
+    <h3 style="color:#F4811F">Checkpoint requirement compliance matrix</h3>
+    <table><thead><tr><th>CP</th><th>Requirement source</th><th>What the report shows</th><th>Verdict</th></tr></thead><tbody>
+      ${v.cps.map((r,i) => `<tr><td>${r.cp} ${friE(FRI_CPS[i][1])}</td><td>${friE(r.src)||'—'}</td><td>${friE(r.shows)||'—'}</td><td>${friE(r.verdict)||'—'}</td></tr>`).join('')}</tbody></table>
+    <h3 style="color:#F4811F">Findings and action register</h3>
+    <table><thead><tr><th>Ref</th><th>CP / ID</th><th>Severity</th><th>What is wrong</th><th>Required action</th><th>Responsibility</th><th>Status</th></tr></thead><tbody>
+      ${F.length ? F.map(f => `<tr><td>${friE(f.ref)}</td><td>${friE(f.cp)}</td><td>${friE(f.sev)}</td><td>${friE(f.title)}</td><td>${friE(f.action)}</td><td>${friE(f.resp)}</td><td>${friE(f.status)}</td></tr>`).join('') : '<tr><td colspan="7" style="text-align:center">No finding</td></tr>'}</tbody></table>
+    ${F.some(f => f.type==='NC') ? '' : '<p style="font-size:9pt">No product nonconformance identified — report findings only.</p>'}
+    <h3 style="color:#F4811F">AQL verification</h3>
+    <table><tbody>${aq.rows.map(r => `<tr><td style="width:35%">${friE(r[0])}</td><td>${friE(r[1])} ${friE(r[2])}</td></tr>`).join('')}</tbody></table>
+    ${v.notes ? `<h3 style="color:#F4811F">Notes / containment</h3><p style="font-size:9pt;white-space:pre-wrap">${friE(v.notes)}</p>` : ''}
+    <div style="margin-top:16pt;display:flex;gap:24pt">
+      <div style="flex:1;border-top:0.5pt solid #888;padding-top:4pt;font-size:8pt;text-align:center">Validated by: ${friE(v.validator)}</div>
+      <div style="flex:1;border-top:0.5pt solid #888;padding-top:4pt;font-size:8pt;text-align:center">QS Manager</div></div>`,
+    `FRI Validation ${v.ref || ''} — ${v.po} ${v.lot}`);
+}
+
+// ── Excel export / import (register + findings + CP matrix; _data sheet carries the full records) ──
+function friExport(){
+  if (!FRI_DB.length) { alert('The register is empty.'); return; }
+  const wb = XLSX.utils.book_new();
+  const reg = [['Validation ref','Rev','Status','P.O.','Lot','Ally','Supplier','Dept','Product family','FRI report no.','Inspection date','Inspection body','Inspector','Basis','Basis status','Critical','Major','Minor','NC-','RG-','OB-','Report verdict','Shipment status','Coverage %','Conformity %','Evidence %','Validator','Validation date','Updated']];
+  const fnd = [['Validation ref','Rev','P.O.','Lot','Ref','Type','CP / Req ID','Severity / grade','Pattern #','What is wrong','Required action','Responsibility','Status']];
+  const cpm = [['Validation ref','Rev','P.O.','Lot','CP','Checkpoint','Requirement source','What the report shows','Verdict']];
+  FRI_DB.forEach(v => { const c = friCompute(v);
+    reg.push([v.ref,v.rev||0,v.status,v.po,v.lot,v.ally,v.sup,v.dept,v.pf,v.reportNo,v.inspDate,v.inspBody,v.inspector,v.basis,v.basisStatus,c.cr,c.ma,c.mi,c.nc,c.rg,c.ob,c.verdict,c.ship,c.cov??'',c.conf??'',c.evid??'',v.validator,v.valDate,v.updated]);
+    v.findings.forEach(f => fnd.push([v.ref,v.rev||0,v.po,v.lot,f.ref,f.type,f.cp,f.sev,f.pattern,f.title,f.action,f.resp,f.status]));
+    v.cps.forEach((r,i) => cpm.push([v.ref,v.rev||0,v.po,v.lot,r.cp,FRI_CPS[i][1],r.src,r.shows,r.verdict])); });
+  const add = (rows, name, widths) => { const ws = XLSX.utils.aoa_to_sheet(rows); ws['!cols'] = widths.map(w => ({wch:w})); XLSX.utils.book_append_sheet(wb, ws, name); };
+  add(reg,'Register',[26,4,8,16,8,12,22,10,18,14,12,16,14,24,10,8,8,8,6,6,6,40,24,10,10,10,12,12,16]);
+  add(fnd,'Findings',[26,4,16,8,7,6,14,12,9,50,50,20,8]);
+  add(cpm,'CP matrix',[26,4,16,8,6,20,30,60,14]);
+  const data = [['id','chunk','json']];
+  FRI_DB.forEach(v => { const j = JSON.stringify(v); for (let i=0, k=0; i<j.length; i+=30000, k++) data.push([v.id, k, j.slice(i, i+30000)]); });
+  const ws = XLSX.utils.aoa_to_sheet(data); XLSX.utils.book_append_sheet(wb, ws, '_data');
+  XLSX.writeFile(wb, `ARENA_FRI_Validation_Register_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+function friImport(inp){
+  const f = inp.files && inp.files[0]; if (!f) return;
+  const rd = new FileReader();
+  rd.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array' });
+      const ws = wb.Sheets['_data']; if (!ws) { alert('This file has no _data sheet — import only works with a register exported from this page.'); return; }
+      const rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' }).slice(1);
+      const by = {}; rows.forEach(r => { if (!r[0]) return; (by[r[0]] = by[r[0]] || [])[+r[1]] = String(r[2]); });
+      let added = 0, updated = 0;
+      Object.values(by).forEach(parts => { const v = JSON.parse(parts.join('')); const i = FRI_DB.findIndex(x => x.id === v.id);
+        if (i >= 0) { FRI_DB[i] = v; updated++; } else { FRI_DB.push(v); added++; } });
+      friPersist(); friRenderAll(); alert(`Imported: ${added} new, ${updated} updated validation(s).`);
+    } catch(err) { alert('Import failed: ' + err.message); }
+    inp.value = '';
+  };
+  rd.readAsArrayBuffer(f);
+}
+</script>
 
 <!-- ════════════ INSPECTIONS LIST ════════════ -->
 <div id="page-inspections" class="page">
@@ -4996,7 +5392,7 @@ tick(); setInterval(tick, 30000);
 // ═══════════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════════
-const TITLES = {'eudr-radix':'EUDR – Radix Tree Guideline','order-book':'A.R.E.N.A. Order Book',cbam:'CBAM Communication Console',dashboard:'Dashboard',src:'Issue SRC','new-order':'Inspection Booking',orders:'Order Fulfilment','order-data':'Order Data',folder:'Order Folder',inspections:'Inspections','inspection-form':'Create Inspection Report',ppwr:'PPWR DoC',asc:'ASC Tracker',reporting:'Reporting & Analytics','sup-perf':'Supplier Performance',suppliers:'Factory Directory','audit-folder':'Factory Audit Folder','turnover-reports':'Supplier Turnover Reports',scorecard:'Supplier Scorecard','quality-kpis':'Dashboard — Quality KPI Register','nc-alerts':'Risk Assessment','new-repeat':'New vs Repeat Items','compliance-pathway':'Compliance Pathway & Documentation','mf-check':'Master File Cross-Check — TCF status & data integrity','ppwr-forms':'PPWR Packaging Forms — master data & EU DoC'};
+const TITLES = {'eudr-radix':'EUDR – Radix Tree Guideline','order-book':'A.R.E.N.A. Order Book',cbam:'CBAM Communication Console',dashboard:'Dashboard',src:'Issue SRC','fri-val':'FRI Validation Report',orders:'Order Fulfilment','order-data':'Order Data',folder:'Order Folder',inspections:'Inspections','inspection-form':'Create Inspection Report',ppwr:'PPWR DoC',asc:'ASC Tracker',reporting:'Reporting & Analytics','sup-perf':'Supplier Performance',suppliers:'Factory Directory','audit-folder':'Factory Audit Folder','turnover-reports':'Supplier Turnover Reports',scorecard:'Supplier Scorecard','quality-kpis':'Dashboard — Quality KPI Register','nc-alerts':'Risk Assessment','new-repeat':'New vs Repeat Items','compliance-pathway':'Compliance Pathway & Documentation','mf-check':'Master File Cross-Check — TCF status & data integrity','ppwr-forms':'PPWR Packaging Forms — master data & EU DoC'};
 
 // ─ Dashboard on/off toggle ────────────────────────────────
 let dashboardEnabled = localStorage.getItem('iqs-dashboard-enabled') === '1';
@@ -5135,7 +5531,7 @@ function go(id, el2) {
   if (id === 'sup-perf')  setTimeout(() => initSupPerfPage(), 80);
   if (id === 'dashboard') setTimeout(() => { initDashCharts(); dashSection(_secTarget || 'all'); }, 80);
   if (_titleOverride) g('topbar-title').textContent = _titleOverride;
-  if (id === 'new-order') { initBookingChecklist(); if(masterLoaded) populateInspectionBookingUI(); bkApplyTypeUI(); }
+  if (id === 'fri-val') friRenderAll();
   if (id === 'inspection-form') initInspectionForm();
   if (id === 'src') { renderSrcPage(); if(!srcProductRows.length) initSrcProductRows(); }
   if (id === 'ppwr') renderPPWR();
@@ -6710,8 +7106,8 @@ function mfProcessWorkbook(wb, sourceName) {
     srcPopulateAllyFilter?.();
   }
 
-  // ── 3. Populate Inspection Booking ───────────────────────────────────
-  populateInspectionBookingUI();
+  // ── 3. FRI Validation Report (replaces Inspection Booking) ───────────
+  if (typeof friRenderAll === 'function') friRenderAll();
 
   // ── 4. Suppliers-Factories ───────────────────────────────────────────
   const wsSFName = wb.SheetNames.find(n =>
@@ -6966,817 +7362,6 @@ const _mfStyle = document.createElement('style');
 _mfStyle.textContent = '@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }';
 document.head.appendChild(_mfStyle);
 
-// ── Populate Inspection Booking UI ────────────────────────────────────
-function populateInspectionBookingUI() {
-  if (!MASTER_FU_DATA.length) return;
-  const noM = g('bk-no-master'); if (noM) noM.style.display = 'none';
-  const hasM = g('bk-has-master');
-  if (hasM) {
-    hasM.style.display = 'flex';
-    const info = g('bk-master-info');
-    if (info) info.textContent = `Master File loaded — ${MASTER_FU_DATA.length} POs from Order Fulfill · ${MASTER_ORDER_DATA.length} items from Orders Data`;
-  }
-  // Ally / Dept / Sourcing / Country / ETD Year / Supplier dropdowns are
-  // populated (and kept in sync with each other) by bkCascadeSelects(),
-  // called from bkRenderTable() below.
-  bkRenderTable();
-  bkRenderNotifications();
-  renderInspTable();
-  renderReports();
-  // Supplier Mapping tab removed
-  supRenderAuditTable();
-  renderPPWR();
-  renderRaCoveragePanel();
-  initBookingChecklist();
-}
-
-// ── Notification / Countdown panel ───────────────────────────────────────
-let _bkNotifFilter = null; // 'overdue' | 'urgent' | 'soon' | null
-
-// Shared ETD-days-out calculator used by both the KPI cards and the table.
-function _bkEtdDays(r) {
-  const raw = r.realEtd || r.etd;
-  if (!raw) return null;
-  const today = new Date(); today.setHours(0,0,0,0);
-  const d = new Date(raw); d.setHours(0,0,0,0);
-  return Math.round((d - today) / 86400000);
-}
-
-// Which POs are "pending" depends on the inspection stage.
-// Final (FRI): POs not yet SRC-cleared, i.e. pending pre-shipment release.
-// Inline: POs that haven't had their inline (mid-production) check done yet.
-function _bkBasePool() {
-  return bkInspType === 'inline'
-    ? MASTER_FU_DATA.filter(r => !r.inlineActual && !r.srcIssued)
-    : MASTER_FU_DATA.filter(r => !r.srcDate && !r.srcIssued);
-}
-
-// Does a pooled row match the current Booking filter-bar selections,
-// ignoring the one field named in `exclude` (so that field's own dropdown
-// can be rebuilt from everything BUT its own current value).
-// Hierarchy: ETD Year → Ally → Supplier → P.O. Each dropdown's option list
-// is rebuilt from the current base pool (pending POs for the active
-// inspection type) narrowed by every filter ABOVE it in the chain (never
-// by filters below it), and rebuilt on every call so it always reflects the
-// current scope. The person's current pick is preserved if it's still
-// valid, otherwise it's cleared back to "All".
-function _bkCascadeSelects() {
-  const pool = _bkBasePool();
-
-  const etdYearSel = g('bk-flt-etd-year');
-  let etdYear = etdYearSel?.value || '';
-  if (etdYearSel) {
-    const years = [...new Set(pool.map(r => (r.realEtd||r.etd||'').slice(0,4)).filter(y=>/^\d{4}$/.test(y)))].sort().reverse();
-    const prevYear = etdYear;
-    etdYearSel.innerHTML = '<option value="">Year</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
-    etdYear = (prevYear && years.includes(prevYear)) ? prevYear : '';
-    etdYearSel.value = etdYear;
-  }
-
-  const allySel = g('bk-flt-ally');
-  let ally = allySel?.value || '';
-  if (allySel) {
-    const poolForAlly = pool.filter(r => !etdYear || (r.realEtd||r.etd||'').slice(0,4) === etdYear);
-    const allies = [...new Set(poolForAlly.map(r => r.ally).filter(Boolean))].sort();
-    const prevAlly = ally;
-    allySel.innerHTML = '<option value="">All</option>' + allies.map(a => `<option value="${a}">${a}</option>`).join('');
-    ally = (prevAlly && allies.includes(prevAlly)) ? prevAlly : '';
-    allySel.value = ally;
-  }
-
-  const supSel = g('bk-flt-sup');
-  let sup = supSel?.value || '';
-  if (supSel) {
-    const poolForSup = pool.filter(r => (!etdYear || (r.realEtd||r.etd||'').slice(0,4) === etdYear) && (!ally || r.ally === ally));
-    const sups = [...new Set(poolForSup.map(r => r.sup).filter(Boolean))].sort();
-    const prevSup = sup;
-    supSel.innerHTML = '<option value="">All</option>' + sups.map(s => `<option value="${s}">${s}</option>`).join('');
-    sup = (prevSup && sups.includes(prevSup)) ? prevSup : '';
-    supSel.value = sup;
-  }
-
-  const poSel = g('bk-flt-po');
-  let po = poSel?.value || '';
-  if (poSel) {
-    const poolForPo = pool.filter(r => (!etdYear || (r.realEtd||r.etd||'').slice(0,4) === etdYear) && (!ally || r.ally === ally) && (!sup || r.sup === sup));
-    const pos = [...new Set(poolForPo.map(r => r.po).filter(Boolean))].sort();
-    const prevPo = po;
-    poSel.innerHTML = '<option value="">All</option>' + pos.map(p => `<option value="${p}">${p}</option>`).join('');
-    po = (prevPo && pos.includes(prevPo)) ? prevPo : '';
-    poSel.value = po;
-  }
-}
-
-// Rows matching the filter bar + topbar global filters, BEFORE the KPI-card
-// (_bkNotifFilter) bucket is applied. Shared by the table and the cards so
-// the card counts always match what the filter bar currently scopes to.
-function _bkFilteredPoolPreNotif() {
-  const etdYear = (g('bk-flt-etd-year')||{}).value || '';
-  const ally    = (g('bk-flt-ally')||{}).value    || '';
-  const sup     = (g('bk-flt-sup')||{}).value     || '';
-  const po      = (g('bk-flt-po')||{}).value      || '';
-
-  return _bkBasePool().filter(r => {
-    if (etdYear && (r.realEtd||r.etd||'').slice(0,4) !== etdYear) return false;
-    if (ally && r.ally !== ally) return false;
-    if (sup && r.sup !== sup) return false;
-    if (po && r.po !== po) return false;
-    // Topbar global search
-    if (tbSearchQ) {
-      const hay2 = [r.po,r.lot,r.ally,r.sup,r.pf].join(' ').toLowerCase();
-      if (!hay2.includes(tbSearchQ)) return false;
-    }
-    // Topbar SRC date filter
-    const srcR = _ymRange(tbSrcYM);
-    if (srcR.from || srcR.to) {
-      const sd = r.srcDate || '';
-      if (!sd) return false;
-      if (srcR.from && sd < srcR.from) return false;
-      if (srcR.to   && sd > srcR.to)   return false;
-    }
-    // Topbar ETD date filter (prefer realEtd)
-    const etdR = _ymRange(tbEtdYM);
-    if (etdR.from || etdR.to) {
-      const ed = r.realEtd || r.etd || '';
-      if (!ed) return false;
-      if (etdR.from && ed < etdR.from) return false;
-      if (etdR.to   && ed > etdR.to)   return false;
-    }
-    return true;
-  });
-}
-
-// KPI cards now count within the SAME scope the filter bar currently
-// applies (Ally/Dept/Sourcing/Country/ETD/Supplier + topbar filters), so
-// the totals shown here always cross-check against the table below.
-function bkRenderNotifications() {
-  const panel = g('bk-notif-panel');
-  if (!panel || !MASTER_FU_DATA.length) { if(panel) panel.style.display='none'; return; }
-
-  const open = _bkFilteredPoolPreNotif().filter(r => r.status === 'Open' && !r.srcIssued);
-  const overdue = open.filter(r => { const d = _bkEtdDays(r); return d !== null && d < 0; });
-  const urgent  = open.filter(r => { const d = _bkEtdDays(r); return d !== null && d >= 0 && d <= 7; });
-  const soon    = open.filter(r => { const d = _bkEtdDays(r); return d !== null && d > 7 && d <= 21; });
-  const onTrack = open.filter(r => { const d = _bkEtdDays(r); return d !== null && d > 21; });
-
-  // Next 5 upcoming ETDs (non-overdue, sorted by ETD asc)
-  const upcoming = [...urgent, ...soon]
-    .filter(r => r.realEtd || r.etd)
-    .sort((a,b) => (a.realEtd||a.etd) > (b.realEtd||b.etd) ? 1 : -1)
-    .slice(0, 5);
-
-  const cards = [
-    { id:'overdue', cls:'nc-overdue', icon:'🔴', val:overdue.length, lbl:'ETD Overdue',      sub:'No SRC · ETD passed' },
-    { id:'urgent',  cls:'nc-urgent',  icon:'⚠️',  val:urgent.length,  lbl:'Urgent (≤7 days)', sub:'Inspection needed now' },
-    { id:'soon',    cls:'nc-soon',    icon:'📅', val:soon.length,    lbl:'Coming (8–21 d)',  sub:'Book inspection soon' },
-    { id:'ok',      cls:'nc-ok',      icon:'✅', val:onTrack.length, lbl:'On Track (>21 d)', sub:'No immediate action' },
-  ];
-
-  const cardsHtml = cards.map(c => `
-    <div class="bk-nc ${c.cls}${_bkNotifFilter===c.id?' nc-active':''}" onclick="bkNotifFilter('${c.id}')">
-      <div style="font-size:22px">${c.icon}</div>
-      <div>
-        <div class="bk-nc-val">${c.val}</div>
-        <div class="bk-nc-lbl">${c.lbl}</div>
-        <div class="bk-nc-sub">${c.sub}</div>
-      </div>
-    </div>`).join('');
-
-  let cdHtml = '';
-  if (upcoming.length) {
-    const items = upcoming.map((r,i) => {
-      const d = _bkEtdDays(r);
-      const cls = d < 0 ? 'd-over' : d <= 7 ? 'd-hot' : 'd-soon';
-      const label = d < 0 ? `${Math.abs(d)}d overdue` : d === 0 ? 'Today!' : `${d}d left`;
-      return `${i>0?'<div class="bk-cd-divider"></div>':''}
-        <div class="bk-cd-item">
-          <div class="bk-cd-dot" style="background:${d<0?'var(--r)':d<=7?'var(--w)':'var(--p)'}"></div>
-          <span class="bk-cd-name" title="${r.po}">${r.po}</span>
-          <span style="font-size:11px;color:var(--t3)">${r.ally||''}</span>
-          <span class="bk-cd-days ${cls}">${label}</span>
-        </div>`;
-    }).join('');
-    cdHtml = `<div class="bk-countdown-row">
-      <span style="font-size:11px;font-weight:700;color:var(--t2);white-space:nowrap">⏱ Next ETDs:</span>
-      ${items}
-      ${_bkNotifFilter?`<button class="btn btn-tx btn-xs" style="margin-left:auto" onclick="bkNotifFilter(null)">✕ Clear filter</button>`:''}
-    </div>`;
-  } else if (_bkNotifFilter) {
-    cdHtml = `<div class="bk-countdown-row" style="justify-content:flex-end">
-      <button class="btn btn-tx btn-xs" onclick="bkNotifFilter(null)">✕ Clear filter</button>
-    </div>`;
-  }
-
-  panel.style.display = 'block';
-  panel.innerHTML = `<div class="bk-notif-grid">${cardsHtml}</div>${cdHtml}`;
-}
-
-function bkNotifFilter(type) {
-  _bkNotifFilter = (_bkNotifFilter === type || type === 'ok' || type === null) ? null : type;
-  bkRenderTable();
-  bkRenderNotifications();
-}
-
-function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
-function rebuildSel(id, options) {
-  const el = g(id); if (!el) return;
-  el.innerHTML = '<option value="">—</option>' + options.map(v => `<option value="${v}">${v}</option>`).join('');
-}
-
-// ── Booking state ──────────────────────────────────────────────────────
-let bkCurrentFU  = null;
-let bkItems      = [];
-let bkIncluded   = new Set();
-let bkStepDone   = {1:false,2:false,3:false,4:false};
-let bkCkState    = {};
-let bkTestState  = {};
-let bkFilterAlly = '';
-let bkFilterStatus = '';
-
-// ── Inspection type: Inline vs Final ────────────────────────────────────
-// The booking form is shared between both — this flag drives labels, the
-// PO pool that's offered (mid-production vs pending-SRC), the hidden
-// no-insp-type value submitted, and the P6 readiness gate shown.
-let bkInspType = 'final'; // 'inline' | 'final'
-const BK_TYPE_LABELS = {
-  inline: { title: 'Inline Inspection Booking', short: 'Inline', crumb: 'Inline Inspection Booking',
-            sub: 'Search a PO from Order Fulfill → review items from Orders Data → book the mid-production inline check' },
-  final:  { title: 'Final Inspection Booking',  short: 'FRI',    crumb: 'Final Inspection Booking',
-            sub: 'Search a PO from Order Fulfill → review items from Orders Data → configure the pre-shipment (FRI) inspection' }
-};
-function bkSetType(t) { bkInspType = 'final'; /* Inline Inspection Booking retired — Final only */ }
-function bkApplyTypeUI() {
-  const L = BK_TYPE_LABELS[bkInspType] || BK_TYPE_LABELS.final;
-  const crumbEl = g('bk-page-crumb'), titleEl = g('bk-page-title'), subEl = g('bk-ph-sub'), typeEl = g('no-insp-type');
-  if (crumbEl) crumbEl.textContent = L.crumb;
-  if (titleEl) titleEl.textContent = L.title;
-  if (subEl)   subEl.textContent   = L.sub;
-  if (typeEl)  typeEl.value        = bkInspType === 'inline' ? 'Inline' : 'FRI';
-  g('topbar-title') && (g('topbar-title').textContent = L.title);
-  bkRenderPoTableHead();
-  bkRenderTable();
-  if (bkCurrentFU) bkSelectPO(bkCurrentFU.po, bkCurrentFU.lot);
-}
-
-// ── Step navigation ────────────────────────────────────────────────────
-function bkActivate(step) {
-  if (step>1&&!bkStepDone[1]) return;
-  if (step>2&&!bkStepDone[2]) return;
-  if (step>3&&!bkStepDone[3]) return;
-  [1,2,3,4].forEach(s => { const b=g(`bk-step${s}-body`); if(b) b.style.display=s===step?'':'none'; });
-}
-function bkUnlockStep(n) {
-  const el=g(`bk-step${n}`); if(el){el.classList.remove('locked');} bkStepDone[n-1]=true; bkUpdateCompletion();
-}
-function bkMarkDone(n, label) {
-  const el=g(`bk-step${n}`); if(el){el.classList.add('done');el.classList.remove('active');}
-  const sub=g(`bk-step${n}-sub`); if(sub&&label) sub.textContent=label;
-  bkStepDone[n]=true; bkUpdateCompletion();
-}
-function bkUpdateCompletion() {
-  const done=Object.values(bkStepDone).filter(Boolean).length;
-  const pct=Math.round(done/4*100);
-  const bar=g('bk-prog-bar'); if(bar) bar.style.width=pct+'%';
-  const tag=g('bk-completion-tag'); if(tag){tag.textContent=pct+'%';tag.className=`tag ${pct===100?'t-g':pct>=50?'t-o':'t-gray'}`;tag.style.fontSize='10px';}
-  const folderReady=!!bkCurrentFU;
-  const folderBtn=g('bk-folder-toggle');
-  if(folderBtn){folderBtn.style.opacity=folderReady?'1':'.4';folderBtn.style.pointerEvents=folderReady?'auto':'none';}
-  const folderHint=g('bk-folder-hint');
-  if(folderHint) folderHint.textContent=folderReady?`Click to open the Order Folder for ${bkCurrentFU.po} / ${bkCurrentFU.lot}.`:'Select a P.O. to view its Order Folder';
-}
-
-// Resolves the currently selected P.O./Lot to its Order Fulfilment record
-// and opens the same Order Folder view used throughout the rest of the app
-// (mirrors cmOpenFolder's lookup logic, from the Compliance Monitor page).
-function bkOpenOrderFolder(){
-  if(!bkCurrentFU) return;
-  const order=(typeof ORDERS_DATA!=='undefined'&&ORDERS_DATA.find(o=>o.po===bkCurrentFU.po&&o.lot===bkCurrentFU.lot))
-           || (typeof ORDERS_DATA!=='undefined'&&ORDERS_DATA.find(o=>o.po===bkCurrentFU.po));
-  if(!order){ alert(`No matching Order Fulfilment record found for P.O. ${bkCurrentFU.po}${bkCurrentFU.lot?' / '+bkCurrentFU.lot:''}.`); return; }
-  openFolder(order.id);
-}
-
-// ── PO Table (replaces dropdown search) ───────────────────────────────
-let bkPoPage = 1;
-const BK_PO_PAGE_SZ = 50;
-let bkPoFiltered = [];
-
-function bkRenderTable() {
-  _bkCascadeSelects();
-
-  const pre = _bkFilteredPoolPreNotif();
-
-  bkPoFiltered = pre.filter(r => {
-    // Notification (KPI card) filter
-    if (_bkNotifFilter) {
-      if (r.status !== 'Open' || r.srcIssued) return false;
-      const dd = _bkEtdDays(r);
-      if (_bkNotifFilter === 'overdue' && !(dd !== null && dd < 0))           return false;
-      if (_bkNotifFilter === 'urgent'  && !(dd !== null && dd >= 0 && dd <= 7)) return false;
-      if (_bkNotifFilter === 'soon'    && !(dd !== null && dd > 7 && dd <= 21)) return false;
-    }
-    return true;
-  });
-
-  const bkBasePool = _bkBasePool();
-
-  bkPoPage = 1;
-  bkRenderPoTableBody();
-  const urgLabel = '';
-  const tbLabel  = (tbSearchQ || tbSrcYM || tbEtdYM) ? ' · global filter active' : '';
-  const info = g('bk-table-info');
-  if (info) info.textContent = MASTER_FU_DATA.length
-    ? `${bkPoFiltered.length} PO${bkPoFiltered.length!==1?'s':''} shown${bkPoFiltered.length<bkBasePool.length?' (filtered)':''}${urgLabel}${tbLabel} · ${bkBasePool.length} pending ${bkInspType==='inline'?'Inline check':'SRC'} (${MASTER_FU_DATA.length} total) — click a row to select`
-    : 'Load a Master File to populate the PO list';
-}
-
-// Table header differs by inspection type — Final books against the
-// pre-shipment gate (SRC), Inline against mid-production status.
-function bkRenderPoTableHead() {
-  const thead = g('bk-po-thead');
-  if (!thead) return;
-  thead.innerHTML = bkInspType === 'inline'
-    ? `<tr>
-        <th>PO # FROM ALLY</th><th>LOT</th><th>ALLY</th><th>SUPPLIER</th>
-        <th>COUNTRY</th><th>DEPT</th><th>PRODUCT FAMILY</th>
-        <th>PI DATE</th><th>ETD</th><th>REAL ETD</th>
-        <th>TECH DOCS</th>
-        <th>INLINE INSP PLAN</th><th>INLINE INSP ACT</th>
-        <th>QTY</th><th>AMOUNT (USD)</th><th>FOLDER</th>
-      </tr>`
-    : `<tr>
-        <th>PO # FROM ALLY</th><th>LOT</th><th>ALLY</th><th>SUPPLIER</th>
-        <th>COUNTRY</th><th>DEPT</th><th>PRODUCT FAMILY</th>
-        <th>PI DATE</th><th>ETD</th><th>REAL ETD</th>
-        <th>FINAL INSP ACT</th>
-        <th>SRC DATE</th>
-        <th>QTY</th><th>AMOUNT (USD)</th>
-        <th>INSP RESULT</th><th>FOLDER</th><th>SRC ACTION</th>
-      </tr>`;
-}
-
-function bkRenderPoTableBody() {
-  const tbody = g('bk-po-table-body');
-  const pgDiv = g('bk-po-pg');
-  if (!tbody) return;
-  const isInline = bkInspType === 'inline';
-  const colCount = isInline ? 16 : 17;
-
-  const total = bkPoFiltered.length;
-  const pages = Math.ceil(total / BK_PO_PAGE_SZ) || 1;
-  bkPoPage = Math.max(1, Math.min(bkPoPage, pages));
-  const slice = bkPoFiltered.slice((bkPoPage-1)*BK_PO_PAGE_SZ, bkPoPage*BK_PO_PAGE_SZ);
-
-  if (!slice.length) {
-    tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center;padding:28px;color:var(--t3)">${MASTER_FU_DATA.length?'No POs match the current filters.':'No data — load a Master File first.'}</td></tr>`;
-    if (pgDiv) pgDiv.innerHTML = '';
-    return;
-  }
-
-  const selId = bkCurrentFU ? `${bkCurrentFU.po}||${bkCurrentFU.lot}` : '';
-  const gateCell = v => v === 'Validated' ? `<span style="color:var(--g);font-size:11px">✓</span>` : v ? `<span style="color:var(--w);font-size:10px">${safe(v)}</span>` : `<span style="color:var(--t4);font-size:11px">—</span>`;
-
-  tbody.innerHTML = slice.map(r => {
-    const rowId = `${r.po}||${r.lot}`;
-    const selected = rowId === selId;
-    const inspC = r.insp==='PASS'?'color:var(--g);font-weight:700':r.insp==='FAIL'?'color:var(--r);font-weight:700':'color:var(--t3)';
-    const folderBtn = (()=>{ const _o=ORDERS_DATA.find(o=>o.po===r.po&&o.lot===r.lot)||ORDERS_DATA.find(o=>o.po===r.po); return _o?`<button class="btn btn-d btn-xs" title="Open Folder" onclick="event.stopPropagation();openFolder('${_o.id}')">📁 Folder</button>`:'<span style="color:var(--t3);font-size:11px">—</span>'; })();
-    const commonHead = `<td><span class="col-id" style="${selected?'color:var(--p);font-weight:700':''}">${safe(r.po)}</span></td>
-      <td class="col-g">${safe(r.lot)}</td>
-      <td>${safe(r.ally)||'—'}</td>
-      <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${safe(r.sup)||'—'}</td>
-      <td style="font-size:11.5px">${safe(r.country)||'—'}</td>
-      <td>${deptTag(r.dept)}</td>
-      <td style="max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${safe(r.pf)||'—'}</td>
-      <td class="col-g" style="white-space:nowrap">${safe(r.pi)||'—'}</td>
-      <td class="col-g" style="white-space:nowrap">${safe(r.etd)||'—'}</td>
-      <td class="col-g" style="white-space:nowrap;${r.realEtd?'font-weight:600;color:var(--p)':''}">${safe(r.realEtd)||'—'}</td>`;
-
-    const typeSpecific = isInline
-      ? `<td style="text-align:center">${gateCell(r.techDocs)}</td>
-         <td class="col-g" style="white-space:nowrap;font-size:11.5px">${safe(r.inlinePlan)||'—'}</td>
-         <td class="col-g" style="white-space:nowrap;font-size:11.5px">${safe(r.inlineActual)||'—'}</td>
-         <td class="col-g">${r.qty?r.qty.toLocaleString():'—'}</td>
-         <td class="col-m">${fU(r.amt)}</td>
-         <td style="text-align:center">${folderBtn}</td>`
-      : `<td class="col-g" style="white-space:nowrap;font-size:11.5px">${safe(r.inspActual)||'—'}</td>
-         <td class="col-g" style="white-space:nowrap">${r.srcDate||r.srcIssued?`<span style="color:var(--g);font-size:11px">${r.srcDate||'✓'}</span>`:'—'}</td>
-         <td class="col-g">${r.qty?r.qty.toLocaleString():'—'}</td>
-         <td class="col-m">${fU(r.amt)}</td>
-         <td style="${inspC}">${r.insp||'Pending'}</td>
-         <td style="text-align:center">${folderBtn}</td>
-         <td style="text-align:center">${r.insp==='PASS'
-           ? `<button class="btn btn-p btn-xs" title="Issue SRC for this PO" onclick="event.stopPropagation();goIssueSRC('${r.po.replace(/'/g,"\\'")}','${r.lot.replace(/'/g,"\\'")}')">🏷 Issue SRC</button>`
-           : `<span style="color:var(--t3);font-size:11px">${r.insp==='FAIL'?'⛔ FAIL':'—'}</span>`
-         }</td>`;
-
-    return `<tr class="row-click${selected?' selected-row':''}"
-        style="${selected?'background:var(--pl);outline:2px solid var(--p);outline-offset:-2px;':''}"
-        onclick="bkSelectPO('${r.po.replace(/'/g,"\\'")}','${r.lot.replace(/'/g,"\\'")}')">
-      ${commonHead}${typeSpecific}
-    </tr>`;
-  }).join('');
-
-  // Pagination
-  if (!pgDiv) return;
-  if (pages <= 1) { pgDiv.innerHTML = ''; return; }
-  let ph = `<span class="pg-info">${total.toLocaleString()} POs</span>`;
-  ph += `<div class="pg ${bkPoPage===1?'di':''}" onclick="bkPoPage--;bkRenderPoTableBody()">‹</div>`;
-  for(let p=Math.max(1,bkPoPage-2); p<=Math.min(pages,bkPoPage+2); p++)
-    ph += `<div class="pg ${p===bkPoPage?'ac':''}" onclick="bkPoPage=${p};bkRenderPoTableBody()">${p}</div>`;
-  ph += `<div class="pg ${bkPoPage>=pages?'di':''}" onclick="bkPoPage++;bkRenderPoTableBody()">›</div>`;
-  ph += `<span class="pg-info">${(bkPoPage-1)*BK_PO_PAGE_SZ+1}–${Math.min(bkPoPage*BK_PO_PAGE_SZ,total)}</span>`;
-  pgDiv.innerHTML = ph;
-}
-
-function bkResetFilters() {
-  ['bk-flt-etd-year','bk-flt-ally','bk-flt-sup','bk-flt-po'].forEach(id=>{const e=g(id);if(e)e.value='';});
-  bkRenderTable();
-}
-
-// Legacy stubs kept so existing callers don't throw
-function bkSetFilter(type, val) {
-  if(type==='ally'){const e=g('bk-flt-ally');if(e)e.value=val;}
-  bkRenderTable();
-}
-function bkSearch(q) { const e=g('bk-flt-q');if(e)e.value=q; bkRenderTable(); }
-function bkSearchFocus() { bkRenderTable(); }
-
-function bkSelectPO(po, lot) {
-  const fuRow=MASTER_FU_DATA.find(r=>r.po===po&&r.lot===lot)||MASTER_FU_DATA.find(r=>r.po===po);
-  if(!fuRow) return;
-  bkCurrentFU=fuRow;
-
-  // Re-render table so selected row highlights
-  bkRenderPoTableBody();
-
-  const setH=(id,val)=>{const el=g(id);if(el) el.value=val||'';};
-  setH('no-po',fuRow.po); setH('no-lot',fuRow.lot); setH('no-ally',fuRow.ally);
-  setH('no-sup',fuRow.sup); setH('no-dept',fuRow.dept); setH('no-pf',fuRow.pf);
-  setH('no-qty',fuRow.qty||0); setH('no-country',fuRow.country); setH('no-price',0);
-  const piEl=g('no-pi'); if(piEl&&fuRow.pi) piEl.value=fuRow.pi;
-  const etdEl=g('no-etd'); if(etdEl&&fuRow.etd) etdEl.value=fuRow.etd;
-
-  const strip=g('bk-po-strip');
-  if(strip){
-    strip.style.display='flex'; strip.className='po-strip';
-    strip.innerHTML=`
-      ${bkGateReadinessBanner(fuRow)}
-      <div class="po-strip-field"><div class="po-strip-label">PO # from Ally</div><div class="po-strip-value" style="color:var(--p)">${fuRow.po}</div></div>
-      <div class="po-strip-divider"></div>
-      <div class="po-strip-field"><div class="po-strip-label">Lot</div><div class="po-strip-value">${fuRow.lot}</div></div>
-      <div class="po-strip-divider"></div>
-      <div class="po-strip-field"><div class="po-strip-label">Ally</div><div class="po-strip-value">${fuRow.ally||'—'}</div></div>
-      <div class="po-strip-divider"></div>
-      <div class="po-strip-field"><div class="po-strip-label">Supplier</div><div class="po-strip-value" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${fuRow.sup||'—'}</div></div>
-      <div class="po-strip-divider"></div>
-      <div class="po-strip-field"><div class="po-strip-label">PI Date</div><div class="po-strip-value">${fuRow.pi||'—'}</div></div>
-      <div class="po-strip-divider"></div>
-      <div class="po-strip-field"><div class="po-strip-label">ETD</div><div class="po-strip-value">${fuRow.etd||'—'}</div></div>
-      <div class="po-strip-divider"></div>
-      <div class="po-strip-field"><div class="po-strip-label">TO (USD)</div><div class="po-strip-value" style="color:var(--p)">${fuRow.amt?fU(fuRow.amt):'—'}</div></div>
-      <div class="po-strip-divider"></div>
-      <div class="po-strip-field"><div class="po-strip-label">Insp. Result</div><div class="po-strip-value">${statusTag(fuRow.insp||'Pending')}</div></div>
-      <div class="po-strip-divider"></div>
-      <div class="po-strip-field"><div class="po-strip-label">SRC</div><div class="po-strip-value">${fuRow.srcIssued?'<span style="color:var(--g)">✓ Issued</span>':'<span style="color:var(--t4)">Pending</span>'}</div></div>
-      <div style="margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0">
-        <button class="btn btn-d btn-sm" onclick="bkCurrentFU=null;bkRenderPoTableBody();g('bk-po-strip').style.display='none';bkRenderComplianceTable();bkUpdateCompletion()">Change PO</button>
-        <button class="btn btn-p btn-sm" onclick="bkConfirmLoadItems()">Load Items →</button>
-      </div>`;
-  }
-
-  const setS=(id,v)=>{const el=g(id);if(el) el.textContent=v;};
-  setS('sum-po',fuRow.po); setS('sum-lot',fuRow.lot); setS('sum-ally',fuRow.ally||'—');
-  setS('sum-sup',fuRow.sup||'—'); setS('sum-dept',fuRow.dept||'—');
-  setS('sum-pi',fuRow.pi||'—'); setS('sum-etd',fuRow.etd||'—');
-  setS('sum-amt',fuRow.amt?fU(fuRow.amt):'—'); setS('sum-asc',fuRow.amt?fE(fuRow.amt*0.02):'—');
-  bkRenderComplianceTable();
-
-  bkMarkDone(1,`${fuRow.po} · ${fuRow.lot} · ${fuRow.ally||''}`);
-  bkUnlockStep(2); bkActivate(2); bkLoadItems();
-}
-
-// ── P6 gate-readiness check, surfaced at the moment of booking ────────
-// Reuses the exact same field reads and state logic as the Compliance
-// Monitor (cmGateState on f.techDocs / f.goldenSample / f.artwork — the
-// FU-01/FU-02/FU-03 rules) so "ready to book" in Inspection Booking and
-// "gate cleared" in Compliance Monitor can never disagree. Previously
-// bkSelectPO() surfaced PO/Ally/Supplier/ETD/SRC but never these three
-// gates, so a P.O. could be booked (and inspected) before its golden
-// sample, technical file, or artwork/packaging sign-off existed — even
-// though the FRI checklist itself requires conformity against the golden
-// sample and technical file.
-function bkGateStates(fuRow){
-  return {
-    tf: cmGateState(fuRow.techDocs),
-    gs: cmGateState(fuRow.goldenSample),
-    aw: cmGateState(fuRow.artwork),
-  };
-}
-// Which gates matter before booking, by inspection stage:
-// Final (FRI) checks against the golden sample + technical file, so all
-// three P6 gates must be clear. Inline is a mid-production check that only
-// needs the technical file approved — golden sample/artwork sign-off is
-// typically still in progress at that point.
-function bkRequiredGates() {
-  return bkInspType === 'inline' ? ['tf'] : ['tf','gs','aw'];
-}
-
-// ── P.O. Compliance table (Booking sidebar) ────────────────────────────
-// Re-runs the exact same CM_FU_RULES / CM_OD_RULES used by the Compliance
-// Monitor against the selected P.O.'s Order Fulfill row + linked Orders
-// Data items, so the result can never disagree with the Compliance Monitor.
-// Unlike CM_ALERTS (which only stores failing checks), this also reports
-// passing checks so the sidebar shows a complete rule-by-rule picture.
-function bkComplianceRows(fu, items){
-  const rows=[];
-  const relItems=(items||[]).filter(i=>(i.stat||'').toLowerCase()!=='cancel');
-
-  CM_FU_RULES.forEach(r=>{
-    if(!r.when(fu)) return;
-    const detail=r.fail(fu, relItems);
-    const sev=(r.esc && r.esc(fu)) ? 'Critical' : r.sev;
-    rows.push({sev, label:r.label, status: detail?'fail':'pass', detail: detail||''});
-  });
-
-  CM_OD_RULES.forEach(r=>{
-    let applicable=false, failDetail=null, failCount=0;
-    relItems.forEach(it=>{
-      if(!r.when(it)) return;
-      applicable=true;
-      const d=r.fail(it, fu);
-      if(d){ failCount++; if(!failDetail) failDetail=d; }
-    });
-    if(!applicable) return; // rule doesn't apply to any item on this P.O.
-    rows.push({sev:r.sev, label:r.label, status: failCount?'fail':'pass',
-      detail: failCount ? (failDetail + (failCount>1?` (+${failCount-1} more item${failCount-1>1?'s':''})`:'')) : ''});
-  });
-
-  const sevRank={Critical:0,Major:1,Minor:2};
-  rows.sort((a,b)=> (a.status===b.status?0:(a.status==='fail'?-1:1)) || sevRank[a.sev]-sevRank[b.sev]);
-  return rows;
-}
-
-function bkRenderComplianceTable(){
-  const tbody=g('bk-compliance-tbody'), pctTag=g('bk-comp-pct');
-  if(!tbody) return;
-  if(!bkCurrentFU){
-    tbody.innerHTML='<tr><td style="padding:14px;text-align:center;color:var(--t3)">Select a P.O. to view its compliance checks.</td></tr>';
-    if(pctTag){ pctTag.textContent='—'; pctTag.className='tag t-gray'; pctTag.style.fontSize='10px'; }
-    return;
-  }
-  const key=bkCurrentFU.po+'||'+bkCurrentFU.lot;
-  const items=(typeof MASTER_PO_INDEX!=='undefined'&&MASTER_PO_INDEX[key])||bkItems||[];
-  const rows=bkComplianceRows(bkCurrentFU, items);
-  const total=rows.length, fails=rows.filter(r=>r.status==='fail').length;
-  const pct=total?Math.round((total-fails)/total*100):100;
-  if(pctTag){
-    pctTag.textContent=pct+'%';
-    pctTag.className='tag '+(pct===100?'t-g':pct>=75?'t-o':'t-r');
-    pctTag.style.fontSize='10px';
-  }
-  const sevTag=s=>s==='Critical'?'<span class="tag t-r" style="font-size:9.5px">Critical</span>':s==='Major'?'<span class="tag t-o" style="font-size:9.5px">Major</span>':'<span class="tag t-b" style="font-size:9.5px">Minor</span>';
-  tbody.innerHTML=rows.map(r=>`<tr>
-      <td style="padding:6px 8px;width:20px;text-align:center">${r.status==='pass'?'<span style="color:var(--g)">✓</span>':'<span style="color:var(--r)">✗</span>'}</td>
-      <td style="padding:6px 8px">
-        <div style="font-weight:600;font-size:11px">${cmEsc(r.label)}</div>
-        ${r.status==='fail'?`<div style="font-size:10.5px;color:var(--t3);margin-top:1px">${cmEsc(r.detail)}</div>`:''}
-      </td>
-      <td style="padding:6px 8px;text-align:right">${sevTag(r.sev)}</td>
-    </tr>`).join('') || '<tr><td style="padding:14px;text-align:center;color:var(--t3)">No applicable compliance rules for this P.O.</td></tr>';
-}
-function bkGateReadinessBanner(fuRow){
-  const st = bkGateStates(fuRow);
-  const required = bkRequiredGates();
-  const allOk = required.every(k => st[k] === 'ok');
-  const chip = (label, s, v) => {
-    const color = s==='ok' ? 'var(--g)' : s==='pending' ? 'var(--w)' : 'var(--r)';
-    const icon  = s==='ok' ? '✓' : s==='pending' ? '⏳' : '✗';
-    return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:${color};font-weight:600" title="${cmEsc(v||'Not recorded')}">${icon} ${label}</span>`;
-  };
-  const typeLabel = bkInspType === 'inline' ? 'Inline' : 'FRI';
-  return `
-    <div style="width:100%;display:flex;align-items:center;gap:14px;padding:8px 12px;margin-bottom:8px;border-radius:var(--rs);
-                background:${allOk?'var(--gl)':'var(--wl)'};border:1px solid ${allOk?'var(--gb)':'var(--wb)'}">
-      <span style="font-size:11px;font-weight:700;color:${allOk?'#3A6A1A':'#7C5F00'}">P6 Gate Readiness:</span>
-      ${chip('Technical File', st.tf, fuRow.techDocs)}
-      ${required.includes('gs') ? chip('Golden Sample', st.gs, fuRow.goldenSample) : ''}
-      ${required.includes('aw') ? chip('Artwork/Packaging', st.aw, fuRow.artwork) : ''}
-      ${allOk ? '<span style="font-size:11px;color:#3A6A1A;margin-left:auto">All gates clear — safe to book</span>'
-              : `<span style="font-size:11px;color:#7C5F00;margin-left:auto">⚠ Booking before these clear risks an invalid ${typeLabel} (checklist requires conformity against the gates above)</span>`}
-    </div>`;
-}
-// Wraps bkLoadItems() with a confirmation step when any P6 gate isn't
-// clear yet — mirrors the SOP 6.6 decision point ("IF production <80%
-// complete → delay booking") by giving the booker an explicit choice
-// rather than silently letting an ungated P.O. proceed to inspection.
-function bkConfirmLoadItems(){
-  if(!bkCurrentFU) return;
-  const st = bkGateStates(bkCurrentFU);
-  const required = bkRequiredGates();
-  const gateNames = {tf:'Technical File', gs:'Golden Sample', aw:'Artwork/Packaging'};
-  const gaps = required.filter(k => st[k]!=='ok').map(k => gateNames[k]);
-  const typeLabel = bkInspType === 'inline' ? 'Inline' : 'FRI';
-  if(gaps.length){
-    const proceed = confirm(`⚠ P6 Gate Readiness warning\n\nThe following gate(s) are not yet cleared for ${bkCurrentFU.po} / ${bkCurrentFU.lot}:\n${gaps.map(g=>'• '+g).join('\n')}\n\nBooking now may result in an invalid ${typeLabel} inspection, since the checklist requires conformity against these gates.\n\nProceed with booking anyway?`);
-    if(!proceed) return;
-  }
-  bkLoadItems();
-}
-
-function bkLoadItems() {
-  if(!bkCurrentFU) return;
-  const po=bkCurrentFU.po; const lot=bkCurrentFU.lot; const key=po+'||'+lot;
-  bkItems=MASTER_PO_INDEX[key]||MASTER_ORDER_DATA.filter(r=>r.po===po);
-  if(!bkItems.length) bkItems=[{po,lot,dept:bkCurrentFU.dept,pf:bkCurrentFU.pf,sf:'',qty:bkCurrentFU.qty||0,price:0,desc:bkCurrentFU.pf||'(no items in Orders Data)',ean:'',allyRef:'',hs:'',cn:'',eudr:'',brand:''}];
-  bkIncluded=new Set(bkItems.map((_,i)=>i));
-  renderBkItemsTable();
-  bkMarkDone(2,`${bkItems.length} item${bkItems.length!==1?'s':''} · ${bkIncluded.size} selected`);
-  bkUnlockStep(3); bkActivate(3);
-  if(bkCurrentFU.pi&&g('no-pi')&&!g('no-pi').value) g('no-pi').value=bkCurrentFU.pi;
-  if(bkCurrentFU.etd&&g('no-etd')&&!g('no-etd').value) g('no-etd').value=bkCurrentFU.etd;
-  const eudrItems=bkItems.filter(i=>i.eudr&&i.eudr.toLowerCase().includes('eudr'));
-  const cbamItems=bkItems.filter(i=>i.eudr&&i.eudr.toLowerCase().includes('cbam'));
-  const eudrSel=g('bk-eudr'); const cbamSel=g('bk-cbam');
-  if(eudrSel&&eudrItems.length) eudrSel.value='Required';
-  if(cbamSel&&cbamItems.length) cbamSel.value='Required';
-  bkUpdateSummary(); bkLoadTests(); bkRenderComplianceTable();
-}
-
-function renderBkItemsTable() {
-  const tbody=g('bk-items-tbody'); if(!tbody) return;
-  tbody.innerHTML=bkItems.map((it,i)=>{
-    const inc=bkIncluded.has(i);
-    return `<tr class="item-row-sel ${inc?'included':''}" id="bk-irow-${i}" onclick="bkToggleItem(${i})">
-      <td style="text-align:center;padding:8px"><div class="item-inc-btn ${inc?'on':''}" id="bk-ibtn-${i}" onclick="event.stopPropagation();bkToggleItem(${i})">${inc?'<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':''}</div></td>
-      <td style="color:var(--t3);font-size:11px;text-align:center">${i+1}</td>
-      <td style="font-size:11px"><div style="color:var(--p);font-weight:500">${it.ean||'—'}</div><div style="color:var(--t3);font-size:10.5px">${it.allyRef||''}</div></td>
-      <td style="font-size:11.5px;max-width:200px"><div style="font-weight:500;line-height:1.3">${(it.desc||'—').slice(0,80)}${(it.desc||'').length>80?'…':''}</div>${it.brand?`<div style="font-size:10.5px;color:var(--t3)">${it.brand}</div>`:''}</td>
-      <td style="text-align:center">${deptTag(it.dept)}</td>
-      <td style="font-size:11px"><div>${it.pf||'—'}</div><div style="color:var(--t3);font-size:10.5px">${it.sf||''}</div></td>
-      <td style="text-align:right;font-weight:500">${(it.qty||0).toLocaleString()}</td>
-      <td style="font-size:11px;color:var(--t2)">${it.hs||'—'}</td>
-      <td style="font-size:11px;color:${it.eudr&&it.eudr!=='N/A'?'var(--w)':'var(--t4)'}">${it.eudr||'—'}</td>
-    </tr>`;
-  }).join('');
-  const cnt=g('bk-items-count'); if(cnt) cnt.textContent=`${bkIncluded.size}/${bkItems.length} selected`;
-}
-
-function bkToggleItem(i) {
-  if(bkIncluded.has(i)) bkIncluded.delete(i); else bkIncluded.add(i);
-  const inc=bkIncluded.has(i);
-  const row=g(`bk-irow-${i}`); const btn=g(`bk-ibtn-${i}`);
-  if(row) row.classList.toggle('included',inc);
-  if(btn){btn.classList.toggle('on',inc);btn.innerHTML=inc?'<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>':'';}
-  const cnt=g('bk-items-count'); if(cnt) cnt.textContent=`${bkIncluded.size}/${bkItems.length} selected`;
-  bkUpdateSummary(); bkLoadTests();
-}
-
-function bkSelectAllItems(state) {
-  bkItems.forEach((_,i)=>state?bkIncluded.add(i):bkIncluded.delete(i));
-  renderBkItemsTable(); bkUpdateSummary(); bkLoadTests();
-}
-
-function bkUpdateSummary() {
-  const sel=bkItems.filter((_,i)=>bkIncluded.has(i));
-  const totalQty=sel.reduce((s,it)=>s+(it.qty||0),0);
-  const fuAmt=bkCurrentFU?.amt||0;
-  const setS=(id,v)=>{const el=g(id);if(el) el.textContent=v;};
-  setS('sum-items',`${bkIncluded.size}/${bkItems.length}`);
-  setS('sum-qty',totalQty?totalQty.toLocaleString():'—');
-  setS('sum-amt',fuAmt?fU(fuAmt):'—'); setS('sum-asc',fuAmt?fE(fuAmt*0.02):'—');
-  const piEl=g('no-pi'); if(piEl?.value) setS('sum-pi',piEl.value);
-  const etdEl=g('no-etd'); if(etdEl?.value) setS('sum-etd',etdEl.value);
-  setS('sum-insp-type',g('no-insp-type')?.value||'FRI');
-  setS('sum-aql',g('no-aql')?.value||'2.5/4.0');
-  if(g('no-pi')?.value&&bkStepDone[2]){
-    bkMarkDone(3,`${g('no-insp-type')?.value||'FRI'} · ${g('no-pi')?.value||''}`);
-    bkUnlockStep(4);
-    const sc=g('bk-score-card'); if(sc) sc.style.display='block';
-  }
-}
-
-// ── Workmanship Checklist ─────────────────────────────────────────────
-const CK_DETAILS=[
-  'Verify count per carton and total lot matches the shipping plan and PO.',
-  'Check outer carton integrity: no crushing, moisture damage, or splitting.',
-  'Inner packing, foam, blister: no collapse, contamination or shifting.',
-  'Surface finish, assembly quality, welds, joints, paint, coatings — no defects.',
-  'Key dimensions against approved spec sheet ± tolerance.',
-  'Colour against approved sample — no yellowing, fading, or mismatch.',
-  'Barcode scannable; label text correct; CE/EUDR/recycling marks present.',
-  'All moving parts functional; assembly instructions complete and correct.',
-  'CE mark present; required warnings and safety symbols legible and correctly placed.',
-  'Container cleanliness, loading pattern, bracing — no mixed POs.'
-];
-
-function initBookingChecklist() {
-  const body=g('bk-ck-body'); if(!body) return;
-  body.innerHTML=CK_LABELS.map((lbl,i)=>`
-    <div class="ck2-row" id="ck2-row-${i}">
-      <div class="ck2-num" id="ck2-num-${i}">${i+1}</div>
-      <div><div class="ck2-label">${lbl}</div><div class="ck2-detail">${CK_DETAILS[i]}</div></div>
-      <div class="ck2-btns">
-        <button class="ck2-btn" id="ck2-p-${i}" onclick="bkCkSet(${i},'pass')">PASS</button>
-        <button class="ck2-btn" id="ck2-f-${i}" onclick="bkCkSet(${i},'fail')">FAIL</button>
-        <button class="ck2-btn" id="ck2-n-${i}" onclick="bkCkSet(${i},'na')">N/A</button>
-      </div>
-    </div>`).join('');
-}
-
-function bkCkSet(i,val) {
-  bkCkState[i]=val;
-  const row=g(`ck2-row-${i}`); const num=g(`ck2-num-${i}`);
-  if(row) row.className=`ck2-row r-${val}`;
-  if(num) num.style.background=val==='pass'?'var(--g)':val==='fail'?'var(--r)':'var(--t4)';
-  ['p','f','n'].forEach(k=>{
-    const b=g(`ck2-${k}-${i}`); if(!b) return;
-    const selKey=k==='p'?'pass':k==='f'?'fail':'na';
-    b.className=`ck2-btn${val===selKey?' sel-'+selKey:''}`;
-  });
-  bkUpdateCkScore();
-}
-
-function bkUpdateCkScore() {
-  const scored=Object.keys(bkCkState).length;
-  const passes=Object.values(bkCkState).filter(v=>v==='pass').length;
-  const fails=Object.values(bkCkState).filter(v=>v==='fail').length;
-  const scoreEl=g('bk-ck-score');
-  if(scoreEl){scoreEl.textContent=`${scored}/10 scored`;scoreEl.className=`tag ${fails>0?'t-r':scored===10?'t-g':'t-o'}`;scoreEl.style.fontSize='10px';}
-  const scPass=g('sc-pass'); if(scPass) scPass.textContent=passes;
-  const scFail=g('sc-fail'); if(scFail) scFail.textContent=fails;
-  const scPend=g('sc-pending'); if(scPend) scPend.textContent=`${10-scored} pending`;
-  if(scored===10) bkMarkDone(4,`Checklist: ${passes} PASS · ${fails} FAIL`);
-}
-
-// ── On-site Tests ──────────────────────────────────────────────────────
-function bkLoadTests() {
-  const included=bkItems.filter((_,i)=>bkIncluded.has(i));
-  const sfSet=[...new Set(included.map(it=>it.sf).filter(Boolean))];
-  const testKeys=[...new Set(sfSet.map(sf=>subFamToTestKey(sf)).filter(Boolean))];
-  const keyWrap=g('bk-test-keys');
-  if(keyWrap) keyWrap.innerHTML=testKeys.map(k=>{
-    const c=k.startsWith('G-')?'var(--g)':k.startsWith('D-')?'var(--p)':k.startsWith('DC-')?'var(--pu)':k.startsWith('B-')?'var(--or)':'var(--te)';
-    return `<span style="display:inline-flex;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;color:${c};background:${c}18;border:1px solid ${c}44">${k}</span>`;
-  }).join('');
-  const sub=g('bk-tests-subtitle'); if(sub) sub.textContent=testKeys.length?`${testKeys.length} group(s) · ${sfSet.length} sub-famil${sfSet.length!==1?'ies':'y'} detected`:'Select items above to load tests';
-  const tbody=g('bk-tests-body'); if(!tbody) return;
-  bkTestState={};
-  if(!testKeys.length){
-    tbody.innerHTML=`<div style="padding:18px;text-align:center;border:2px dashed var(--bd);border-radius:var(--ra);color:var(--t3);font-size:12.5px">No test categories mapped. Select items in Step 2 or ensure sub-families are filled in Orders Data.</div>`;
-    return;
-  }
-  tbody.innerHTML=testKeys.map(key=>{
-    const bank=TESTS[key]; if(!bank) return '';
-    const c=key.startsWith('G-')?'var(--g)':key.startsWith('D-')?'var(--p)':key.startsWith('DC-')?'var(--pu)':key.startsWith('B-')?'var(--or)':'var(--te)';
-    const mappedSfs=[...new Set(included.filter(it=>subFamToTestKey(it.sf)===key).map(it=>it.sf).filter(Boolean))];
-    return `<div style="border:1px solid var(--bd);border-radius:var(--ra);margin-bottom:10px;overflow:hidden">
-        <div style="background:#FAFAFA;padding:8px 12px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;color:${c};background:${c}18">${key}</span>
-          <span style="font-size:12.5px;font-weight:600">${bank.label}</span>
-          <span style="font-size:11px;color:var(--t3);margin-left:auto">${bank.tests.length} tests</span>
-          ${mappedSfs.length?`<span style="font-size:11px;color:var(--t2)">→ ${mappedSfs.join(', ')}</span>`:''}
-        </div>
-        <div>
-          <div class="test2-row" style="background:#FAFAFA;border-bottom:1px solid var(--bd)">
-            <div class="test2-cell" style="font-size:11px;font-weight:600;color:var(--t2)">TEST / REQUIREMENT</div>
-            <div class="test2-cell" style="font-size:11px;font-weight:600;color:var(--t2)">STANDARD</div>
-            <div class="test2-cell" style="font-size:11px;font-weight:600;color:var(--t2);text-align:center">SAMPLE</div>
-            <div class="test2-cell" style="font-size:11px;font-weight:600;color:var(--t2);text-align:center">RESULT</div>
-          </div>
-          ${bank.tests.map((t,ti)=>`<div class="test2-row" style="background:${ti%2===0?'#fff':'#FAFAFA'}">
-            <div class="test2-cell"><div style="font-weight:500;font-size:12px">${t.name}</div><div style="font-size:11px;color:var(--t2);margin-top:2px;line-height:1.4">${t.req}</div></div>
-            <div class="test2-cell" style="font-size:11px;color:var(--t3)">${t.std}</div>
-            <div class="test2-cell" style="text-align:center;font-size:11px;color:var(--p);font-weight:600">${t.sample}</div>
-            <div class="test2-cell" style="text-align:center"><select class="test2-sel" onchange="bkTestSet('${key}',${ti},this.value);styleTest2Sel(this)"><option value="">—</option><option value="pass">✓ PASS</option><option value="fail">✗ FAIL</option><option value="na">N/A</option></select></div>
-          </div>`).join('')}
-        </div>
-      </div>`;
-  }).join('');
-  const step4=g('bk-step4'); if(step4) step4.classList.remove('locked');
-}
-
-function styleTest2Sel(sel){sel.className=`test2-sel${sel.value?' sel-'+sel.value:''}`;}
-function bkTestSet(key,ti,val){bkTestState[key+'_'+ti]=val;}
-
-function submitNewOrder() {
-  const po=g('no-po')?.value?.trim(); const ally=g('no-ally')?.value?.trim(); const sup=g('no-sup')?.value?.trim();
-  if(!po||!ally||!sup){alert('Select a PO (Step 1) before submitting.');return;}
-  const qty=parseInt(g('no-qty')?.value)||bkCurrentFU?.qty||0;
-  const amt=bkCurrentFU?.amt||0;
-  const newOrder={id:'IQS-'+Date.now().toString().slice(-7),po,lot:g('no-lot')?.value||'Lot 1',ally,sup,
-    dept:g('no-dept')?.value||'GARDEN',pf:g('no-pf')?.value||(bkItems[0]?.pf)||'—',
-    pi:g('no-pi')?.value||new Date().toISOString().slice(0,10),etd:g('no-etd')?.value||'',
-    qty,amt,status:'Open',insp:'Booked',srcIssued:false};
-  ORDERS_DATA.unshift(newOrder); ordersFiltered=[...ORDERS_DATA];
-  renderOrdersBody(); renderDashboardOrders();
-  const navCnt=g('nav-orders-cnt'); if(navCnt) navCnt.textContent=ORDERS_DATA.filter(o=>o.status==='Open').length;
-  alert(`✓ Inspection Booking created!\n\nPO: ${po} · ${newOrder.lot}\nAlly: ${ally} · ${sup}\nType: ${g('no-insp-type')?.value||'FRI'} · AQL: ${g('no-aql')?.value||'2.5/4.0'}\nItems: ${bkIncluded.size}\n\nOrder folder created.`);
-  openFolder(newOrder.id);
-}
-
-function autoFillBookingFromPO(){}
-function renderBookingItemsPanel(){}
 // ═══════════════════════════════════════════════════
 // AUDIT PER-QUESTION PHOTO UPLOAD (APB)
 // A4 Landscape 3/page · A4 Portrait 5/page
@@ -8282,7 +7867,7 @@ function tbApplyAll() {
   _markSrcDateSorted();
   renderDashboardOrders();       // Dashboard preview
   renderOrderDataPage();         // Order Data
-  bkRenderTable();               // Inspection Booking
+  if (typeof friRenderAll === 'function') friRenderAll();   // FRI Validation Report
 }
 
 // ── Global search ────────────────────────────────────
@@ -8938,7 +8523,7 @@ function openFolder(orderId) {
     <div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd)">
       <div style="font-size:18px;width:28px;text-align:center;flex-shrink:0">${e.icon}</div>
       <div><div style="font-size:12.5px;font-weight:500;color:${e.color}">${e.label}</div><div style="font-size:11px;color:var(--t3)">${e.time}</div></div>
-    </div>`).join('') + '<div style="padding-top:8px;text-align:center"><button class="btn btn-p btn-xs" onclick="go(\'new-order\',null)">+ Log Event</button></div>';
+    </div>`).join('') + '<div style="padding-top:8px;text-align:center"><button class="btn btn-p btn-xs" onclick="go(\'fri-val\',null)">+ FRI Validation</button></div>';
 
   renderFolderDocs();
   renderFolderInspections();
@@ -9462,7 +9047,7 @@ function srcRenderPoTable() {
       <td class="col-g" style="white-space:nowrap;${etdCls}">${safe(r.realEtd)||'—'}</td>
       <td class="col-g">${r.qty?r.qty.toLocaleString():'—'}</td>
       <td class="col-m">${fU(r.amt)}</td>
-      <td style="${inspCls}">${r.insp||'Pending'}</td>
+      <td style="${inspCls}">${r.insp||'Pending'}${typeof friTag==='function'?friTag(r.po,r.lot):''}</td>
     </tr>`;
   }).join('');
 
@@ -10124,6 +9709,12 @@ function issueSRC() {
   const existing = (typeof SRC_DATA !== 'undefined') ? SRC_DATA.find(s => srcxSameLot(s, po, lot)) : null;
   if (existing) { alert(`SRC already issued for this PO / Lot.\n\nSRC No.: ${existing.no}\nIssued: ${existing.date} by ${existing.by}`); return; }
   const fuI = srcxFu(po, lot);
+  const friV = (typeof friLatestFor === 'function') ? friLatestFor(po, lot) : null;
+  if (friV) {
+    const friS = friCompute(friV).ship;
+    if (friS === 'SRC BLOCKED') { alert(`SRC BLOCKED by FRI validation ${friV.ref}${friV.rev?' Rev.'+friV.rev:''}: open product nonconformance (NC-).\n\nClose the NC- (containment, re-inspection) in FRI Validation Report before issuing.`); return; }
+    if (friS === 'AUTHORISATION WITHHELD' && !confirm(`FRI validation ${friV.ref} withholds shipment authorisation (report corrections / requirement gap / coverage).\n\nIssue the SRC anyway? Record the QS waiver in the validation notes.`)) return;
+  }
   if (fuI && fuI.insp !== 'PASS') { alert(`SRC can only be issued for lots with a PASS final inspection.\n\n${po} · ${lot}: inspection result = ${fuI.insp || 'blank'}.\nUse Preview / Print to view the certificate.`); return; }
   const s = loadSrcPreview(); if (!s) return;
   g('src-cert-content').innerHTML = buildSRCCert(s);
