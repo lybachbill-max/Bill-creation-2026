@@ -9338,6 +9338,7 @@ function srcGetBasePool(scope) {
 }
 function srcSetScope(sc, btn) {
   srcScope = sc; srcPoPage = 1;
+  if (sc !== 'open' && _srcKpiFilter) { _srcKpiFilter = null; srcMarkKpi(); }
   document.querySelectorAll('#src-scope-toggle .tor-toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
   srcRenderPoTable();
 }
@@ -9376,11 +9377,26 @@ function srcRenderKPIs() {
     <div style="font-size:22px">${c.icon}</div>
     <div><div class="bk-nc-val">${c.val}</div><div class="bk-nc-lbl">${c.lbl}</div><div class="bk-nc-sub">${c.sub}</div></div>
   </div>`).join('');
+  if (typeof srcMarkKpi === 'function') srcMarkKpi();
 }
 let _srcKpiFilter = null;
 function srcKpiFilter(id) {
   _srcKpiFilter = (_srcKpiFilter === id) ? null : id;
+  // The cards count open lots without an SRC date (srcGetBasePool('open')); filtering the
+  // "PASS · awaiting SRC" view by them showed an empty table. Switch the table to that same pool.
+  if (_srcKpiFilter && srcScope !== 'open') {
+    srcScope = 'open';
+    document.querySelectorAll('#src-scope-toggle .tor-toggle-btn').forEach(b => b.classList.toggle('active', (b.getAttribute('onclick')||'').includes("'open'")));
+  }
+  srcPoPage = 1;
+  srcMarkKpi();
   srcRenderPoTable();
+}
+function srcMarkKpi() {
+  document.querySelectorAll('#src-kpi-row .bk-nc').forEach(c => {
+    const on = _srcKpiFilter && (c.getAttribute('onclick')||'').includes(`'${_srcKpiFilter}'`);
+    c.style.outline = on ? '2px solid var(--p)' : ''; c.style.outlineOffset = on ? '-2px' : '';
+  });
 }
 
 function srcRenderPoTable() {
@@ -9490,6 +9506,7 @@ function srcResetFilters() {
   ['src-flt-ally','src-flt-dept','src-flt-q'].forEach(id=>{const e=g(id);if(e)e.value='';});
   _srcKpiFilter = null;
   srcPoPage = 1;
+  srcMarkKpi();
   srcRenderPoTable();
 }
 
