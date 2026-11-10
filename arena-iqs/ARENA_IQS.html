@@ -3411,7 +3411,9 @@ function friThumb(f){ return new Promise(ok => { if (!/^image\//.test(f.type)) r
 
 // GTIN check digit (EAN-13, ITF-14 / GTIN-14)
 function friGtinOk(s){ const d = s.split('').map(Number), chk = d.pop(); const sum = d.reverse().reduce((a, x, i) => a + x * (i % 2 ? 1 : 3), 0); return (10 - sum % 10) % 10 === chk; }
-function friGtins(text){ return [...new Set((String(text).replace(/(\d)[ \-](?=\d)/g, '$1').match(/\b\d{13,14}\b/g) || []).filter(friGtinOk))]; }
+// GTIN-14 (ITF-14 carton) → the GTIN-13 it packs: drop the indicator digit, recompute the check digit
+function friGtin13of14(c){ c = String(c); if (c.length !== 14) return c; const b = c.slice(1, 13); const d = b.split('').map(Number); const t = d.reverse().reduce((a, x, i) => a + x * (i % 2 ? 1 : 3), 0); return b + ((10 - t % 10) % 10); }
+function friGtins(text){ return [...new Set([...(String(text).replace(/(\d)[ \-](?=\d)/g, '$1').match(/\b\d{13,14}\b/g) || []).filter(friGtinOk), ...(typeof friGtinsPrinted === 'function' ? friGtinsPrinted(text) : [])])]; }
 
 // ARENA FRI Standard checklist (sheet "Requirements": ID · … · mandatory Y/N · status Defined / QS to fill · evidence required)
 function friReadStdChecklist(wb, name){
@@ -3447,6 +3449,8 @@ async function friDocUpload(inp){
           if (s.status) friCur.basisStatus = s.status; else if (friCur.basisStatus === 'None') friCur.basisStatus = 'Released'; }
       }
       d.imgs = await friExtractImages(f, d.id, { maxImgs:24, maxPages:6 });
+      d.barcodes = [...new Set(d.imgs.flatMap(im => im.codes || []))];
+      d.gtins = [...new Set([...d.gtins, ...d.barcodes])];
       d.stored = await friIdbPut(d.id, f);
       friCur.docs.push(d); n++;
     } catch(e) { alert(`Could not read ${f.name}: ${e.message}`); }
@@ -3480,7 +3484,7 @@ function friDocsPanel(){
       ${docs.map(d => `<tr><td>${d.thumb ? `<img src="${d.thumb}" style="width:48px;height:48px;object-fit:cover;border-radius:4px;border:1px solid var(--bd)"/>` : `<span class="tag t-gray">${friE(d.kind)}</span>`}</td>
         <td><span class="tag t-b">${friE(FRI_DOC_LABEL[d.type] || d.type)}</span></td>
         <td>${friE(d.name)}<div class="fri-note">${Math.round(d.size/1024)} KB · ${friE(d.kind)}</div></td>
-        <td class="fri-note">${d.std ? `${friE(d.std.basis || 'checklist')} · ${d.std.total} IDs · ${d.std.mand.length} mandatory${d.std.qs.length ? ` · <b style="color:#B9770E">${d.std.qs.length} "QS to fill"</b>` : ''}` : ''}${d.gtins.length ? `GTIN: ${friE(d.gtins.slice(0,4).join(', '))}${d.gtins.length > 4 ? '…' : ''}` : (d.std ? '' : (d.text ? `${d.text.length.toLocaleString()} characters of text` : (d.kind === 'Image' ? 'image (no text)' : 'no text found')))}</td>
+        <td class="fri-note">${d.std ? `${friE(d.std.basis || 'checklist')} · ${d.std.total} IDs · ${d.std.mand.length} mandatory${d.std.qs.length ? ` · <b style="color:#B9770E">${d.std.qs.length} "QS to fill"</b>` : ''}` : ''}${d.gtins.length ? `GTIN: ${friE(d.gtins.slice(0,4).join(', '))}${d.gtins.length > 4 ? '…' : ''}${(d.barcodes || []).length ? ` <span class="tag t-g">${d.barcodes.length} barcode(s) decoded</span>` : ''}` : (d.std ? '' : (d.text ? `${d.text.length.toLocaleString()} characters of text` : (d.kind === 'Image' ? 'image (no text)' : 'no text found')))}</td>
         <td class="fri-note" style="white-space:nowrap">${friE(d.at)}</td>
         <td style="white-space:nowrap"><button class="btn btn-d btn-sm" onclick="friDocOpen('${d.id}')">Open</button> <button class="btn btn-tx" title="Remove" onclick="friDocDel('${d.id}')">✕</button></td></tr>`).join('')}</tbody></table></div>`
       : '<div style="padding:12px;text-align:center;color:var(--t3);font-size:12.5px">No document uploaded yet.</div>'}
@@ -3496,7 +3500,7 @@ function friReconcile(v){
   out.fu = fu;
   const OD = (typeof MASTER_ORDER_DATA !== 'undefined' ? MASTER_ORDER_DATA : []).filter(r => String(r.po) === String(v.po));
   const items = OD.filter(r => (r.lot || 'Lot 1') === v.lot).length ? OD.filter(r => (r.lot || 'Lot 1') === v.lot) : OD;
-  const rep = (v.source && v.source.text) || '', repN = rep.toLowerCase(), repG = friGtins(rep);
+  const rep = (v.source && v.source.text) || '', repN = rep.toLowerCase(), repPhotoG = [...new Set(((v.source && v.source.imgs) || []).flatMap(im => im.codes || []))], repG = [...new Set([...friGtins(rep), ...repPhotoG])];
   const docs = v.docs || [], artDocs = docs.filter(d => d.type === 'art'), artG = [...new Set(artDocs.flatMap(d => d.gtins))];
   const poDocs = docs.filter(d => d.type === 'po'), poG = [...new Set(poDocs.flatMap(d => d.gtins))];
   const has = (t, s) => !!s && t.includes(String(s).toLowerCase().trim());
@@ -3517,22 +3521,35 @@ function friReconcile(v){
   row(items.length > 1 ? `P.O. qty (total of ${items.length} item rows)` : 'P.O. qty', poQty, repQty, poDocs.length ? `${poDocs.length} P.O. file(s)` : '', poQty == null || repQty == null ? 'na' : poQty === repQty ? 'ok' : 'diff', poQty && repQty && poQty !== repQty ? `${repQty > poQty ? '+' : ''}${Math.round((repQty - poQty) / poQty * 1000) / 10}%` : '');
   if (poQty != null && repQty != null && poQty !== repQty) issue({ cp:'CP1', sev:'Major', title:`Shipment qty in the report (${repQty}) ≠ P.O. qty in the master file (${poQty}).`, action:'Confirm the P.O. qty (all P.O. lines) and the lot inspected; correct the report.' });
   if (poQty && packed != null) row('Packed qty ≥ 80% of P.O. qty', `${Math.round(poQty * .8)} min.`, packed, '', packed >= .8 * poQty ? 'ok' : 'diff', `${Math.round(packed / poQty * 100)}%`);
+  // EAN in the master file must be a valid GTIN (8 / 12 / 13 / 14 digits, GS1 check digit) and not the item code
+  const gtinOk = x => { const d = String(x || '').replace(/\D/g, ''); return [8,12,13,14].includes(d.length) && friGtinOk(d.length === 12 ? '0' + d : d); };
+  const badEan = items.filter(it => !gtinOk(it.ean) || [it.allyRef, it.supRef].some(r => r && String(r).replace(/\D/g, '') === String(it.ean || '').replace(/\D/g, '')));
+  if (items.length) {
+    const info = (typeof MASTER_EAN_INFO !== 'undefined' && MASTER_EAN_INFO) || null;
+    row('EAN in master file (Orders Data)', `${items.length - badEan.length} / ${items.length} valid GTIN`, '', '', badEan.length ? 'diff' : 'ok', info ? `column "${info.header}"${info.auto ? ` — auto-detected (the "${info.was}" column did not hold valid GTINs)` : ''}` : '');
+    if (badEan.length) issue({ type:'RG', sev:'—', resp:'QS', cp:'CP3', title:`EAN in the master file is not a valid GTIN for ${badEan.length} item(s): ${badEan.slice(0,4).map(it => `${it.allyRef || it.desc} = "${it.ean || 'blank'}"`).join(', ')}${badEan.length > 4 ? '…' : ''} — barcode cannot be verified.`, action:'Correct the EAN code in Orders Data from the P.O. / Ally item master, then reload the master file.' });
+  }
+  if (repPhotoG.length) row('Barcodes decoded in report photos', '', repPhotoG.slice(0,4).join(', '), '', 'ok', `${repPhotoG.length} code(s) read from the scan photos`);
   // item lines
   items.forEach(it => {
     const code = it.allyRef || it.supRef || '', gt = [it.ean, it.logCode].map(x => String(x || '').replace(/\D/g, '')).filter(x => x.length >= 13);
     const inRep = !!rep && ((code && has(repN, code)) || gt.some(x => repG.includes(x) || rep.includes(x)));
-    const eanArt = !artDocs.length ? null : !artG.length ? 'unreadable' : (gt.length ? gt.every(x => artG.includes(x)) : null);
-    out.items.push({ code, desc: it.desc, ean: it.ean, itf: it.logCode, brand: it.brand, qty: it.qty, inRep, eanArt, brandRep: it.brand ? has(repN, it.brand) : null });
+    const artG13 = artG.map(friGtin13of14);
+    const eanArt = !artDocs.length ? null : badEan.includes(it) ? 'badmaster' : !artG.length ? 'unreadable' : (gt.length ? gt.every(x => artG.includes(x) || artG13.includes(friGtin13of14(x))) : null);
+    out.items.push({ eanBad: badEan.includes(it), code, desc: it.desc, ean: it.ean, itf: it.logCode, brand: it.brand, qty: it.qty, inRep, eanArt, brandRep: it.brand ? has(repN, it.brand) : null });
     if (rep && !inRep) issue({ cp:'CP1', sev:'Major', title:`P.O. line ${code || it.ean} (${(it.desc || '').slice(0, 40)}) not found in the FRI report — no inspection record for this code.`, action:'Inspect / report every P.O. line; each code needs its own FRI record.' });
     if (eanArt === false) issue({ type:'OB', sev:'—', resp:'QS', cp:'CP3', title:`GTIN ${gt.join(' / ')} of ${code || it.desc} not found in the uploaded artwork files (artwork GTINs read: ${artG.slice(0,3).join(', ')}).`, action:'Upload the released artwork of this item, or confirm its barcode visually.' });
     if (rep && it.brand && !has(repN, it.brand)) issue({ cp:'CP3', sev:'Minor', title:`Brand "${it.brand}" (master file) not mentioned in the report for ${code || it.desc}.`, action:'Record the brand checked on product / packaging.' });
   });
   if (items.length) {
     const masterG = new Set(items.flatMap(it => [it.ean, it.logCode].map(x => String(x || '').replace(/\D/g, '')).filter(Boolean)));
-    const extra = repG.filter(x => !masterG.has(x));
-    artDocs.forEach(d => { const bad = d.gtins.filter(x => !masterG.has(x)); if (bad.length) issue({ type:'NC', sev:'High', resp:'QS + Compliance Director', cp:'CP3', title:`Artwork file "${d.name}" carries GTIN ${bad.slice(0,3).join(', ')} — not on this P.O.`, action:'SRC blocked: confirm which artwork revision was printed; check the barcode on the goods and cartons; relabel if wrong.' }); });
-    const artBad = artDocs.filter(d => d.gtins.some(x => !masterG.has(x)));
-    if (artDocs.length) row('Artwork files', `${masterG.size} GTIN(s) on P.O.`, '', `${artDocs.length} file(s) · ${artG.length} GTIN(s) read`, artBad.length ? 'diff' : artG.length ? 'ok' : 'na', artBad.length ? `GTIN not on P.O. in: ${artBad.map(d => d.name).join(', ')}` : artG.length ? '' : 'no GTIN text in the artwork files (vector barcodes?) — check visually');
+    const onPO = x => masterG.has(x) || masterG.has(friGtin13of14(x));   // a carton ITF-14 built on an item EAN belongs to the P.O.
+    const extra = badEan.length ? [] : repG.filter(x => !onPO(x));
+    artDocs.forEach(d => { const bad = d.gtins.filter(x => !onPO(x)); if (!bad.length) return;
+      if (badEan.length) { issue({ type:'OB', sev:'—', resp:'QS', cp:'CP3', title:`Artwork file "${d.name}" carries GTIN ${bad.slice(0,3).join(', ')} — cannot be checked until the master-file EAN is corrected.`, action:'Correct the master EAN, then re-run the pre-validation.' }); return; }
+      issue({ type:'NC', sev:'High', resp:'QS + Compliance Director', cp:'CP3', title:`Artwork file "${d.name}" carries GTIN ${bad.slice(0,3).join(', ')} — not on this P.O.`, action:'SRC blocked: confirm which artwork revision was printed; check the barcode on the goods and cartons; relabel if wrong.' }); });
+    const artBad = badEan.length ? [] : artDocs.filter(d => d.gtins.some(x => !onPO(x)));
+    if (artDocs.length) row('Artwork files', `${masterG.size} GTIN(s) on P.O.`, '', `${artDocs.length} file(s) · ${artG.length} GTIN(s) read`, badEan.length ? 'na' : artBad.length ? 'diff' : artG.length ? 'ok' : 'na', badEan.length ? 'cannot be checked until the master-file EAN is corrected' : artBad.length ? `GTIN not on P.O. in: ${artBad.map(d => d.name).join(', ')}` : artG.length ? '' : 'no GTIN read in the artwork files (no barcode decoded, no digits as text) — check visually or upload a higher-resolution / PDF export');
     row('Item lines (Orders Data)', `${items.length} line(s)`, rep ? `${out.items.filter(i => i.inRep).length} found in report` : '—', artDocs.length ? `${out.items.filter(i => i.eanArt === true).length} GTIN match in artwork` : 'artwork not uploaded', !rep ? 'na' : out.items.every(i => i.inRep) && !extra.length ? 'ok' : 'diff');
     if (extra.length) issue({ cp:'CP3', sev:'Major', title:`GTIN in the report not on the P.O.: ${extra.slice(0,3).join(', ')}.`, action:'Check that the goods inspected belong to this P.O. / item; correct the report.' });
     if (poG.length) { const miss = [...masterG].filter(x => x.length >= 13 && !poG.includes(x)); row('GTINs in uploaded P.O. vs master file', `${masterG.size}`, '', `${poG.length} in P.O. file`, miss.length ? 'diff' : 'ok', miss.length ? `not in P.O. file: ${miss.slice(0,3).join(', ')}` : ''); if (miss.length) issue({ type:'OB', sev:'—', resp:'QS', cp:'CP9', title:`Master file GTIN(s) ${miss.slice(0,3).join(', ')} not found in the uploaded P.O. file.`, action:'Check the master file against the P.O.' }); }
@@ -3575,8 +3592,8 @@ function friReconPanel(){
     <div class="tw"><table class="tbl" style="font-size:12px"><thead><tr><th style="width:30px"></th><th>CHECK</th><th>MASTER FILE</th><th>FRI REPORT</th><th>DOCUMENTS</th><th>NOTE</th></tr></thead><tbody>
       ${r.rows.map(x => `<tr><td>${ic(x.res)}</td><td>${friE(x.check)}</td><td><b>${friE(x.master)}</b></td><td>${friE(x.report)}</td><td>${friE(x.doc)}</td><td class="fri-note">${friE(x.note)}</td></tr>`).join('')}</tbody></table></div>
     ${r.items.length ? `<div class="fri-note" style="margin:10px 0 4px"><b>Item lines (Orders Data)</b></div><div class="tw"><table class="tbl" style="font-size:12px"><thead><tr><th>ITEM CODE</th><th>DESCRIPTION</th><th>EAN</th><th>ITF-14 / LOG</th><th>BRAND</th><th>QTY</th><th>IN REPORT</th><th>GTIN IN ARTWORK</th></tr></thead><tbody>
-      ${r.items.map(i => `<tr><td>${friE(i.code)||'—'}</td><td style="max-width:220px">${friE(i.desc)}</td><td>${friE(i.ean)||'—'}</td><td>${friE(i.itf)||'—'}</td><td>${friE(i.brand)||'—'}</td><td>${i.qty ?? '—'}</td>
-        <td>${!v.source ? '—' : i.inRep ? ic('ok') : ic('diff') + ' not found'}</td><td>${i.eanArt === null ? '—' : i.eanArt === 'unreadable' ? '<span class="fri-note">no GTIN text in artwork</span>' : i.eanArt ? ic('ok') : ic('diff') + ' mismatch'}</td></tr>`).join('')}</tbody></table></div>` : ''}
+      ${r.items.map(i => `<tr><td>${friE(i.code)||'—'}</td><td style="max-width:220px">${friE(i.desc)}</td><td>${friE(i.ean)||'—'}${i.eanBad?' <span class="tag t-o" title="not a valid GTIN (length / check digit) or equal to the item code">invalid</span>':''}</td><td>${friE(i.itf)||'—'}</td><td>${friE(i.brand)||'—'}</td><td>${i.qty ?? '—'}</td>
+        <td>${!v.source ? '—' : i.inRep ? ic('ok') : ic('diff') + ' not found'}</td><td>${i.eanArt === null ? '—' : i.eanArt === 'badmaster' ? '<span class="fri-note">fix master EAN first</span>' : i.eanArt === 'unreadable' ? '<span class="fri-note">no GTIN read in artwork</span>' : i.eanArt ? ic('ok') : ic('diff') + ' mismatch'}</td></tr>`).join('')}</tbody></table></div>` : ''}
     ${r.issues.length ? `<div style="margin-top:8px">${r.issues.map(x => `<div style="display:flex;gap:8px;align-items:center;margin-top:5px;font-size:12px"><span class="tag ${x.type==='NC'?'t-r':x.type==='RG'?'t-p':x.type==='OB'?'t-gray':x.sev==='Major'?'t-o':'t-gray'}">${x.type==='F'?x.sev:x.type+'-'}</span><span style="flex:1">${friE(x.title)}</span>
         ${titles.has(x.title) ? '<span class="fri-note">logged</span>' : `<button class="btn btn-d btn-sm" onclick='friAddFinding(${JSON.stringify(x).replace(/'/g,"&#39;")})'>+ Add</button>`}</div>`).join('')}</div>` : ''}
   </div>`;
@@ -3605,7 +3622,7 @@ function friJoin(base, rel){ const p = base.split('/'); p.pop(); rel.split('/').
 async function friExtractImages(f, prefix, opt){
   opt = Object.assign({ maxImgs:150, maxPages:30, onProgress:null }, opt || {});
   const ext = (f.name.split('.').pop() || '').toLowerCase(), out = [];
-  const put = async (blob, meta) => { if (out.length >= opt.maxImgs) return; const t = await friToThumb(blob); if (!t) return; const key = `img:${prefix}:${out.length}`; await friImgPut(key, t.url); out.push(Object.assign({ key, w: t.w, h: t.h }, meta)); if (opt.onProgress) opt.onProgress(out.length); };
+  const put = async (blob, meta) => { if (out.length >= opt.maxImgs) return; if (!meta.codes) meta.codes = await friDecodeBlob(blob); const t = await friToThumb(blob); if (!t) return; const key = `img:${prefix}:${out.length}`; await friImgPut(key, t.url); out.push(Object.assign({ key, w: t.w, h: t.h }, meta)); if (opt.onProgress) opt.onProgress(out.length); };
   try {
     if (FRI_MIME[ext]) { await put(f, { n: f.name, media: f.name, cap: f.name, ctx: f.name }); return out; }
     if (ext === 'docx' || ext === 'docm') {
@@ -3654,12 +3671,13 @@ async function friExtractImages(f, prefix, opt){
     if (ext === 'pdf' || ext === 'ai') {
       const pdfjs = await friLoadPdfJs(), doc = await pdfjs.getDocument({ data: new Uint8Array(await f.arrayBuffer()) }).promise;
       for (let p = 1; p <= Math.min(doc.numPages, opt.maxPages); p++) {
-        const page = await doc.getPage(p), vp0 = page.getViewport({ scale:1 }), vp = page.getViewport({ scale: Math.min(2, 900 / vp0.width) });
+        const page = await doc.getPage(p), vp0 = page.getViewport({ scale:1 }), vp = page.getViewport({ scale: Math.min(5, Math.max(1, 2400 / Math.max(vp0.width, vp0.height))) });   // high resolution for barcode decoding
         const c = document.createElement('canvas'); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
         await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
         const t = (await page.getTextContent()).items.map(i => i.str).join(' ').replace(/\s+/g, ' ').trim();
+        const codes = friDecodeBarcodes(c);
         const blob = await new Promise(ok => c.toBlob(ok, 'image/jpeg', .8));
-        await put(blob, { n: `page ${p}`, media: `page ${p}`, cap: t.slice(0, 120) || `page ${p}`, ctx: t.slice(0, 3000) });
+        await put(blob, { codes, n: `page ${p}`, media: `page ${p}`, cap: t.slice(0, 120) || `page ${p}`, ctx: t.slice(0, 3000) });
       }
       return out;
     }
@@ -3784,6 +3802,94 @@ async function friFindingImages(f, max){
   const out = [];
   for (const r of (f.refs || []).filter(r => r.kind === 'photo').slice(0, max || 4)) { const u = await friImgGet(r.key); if (u) out.push({ url: u, w: r.w || 320, h: r.h || 240, label: r.label }); }
   return out;
+}
+
+</script>
+<script>
+// ═════════════ BARCODE DECODER — EAN-13 / UPC-A and ITF-14 from rendered artwork pages and pictures ═════════════
+// Scan lines (rows and columns) are binarised and run-length encoded; a code is accepted only with a valid
+// GS1 check digit and when it is read on at least two scan lines.
+const FRI_EAN_L = ['3211','2221','2122','1411','1132','1231','1114','1312','1213','3112'].map(s => s.split('').map(Number));
+const FRI_EAN_G = FRI_EAN_L.map(p => p.slice().reverse());
+const FRI_EAN_FIRST = ['LLLLLL','LLGLGG','LLGGLG','LLGGGL','LGLLGG','LGGLLG','LGGGLL','LGLGLG','LGLGGL','LGGLGL'];
+const FRI_ITF = ['NNWWN','WNNNW','NWNNW','WWNNN','NNWNW','WNWNN','NWWNN','NNNWW','WNNWN','NWNWN'];
+function _friRuns(line){ // line: Uint8Array of 0/1 (1 = bar)
+  const runs = []; let c = line[0], n = 0;
+  for (let i = 0; i < line.length; i++) { if (line[i] === c) n++; else { runs.push([c, n]); c = line[i]; n = 1; } }
+  runs.push([c, n]); return runs;
+}
+function _friMatch(w, pats){ const t = w[0] + w[1] + w[2] + w[3]; let best = -1, bd = 9;
+  pats.forEach((p, d) => { const dist = Math.abs(w[0]*7/t - p[0]) + Math.abs(w[1]*7/t - p[1]) + Math.abs(w[2]*7/t - p[2]) + Math.abs(w[3]*7/t - p[3]); if (dist < bd) { bd = dist; best = d; } });
+  return bd < 1.6 ? { d: best, dist: bd } : null; }
+function _friEan13(runs){
+  const out = [];
+  for (let s = 0; s + 59 <= runs.length; s++) {
+    if (runs[s][0] !== 1) continue;
+    const seg = runs.slice(s, s + 59).map(r => r[1]), tot = seg.reduce((a, b) => a + b, 0), u = tot / 95;
+    if (u < 0.9) continue;
+    const near = (x, k) => Math.abs(x - k * u) <= Math.max(1.1, .55 * u * k);
+    if (!near(seg[0],1) || !near(seg[1],1) || !near(seg[2],1)) continue;
+    if (![27,28,29,30,31].every(i => near(seg[i], 1))) continue;
+    if (!near(seg[56],1) || !near(seg[57],1) || !near(seg[58],1)) continue;
+    let par = '', left = [], ok = true;
+    for (let k = 0; k < 6 && ok; k++) { const w = seg.slice(3 + 4*k, 7 + 4*k), l = _friMatch(w, FRI_EAN_L), g = _friMatch(w, FRI_EAN_G);
+      if (!l && !g) ok = false; else if (l && (!g || l.dist <= g.dist)) { par += 'L'; left.push(l.d); } else { par += 'G'; left.push(g.d); } }
+    if (!ok) continue;
+    const right = [];
+    for (let k = 0; k < 6 && ok; k++) { const r = _friMatch(seg.slice(32 + 4*k, 36 + 4*k), FRI_EAN_L); if (!r) ok = false; else right.push(r.d); }
+    if (!ok) continue;
+    const first = FRI_EAN_FIRST.indexOf(par); if (first < 0) continue;
+    const code = String(first) + left.join('') + right.join('');
+    if (friGtinOk(code)) out.push(code);
+  }
+  return out;
+}
+function _friItf14(runs){
+  const out = [];
+  for (let s = 0; s + 77 <= runs.length; s++) {
+    if (runs[s][0] !== 1) continue;
+    const seg = runs.slice(s, s + 77).map(r => r[1]);
+    const nar = (seg[0] + seg[1] + seg[2] + seg[3]) / 4; if (nar < 1) continue;
+    if (Math.max(seg[0], seg[1], seg[2], seg[3]) > 1.6 * Math.min(seg[0], seg[1], seg[2], seg[3]) + 1) continue;
+    const body = seg.slice(4, 74), wides = body.filter(x => x > 1.6 * nar);
+    if (!wides.length) continue;
+    const wid = wides.reduce((a, b) => a + b, 0) / wides.length, thr = (nar + wid) / 2;
+    if (wid < 1.8 * nar) continue;
+    let digits = '', ok = true;
+    for (let p = 0; p < 7 && ok; p++) {
+      const el = body.slice(p * 10, p * 10 + 10), bars = [0,2,4,6,8].map(i => el[i] > thr ? 'W' : 'N').join(''), sps = [1,3,5,7,9].map(i => el[i] > thr ? 'W' : 'N').join('');
+      const a = FRI_ITF.indexOf(bars), b = FRI_ITF.indexOf(sps); if (a < 0 || b < 0) ok = false; else digits += a + '' + b;
+    }
+    if (!ok || !(seg[74] > thr) || seg[75] > thr || seg[76] > thr) continue;
+    if (friGtinOk(digits)) out.push(digits);
+  }
+  return out;
+}
+function friDecodeBarcodes(canvas){
+  const W = canvas.width, H = canvas.height; if (W < 60 || H < 20) return [];
+  const data = canvas.getContext('2d', { willReadFrequently:true }).getImageData(0, 0, W, H).data;
+  const lum = new Uint8Array(W * H); for (let i = 0, j = 0; i < data.length; i += 4, j++) lum[j] = (data[i] * 299 + data[i+1] * 587 + data[i+2] * 114) / 1000;
+  const counts = {};
+  const scan = (get, len) => { let mn = 255, mx = 0; for (let i = 0; i < len; i++) { const v = get(i); if (v < mn) mn = v; if (v > mx) mx = v; }
+    if (mx - mn < 60) return; const t = (mn + mx) / 2, line = new Uint8Array(len); for (let i = 0; i < len; i++) line[i] = get(i) < t ? 1 : 0;
+    const runs = _friRuns(line), rev = runs.slice().reverse();
+    [..._friEan13(runs), ..._friEan13(rev), ..._friItf14(runs), ..._friItf14(rev)].forEach(c => { counts[c] = (counts[c] || 0) + 1; }); };
+  const rs = Math.max(2, Math.floor(H / 220)), cs = Math.max(2, Math.floor(W / 220));
+  for (let y = 0; y < H; y += rs) scan(i => lum[y * W + i], W);
+  for (let x = 0; x < W; x += cs) scan(i => lum[i * W + x], H);
+  return Object.keys(counts).filter(c => counts[c] >= 2).map(c => c.length === 12 ? '0' + c : c);
+}
+async function friDecodeBlob(blob){
+  try { const bm = await createImageBitmap(blob); const s = Math.min(1, 2400 / Math.max(bm.width, bm.height)), c = document.createElement('canvas');
+    c.width = Math.round(bm.width * s); c.height = Math.round(bm.height * s); const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(bm, 0, 0, c.width, c.height);
+    return friDecodeBarcodes(c); } catch(e) { return []; }
+}
+// printed human-readable forms: "5 948452 123456" (EAN-13) and "1 59 48452 12345 6" (ITF-14), also split across PDF text items
+function friGtinsPrinted(text){
+  const t = String(text), out = new Set();
+  for (const m of t.matchAll(/(?<![\d])(\d)[ \t|]{1,4}(\d{6})[ \t|]{1,4}(\d{6})(?![\d])/g)) { const c = m[1] + m[2] + m[3]; if (friGtinOk(c)) out.add(c); }
+  for (const m of t.matchAll(/(?<![\d])(\d)[ \t|]{1,4}(\d{2})[ \t|]{1,4}(\d{5})[ \t|]{1,4}(\d{5})[ \t|]{1,4}(\d)(?![\d])/g)) { const c = m.slice(1, 6).join(''); if (friGtinOk(c)) out.add(c); }
+  return [...out];
 }
 
 </script>
@@ -6529,6 +6635,7 @@ function go(id, el2) {
 //              "Orders Data"   (headers row 1, item-level)
 // ═══════════════════════════════════════════════════
 
+let MASTER_EAN_INFO = null;   // which Orders Data column holds the EAN (content-checked)
 let MASTER_ORDER_DATA = [];   // item-level rows (Orders Data)
 let MASTER_PO_INDEX   = {};   // {po+lot key: [item rows]}
 let MASTER_FU_DATA    = [];   // PO-level rows (Order Fulfill)
@@ -7931,6 +8038,15 @@ function mfProcessWorkbook(wb, sourceName) {
         variantTypeSrc: findHdr(hOD,"Variant Type"),
         parentSkuSrc: findHdr(hOD,"Parent SKU","Parent SKU Code"),
       };
+      (function(){   // the EAN column must hold valid GTINs — otherwise use the column that does
+        const ok = v => { const d = String(v ?? '').replace(/\D/g, ''); return [8,12,13,14].includes(d.length) && typeof friGtinOk === 'function' && friGtinOk(d.length === 12 ? '0' + d : d); };
+        const ratio = c => { let n = 0, k = 0; for (let i = 1; i < rawOD.length; i++) { const v = (rawOD[i] || [])[c]; if (v == null || v === '') continue; n++; if (ok(v)) k++; } return n ? k / n : 0; };
+        const cur = OD.ean >= 0 ? ratio(OD.ean) : 0;
+        MASTER_EAN_INFO = { header: OD.ean >= 0 ? String(hOD[OD.ean]) : '(no EAN column)', col: OD.ean, ratio: cur, auto: false };
+        if (cur < .5) { let best = -1, br = 0; hOD.forEach((h, c) => { if (c === OD.ean) return; const r = ratio(c); if (r > br) { br = r; best = c; } });
+          if (best >= 0 && br >= .6) { MASTER_EAN_INFO = { header: String(hOD[best]), col: best, ratio: br, auto: true, was: MASTER_EAN_INFO.header }; OD.ean = best; } }
+        if (MASTER_EAN_INFO.auto || cur < .5) console.warn('Orders Data EAN column:', MASTER_EAN_INFO);
+      })();
       MASTER_ORDER_DATA = []; MASTER_PO_INDEX = {};
       for (let i = 1; i < rawOD.length; i++) {
         const r = rawOD[i];
