@@ -73,6 +73,8 @@ Parse and identify all of the following fields. If any are absent, flag as a fin
 | Inspection date | General Information table |
 | Product description + ref | Sampling details table |
 | Shipment qty / Packed qty | "Table of shipment items and sampling details" — **the order (shipment) q'ty is the AQL lot size**; packed q'ty is used only for the ≥80% FRI-validity check (Step 3a, ARENA sampling method) |
+| P.O. order qty | **Total of ALL item rows of the P.O. lot** in the master file (Orders Data Q'ty summed) — never the first row only; compare with the report's total shipment q'ty |
+| EAN per item | From the master file Orders Data — the column must hold **valid GTINs** (8 / 12 / 13 / 14 digits, GS1 check digit) and must not equal the item / Ally ref; if the "EAN code" column holds other data, use the column that does and say which |
 | Item lines of the sampling table | One row per item: PO#, Ally ref, supplier ref, description, brand, shipment q'ty, packed q'ty, sample size General (II) and Special (S3); totals row (Σ shipment, Σ packed, n General, Σ n Special, packed %); "Acceptance major / minor defects" rows (AQL + Ac at n) |
 | Sample sizes (Level II + Special S3 or S1) | Sampling details table — verify Special level matches product template |
 | AQL levels (Critical / Major / Minor) | General Information table |
@@ -276,6 +278,7 @@ Approved documents for one PO can disagree with each other, and the report usual
 | Standard edition | FRI method text vs DoP vs CE label vs the edition cited in the OJ for the product's hEN | Minor `F-` for the report; `OB-` to QS when the DoP cites a non-cited edition |
 | Artwork revision | Several revisions of the same artwork with conflicting content or implausible file dates | `OB-`: confirm with QS which revision is current before judging conformity |
 | Disposal data (CP8) | Values in the right columns (a strap weight entered as "# sale units per transport unit" is misplaced); weights reconcile with the photos | `F-` (Major if it hides missing data) |
+| EAN / barcode chain | Master-file EAN (valid GTIN, Step 2) ↔ barcode **decoded** from the approved artwork (EAN-13 / UPC-A on product labels, ITF-14 on cartons — read the barcode itself, not only printed digits: artwork digits are often outlined) ↔ barcode scan photo in the report. An ITF-14 matches its item when it packs the item's GTIN-13 (indicator digit + same 12 digits + new check digit) | Invalid / missing master EAN → `RG-` to QS (correct Orders Data), artwork comparison held; artwork GTIN not on the P.O. → `NC-` High, SRC blocked; item GTIN not found in the artwork → `OB-` (upload the item artwork or check visually) |
 | AQL lot basis | ARENA method (Step 3a): lot size = order (shipment) q'ty; one item → General II + S3 on the item; several items → General II on Σ order q'ty allocated per item by order q'ty, S3 per item on its order q'ty; Ac/Re at the combined n; packed q'ty only for the ≥80 % check. When `Quality_matrix_and_inspection_sampling_tool_2.xlsx` is not available, use ISO 2859-1 Tables 1 and 2-A directly and say so | Pattern #5 / #6 for item sample sizes not per the method; pattern #14 if Ac/Re do not match the n inspected |
 
 ### Step 4 — Classify Findings
@@ -627,6 +630,7 @@ flowchart TD
 | `qsd-qcp` / `qcp-excel-generator` | Requirement source for Step 5.2; updated at RCA close-out when the non-detection branch points to the inspection matrix |
 | `fri-report-template-generator` | **Upstream** — produces the ARENA FRI Standard (template + guideline, document ID `ARENA-FRI-STD-<CAT>-Vx`) and the requirement checklist `.xlsx` that Step 3e applies; checklist and guideline updated at RCA close-out when the FRI form failed to capture the defect |
 
+> **v3.1 (2026-11-10):** P.O. order qty = total of all item rows of the lot (master file); EAN per item must be a valid GTIN from the master file (content-checked column); new Step 3d row "EAN / barcode chain": decode the artwork barcodes (EAN-13 / UPC-A / ITF-14), ITF-14 ↔ item GTIN-13 equivalence, findings RG- (invalid master EAN) / NC- (artwork GTIN not on P.O.) / OB- (item GTIN not in artwork).
 > **v3.0 (2026-11-10):** ARENA sampling method confirmed by QS (worked example DEDEMAN P.O. 87-2027-1).
 > - **Lot size = order (shipment) q'ty**, not packed q'ty; packed q'ty only for the Σ packed ≥ 80 % FRI-validity check (Step 2 fields, CP1, Step 3d AQL lot basis).
 > - **One item → normal single sampling, General II + S3** on the item; **several items (one P.O. or across P.O. lots) → General II on Σ order q'ty**, allocated per item round(n × item order q'ty ÷ Σ order q'ty), **S3 per item** on its order q'ty, **Ac/Re at the combined n** (Step 3a table and example).
