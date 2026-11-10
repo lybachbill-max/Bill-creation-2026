@@ -2484,8 +2484,8 @@ function friApplyPO(key, silent){
     friCur.ally = r.ally || ''; friCur.sup = r.sup || r.prod || ''; friCur.dept = r.dept || ''; friCur.pf = r.pf || '';
     if (!friCur.inspBody) friCur.inspBody = r.inspCompany || '';
     if (!friCur.inspDate && r.inspActual) friCur.inspDate = String(r.inspActual).slice(0,10);
-    if (!friCur.aql.poQty && r.qty) friCur.aql.poQty = String(r.qty);
     const od = (typeof MASTER_ORDER_DATA !== 'undefined' ? MASTER_ORDER_DATA : []).filter(x => String(x.po) === String(po) && (x.lot || 'Lot 1') === lot && +x.qty > 0);
+    if (!friCur.aql.poQty) { const tq = od.length ? od.reduce((s, x) => s + +x.qty, 0) : +r.qty; if (tq) friCur.aql.poQty = String(tq); }
     if (!(friCur.aql.items || []).length && od.length) friCur.aql.items = od.map(x => ({ ref: x.allyRef || x.supRef || '', desc: x.desc || '', ship: +x.qty, packed: '', nII: '', nS3: '', src:'master' }));
     const outdoorFurn = /furniture|bench|chair|table|lounger|sofa/i.test(r.pf || '') && /GARDEN|OUTDOOR/i.test(r.dept || '');
     if (outdoorFurn) { friCur.aql.aqlMa = '1.0'; friCur.aql.spec = 'S1'; }
@@ -3513,8 +3513,8 @@ function friReconcile(v){
   row('Supplier / factory', fu.sup, rep ? (has(repN, supWord) ? 'found' : 'not found') : '—', '', !rep ? 'na' : has(repN, supWord) ? 'ok' : 'diff');
   if (rep && supWord && !has(repN, supWord)) issue({ type:'OB', sev:'—', resp:'QS', cp:'CP9', title:`Supplier "${fu.sup}" (master file) not found in the report — confirm the factory inspected is the P.O. supplier.`, action:'Confirm factory identity.' });
   // quantities
-  const poQty = n(fu.qty) ?? (items.length ? items.reduce((s, r) => s + (+r.qty || 0), 0) : null), repQty = n(v.aql.poQty), packed = n(v.aql.packed);
-  row('P.O. qty', poQty, repQty, poDocs.length ? `${poDocs.length} P.O. file(s)` : '', poQty == null || repQty == null ? 'na' : poQty === repQty ? 'ok' : 'diff', poQty && repQty && poQty !== repQty ? `${repQty > poQty ? '+' : ''}${Math.round((repQty - poQty) / poQty * 1000) / 10}%` : '');
+  const poQty = items.length ? items.reduce((s, r) => s + (+r.qty || 0), 0) : n(fu.qty), repQty = n(v.aql.poQty), packed = n(v.aql.packed);   // total order qty of all item rows
+  row(items.length > 1 ? `P.O. qty (total of ${items.length} item rows)` : 'P.O. qty', poQty, repQty, poDocs.length ? `${poDocs.length} P.O. file(s)` : '', poQty == null || repQty == null ? 'na' : poQty === repQty ? 'ok' : 'diff', poQty && repQty && poQty !== repQty ? `${repQty > poQty ? '+' : ''}${Math.round((repQty - poQty) / poQty * 1000) / 10}%` : '');
   if (poQty != null && repQty != null && poQty !== repQty) issue({ cp:'CP1', sev:'Major', title:`Shipment qty in the report (${repQty}) ≠ P.O. qty in the master file (${poQty}).`, action:'Confirm the P.O. qty (all P.O. lines) and the lot inspected; correct the report.' });
   if (poQty && packed != null) row('Packed qty ≥ 80% of P.O. qty', `${Math.round(poQty * .8)} min.`, packed, '', packed >= .8 * poQty ? 'ok' : 'diff', `${Math.round(packed / poQty * 100)}%`);
   // item lines
@@ -3558,7 +3558,7 @@ function friReconcile(v){
     issue({ type:'OB', sev:'—', resp:'QS', cp:'CP9', title:`SRC already dated ${fu.srcDate || ''} in the master file — lot released before this validation.`, action:'If an NC- is found, check containment / read-across on the shipped goods.' }); }
   if (fu.status && fu.status !== 'Open') row('P.O. status', fu.status, '', '', 'diff', fu.status === 'Done' ? 'shipped' : '');
   // master-file reference data for every reconciliation issue
-  const fuLine = `Order Fulfill — P.O. ${fu.po} · ${fu.lot || v.lot} · Ally ${fu.allyRaw || fu.ally || '—'} · supplier ${fu.sup || '—'} · P.O. qty ${fu.qty ?? '—'} · inspection ${fu.insp || '—'} ${fu.inspActual ? String(fu.inspActual).slice(0,10) : ''} ${fu.inspCompany || ''} · ETD ${fu.realEtd || fu.etd || '—'} · gates tech docs ${fu.techDocs || '—'} / golden sample ${fu.goldenSample || '—'} / artwork ${fu.artwork || '—'}${fu.srcDate ? ' · SRC ' + fu.srcDate : ''}`;
+  const fuLine = `Order Fulfill — P.O. ${fu.po} · ${fu.lot || v.lot} · Ally ${fu.allyRaw || fu.ally || '—'} · supplier ${fu.sup || '—'} · P.O. qty ${items.length ? items.reduce((s, r) => s + (+r.qty || 0), 0) : (fu.qty ?? '—')}${items.length > 1 ? ` (total of ${items.length} item rows)` : ''} · inspection ${fu.insp || '—'} ${fu.inspActual ? String(fu.inspActual).slice(0,10) : ''} ${fu.inspCompany || ''} · ETD ${fu.realEtd || fu.etd || '—'} · gates tech docs ${fu.techDocs || '—'} / golden sample ${fu.goldenSample || '—'} / artwork ${fu.artwork || '—'}${fu.srcDate ? ' · SRC ' + fu.srcDate : ''}`;
   out.issues.forEach(x => { x.refs = x.refs || [];
     const it = items.find(i => [i.allyRef, i.supRef, i.ean, i.logCode].filter(Boolean).some(k => x.title.includes(String(k))));
     if (it) x.refs.push(mref(`Orders Data — ${it.allyRef || it.supRef || ''} · ${it.desc || ''} · EAN ${it.ean || '—'} · ITF ${it.logCode || '—'} · brand ${it.brand || '—'} · qty ${it.qty ?? '—'}`));
@@ -7960,8 +7960,9 @@ function mfProcessWorkbook(wb, sourceName) {
         MASTER_PO_INDEX[key].push(item);
         if (fuMap[key] && !fuMap[key].dept && dept) {
           fuMap[key].dept = dept; fuMap[key].pf = item.pf;
-          fuMap[key].qty  = (fuMap[key].qty||0) + item.qty;
         }
+        // lot qty = total order qty of ALL item rows (was: first row only)
+        if (fuMap[key]) fuMap[key].qty = (fuMap[key].qty || 0) + (+item.qty || 0);
         if (fuMap[key]) {
           if (!fuMap[key].pi  && item.pi)   fuMap[key].pi  = item.pi;
           if (!fuMap[key].etd && item.etd)  fuMap[key].etd = item.etd;
