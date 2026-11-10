@@ -2449,11 +2449,12 @@ function friSet(path, val){
   const p = path.split('.'); let o = friCur;
   for (let i=0;i<p.length-1;i++) o = o[p[i]];
   o[p[p.length-1]] = val; friDirty = true;
+  if (p[0] === 'cps' && friCur.cps[+p[1]]) { friCur.cps[+p[1]].auto = false; const t = g('fri-auto-' + p[1]); if (t) t.remove(); }
   friRefreshDerived();
 }
 function friSetF(i, key, val){
   const f = friCur.findings[i]; if (!f) return;
-  f[key] = val; friDirty = true;
+  f[key] = val; friDirty = true; if (f.auto) { f.auto = false; if (!['type','pattern','sev','status'].includes(key)) friRenderFindings(); }
   if (key === 'type') { f.sev = val==='F' ? (f.sev && ['Critical','Major','Minor'].includes(f.sev) ? f.sev : 'Major') : val==='NC' ? 'Medium' : '—'; f.ref = ''; friRenumber(); friRenderFindings(); }
   if (key === 'pattern') {
     const pt = FRI_PATTERNS.find(x => String(x[0]) === String(val));
@@ -2661,10 +2662,11 @@ function friRenderWorkbench(){
   </div>
   <div id="fri-banner"></div>
   <div class="card">
-    <div class="fri-sec">2 · Checkpoint requirement compliance matrix (CP1–CP10)</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div class="fri-sec">2 · Checkpoint requirement compliance matrix (CP1–CP10)</div>
+      <div style="display:flex;gap:8px;align-items:center">${v.preAt?`<span class="fri-note">pre-validation ${friE(v.preAt)}</span>`:''}<button class="btn btn-d btn-sm" onclick="friApplyPre()" title="Re-read the imported report: fill the CP matrix and extract findings (replaces only auto items)" ${v.source?'':'disabled'}>⚙ Run pre-validation</button></div></div>
     <div class="fri-note" style="margin-bottom:8px">Re-derive every checkpoint from an independent requirement source — the report's own "Passed" / "N/A" does not exempt a row. Source priority: Released ARENA FRI Standard → QC Pack for this P.O. → product FRI template → report's own text (last resort, Minor).</div>
     <div class="tw"><table class="tbl" style="min-width:980px"><thead><tr><th style="width:150px">CHECKPOINT</th><th style="width:250px">ACCEPTANCE CRITERIA</th><th style="width:190px">REQUIREMENT SOURCE</th><th>WHAT THE REPORT SHOWS (value / photo / field)</th><th style="width:140px">VERDICT</th></tr></thead>
-    <tbody>${v.cps.map((r,i) => `<tr><td><b>${r.cp}</b> ${friE(FRI_CPS[i][1])}</td><td class="fri-note">${friE(FRI_CPS[i][2])}</td>
+    <tbody>${v.cps.map((r,i) => `<tr><td><b>${r.cp}</b> ${friE(FRI_CPS[i][1])}${r.said?`<div><span class="tag ${r.said==='Passed'?'t-g':r.said==='Failed'?'t-r':'t-gray'}" title="Result stated in the report">report: ${friE(r.said)}</span></div>`:''}${r.auto?`<div id="fri-auto-${i}"><span class="tag t-p" title="Filled by the pre-validation — confirm or edit">auto</span></div>`:''}</td><td class="fri-note">${friE(FRI_CPS[i][2])}</td>
       <td><select class="fc" onchange="friSet('cps.${i}.src',this.value)"><option value=""></option>${FRI_SOURCES.map(s => `<option${s===r.src?' selected':''}>${friE(s)}</option>`).join('')}</select></td>
       <td><textarea class="fc" onchange="friSet('cps.${i}.shows',this.value)">${friE(r.shows)}</textarea></td>
       <td><select class="fc" onchange="friSet('cps.${i}.verdict',this.value)">${FRI_CP_VERDICTS.map(s => `<option${s===r.verdict?' selected':''}>${s}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div>
@@ -2727,7 +2729,7 @@ function friRenderFindings(){
   const sevOpts = t => t==='F' ? ['Critical','Major','Minor'] : t==='NC' ? ['Low','Medium','High'] : ['—'];
   el.innerHTML = `<div class="tw"><table class="tbl" style="min-width:1100px"><thead><tr><th style="width:62px">REF</th><th style="width:70px">TYPE</th><th style="width:110px">CP / REQ ID</th><th style="width:100px">SEVERITY / GRADE</th><th style="width:150px">PATTERN</th><th>WHAT IS WRONG (found in report)</th><th>REQUIRED ACTION</th><th style="width:130px">RESPONSIBILITY</th><th style="width:90px">STATUS</th><th style="width:30px"></th></tr></thead><tbody>
   ${fs.map((f,i) => `<tr style="${f.status==='Closed'?'opacity:.55':''}">
-    <td><b>${friE(f.ref)}</b></td>
+    <td><b>${friE(f.ref)}</b>${f.auto?'<div><span class="tag t-p" title="Extracted by the pre-validation — confirm, edit or remove">auto</span></div>':''}</td>
     <td><select class="fc" onchange="friSetF(${i},'type',this.value)">${['F','NC','RG','OB'].map(t => `<option${t===f.type?' selected':''}>${t}</option>`).join('')}</select></td>
     <td><input class="fc" value="${friE(f.cp)}" placeholder="CP6 / TIL-D09-03" onchange="friSetF(${i},'cp',this.value)"/></td>
     <td><select class="fc ${f.type==='F'?'sev-'+f.sev:''}" onchange="friSetF(${i},'sev',this.value);friRenderFindings()">${sevOpts(f.type).map(s => `<option${s===f.sev?' selected':''}>${s}</option>`).join('')}</select></td>
@@ -3002,7 +3004,9 @@ function friStartFromReport(name, kind, size, text, photos){
   const ov = get('overall');
   friCur.source = { name, kind, size, photos, read: found.map(f => ({ label:f.label, value:f.value, snippet:f.snippet })), text: text.slice(0, 20000), at: new Date().toISOString().slice(0,16).replace('T',' ') };
   friCur.notes = `Imported from ${name} (${kind}${photos!==null?`, ${photos} embedded image(s)`:''}) on ${friCur.source.at}.${ov ? ` Report overall result: ${ov.value}.` : ''} Check every pre-filled field against the report.`;
-  friTab('wb'); friRenderWorkbench();
+  friTab('wb'); friApplyPre(true);
+  const nAuto = friCur.findings.filter(f => f.auto).length;
+  const m = g('fri-save-msg'); if (m) m.textContent = `Pre-validation: ${nAuto} finding(s) extracted from the report — review each "auto" item, then save.`;
 }
 function friSourcePanel(){
   const s = friCur && friCur.source; if (!s) return '';
@@ -3119,6 +3123,136 @@ function friExportDocx(){
   let b = friP('A.R.E.N.A. VIETNAM — FRI VALIDATION REGISTER', { b:true, sz:30, color:'1B3A5C', after:40 }) + friP(`${FRI_DB.length} validation(s) · ${new Date().toISOString().slice(0,10)}`, { color:'707070', after:160 });
   b += friTbl(['Validation ref', 'P.O. · lot', 'Ally', 'Supplier', 'FRI report', 'Inspection', 'Cr/Ma/Mi', 'NC·RG·OB', 'Report verdict', 'Shipment'], rows, [2300, 1700, 900, 1700, 1200, 1500, 800, 800, 2400, 1838]);
   friDownload(friDocx(b, true), `ARENA_FRI_Validation_Register_${new Date().toISOString().slice(0,10)}.docx`);
+}
+
+</script>
+<script>
+// ═════════════ FRI PRE-VALIDATION — CP1–CP10 matrix + findings extracted from the imported report text ═════════════
+// Rule-based first pass (fri-validation v2.9, Steps 2–4). Every item it writes is tagged "auto" for the validator to confirm;
+// re-running replaces only auto items — rows and findings entered by hand are never touched.
+const FRI_CP_KEYS = {
+  CP1: { label:/\b(quantity|qty)\b/i, kw:/(carton\s*count|quantity|qty|packed|shipment\s*q|order\s*q|lot\s*size|\b\d+\s*(?:pcs|cartons|ctns)\b)/i },
+  CP2: { label:/\bpacking\b|packaging\s*(?:check|conformity)/i, kw:/(packing|packaging|shipping\s*mark|side\s*mark|carton\s*(?:spec|dimension|marking)|pallet|ISPM|inner\s*box|master\s*carton)/i },
+  CP3: { label:/artwork|label(?:l)?ing|marking/i, kw:/(artwork|label|barcode|EAN|ITF|GTIN|scan|GPSR|CE\s*mark|\bCE\b|warning|batch|lot\s*code|manufacturer|address|hang\s*card|print\s*file)/i },
+  CP4: { label:/sample\s*comparison|golden\s*sample|reference\s*sample|approved\s*sample/i, kw:/(golden|reference\s*sample|approved\s*sample|counter\s*sample|sample\s*comparison|D65|colou?r\s*(?:match|shade))/i },
+  CP5: { label:/weight|dimension|measurement/i, kw:/(weight|dimension|measur|\bkg\b|\bcm\b|\bmm\b|deviation|tolerance|gross|net)/i },
+  CP6: { label:/workmanship|visual|defects?\s*check/i, kw:/(workmanship|defect|critical|major|minor|AQL|scratch|dent|crack|stain)/i },
+  CP7: { label:/on[-\s]*site\s*test|field\s*test|function(?:al)?\s*test|testing/i, kw:/(test|drop|load|torque|hardness|HRC|function|assembly|EN\s?\d{3,5}|ISO\s?\d{3,5}|stability|tensile|moisture)/i },
+  CP8: { label:/disposal|packaging\s*data|PPWR/i, kw:/(disposal|packaging\s*weight|material\s*type|PPWR|recycl|paper\s*\/?\s*board|plastic\s*weight)/i },
+  CP9: { label:/other\s*requirement|QC\s*pack|document/i, kw:/(QC\s*Pack|document|certificate|test\s*report|DoC|DoP|available|expired|copy\s*only|Ally\s*requirement|watch[-\s]*out)/i },
+  CP10:{ label:/close\s*meeting|closing\s*meeting/i, kw:/(clos(?:e|ing)\s*meeting|acknowledg|signature|signed|factory\s*representative|supplier\s*representative|stamp)/i },
+};
+const FRI_RESULT_RX = /\b(passed|pass|failed|fail|n\/a|not\s*applicable|pending|on\s*hold|not\s*tested|conform(?:ed|ing)?|accepted|rejected)\b/i;
+function friResultWord(s){ const m = String(s).match(FRI_RESULT_RX); if (!m) return ''; const w = m[1].toLowerCase();
+  return /pass|conform|accept/.test(w) ? 'Passed' : /fail|reject/.test(w) ? 'Failed' : /n\/a|not\s*applicable/.test(w) ? 'N/A' : /not\s*tested/.test(w) ? 'Not tested' : 'Pending'; }
+
+// "7 | On-site tests | N/A" — optional index, a text-only checkpoint name, a result word, nothing else: the report's claim, not evidence
+function friIsSummaryRow(l){ return /^(?:(?:CP\s?)?\d{1,2}\.?\s*\|\s*)?[A-Za-zÀ-ỹ][A-Za-zÀ-ỹ &\/\-–]{2,40}\s*\|\s*(?:passed|pass|failed|fail|n\/a|not\s*applicable|pending|on\s*hold|not\s*tested|conform(?:ed|ing)?|accepted|rejected)\s*$/i.test(l.trim()) && Object.values(FRI_CP_KEYS).some(k => k.label.test(l)); }
+function friPreValidate(v){
+  const s = v.source; if (!s || !s.text) return null;
+  const lines = s.text.replace(/\n[ \t]*\|/g, ' |').split('\n').map(l => l.replace(/\s*\|\s*/g, ' | ').replace(/( \| )+/g, ' | ').replace(/^ \| | \| $/g, '').replace(/["“”]/g, '').trim()).filter(l => l.replace(/[|\s]/g, '').length > 1);
+  const all = lines.join('\n');
+  const read = new Set((s.read || []).map(r => r.label.replace(/ \(.*\)$/, '')));
+  const noPhotos = !(s.photos > 0);
+  const out = { cps: {}, findings: [] };
+  const add = (f) => {
+    f = Object.assign({ type:'F', status:'Open', resp:'QC', auto:true }, f);
+    if (f.evid && f.type === 'F' && out.cps[f.cp] && out.cps[f.cp].said === 'Passed' && f.sev !== 'Critical') { f.sev = 'Critical'; f.title += ` Report marks ${f.cp} Passed without this evidence.`; }
+    delete f.evid;
+    if (noPhotos && f.photo && f.type === 'F') { if (f.sev === 'Critical') f.sev = 'Major'; f.title = 'PROVISIONAL — photos not reviewed: ' + f.title; }
+    delete f.photo; out.findings.push(f);
+  };
+  // ── per-checkpoint evidence + the report's own stated result ──
+  FRI_CPS.forEach(([cp]) => {
+    const k = FRI_CP_KEYS[cp];
+    const sumLine = lines.find(l => k.label.test(l) && FRI_RESULT_RX.test(l) && l.length < 160);
+    // a summary-table row (checkpoint name + result only) is the report's claim, not evidence
+    const ev = lines.filter(l => k.kw.test(l) && !friIsSummaryRow(l)).slice(0, 6);
+    out.cps[cp] = { ev, said: sumLine ? friResultWord(sumLine.replace(k.label, '')) || friResultWord(sumLine) : '', issues: [] };
+  });
+  const cpIssue = (cp, sev) => out.cps[cp].issues.push(sev);
+  const said = cp => out.cps[cp].said;
+
+  // ── Step 2 mandatory fields (pattern #3 / #11) ──
+  const need = [['Inspector','inspector','Inspector name blank'],['Overall result in report',null,'Overall result not stated'],['AQL Major',null,'AQL levels not stated in the report'],['Packed qty',null,'Packed qty / lot size not stated']];
+  need.forEach(([lbl, key, t]) => {
+    const has = key ? !!v[key] : (lbl === 'Packed qty' ? (read.has('Packed qty') || read.has('Lot size used for AQL')) : read.has(lbl));
+    if (!has) { add({ pattern:3, cp: lbl.startsWith('AQL') || lbl.startsWith('Packed') ? 'CP6' : 'CP9', sev:'Critical', title:`${t} (mandatory field — pattern #3).`, action:'Complete the field in the report and re-submit.' }); }
+  });
+  if (!v.reportNo) add({ pattern:3, cp:'CP9', sev:'Major', title:'FRI report number not found.', action:'Add the report number.' });
+  if (!v.inspDate) add({ pattern:3, cp:'CP9', sev:'Major', title:'Inspection date not found.', action:'Add the inspection date.' });
+  if (v.inspector && !v.reviewer) add({ pattern:11, cp:'CP9', sev:'Minor', title:'Reviewer name absent (inspector present).', action:'Add the reviewer name.' });
+
+  // ── AQL / quantity checks (patterns #2 #5 #6 #14, AQL reject → NC-) ──
+  friAqlCheck(v).issues.forEach(x => { add(Object.assign({}, x)); if (x.cp) cpIssue(x.cp, x.type === 'NC' || x.sev === 'Critical' ? 'nc' : 'gap'); });
+
+  // ── Sampling-level self-contradiction (pattern #13) ──
+  const gens = [...new Set((all.match(/\bLevel\s*(III|II|I)\b/gi) || []).map(x => x.replace(/level\s*/i, '').toUpperCase()))];
+  const specs = [...new Set((all.match(/\bS\s?-?\s?([1-4])\b/g) || []).map(x => 'S' + x.replace(/\D/g, '')))];
+  if (gens.length > 1 || specs.length > 1) { add({ pattern:13, cp:'CP6', sev:'Critical', title:`Sampling level stated inconsistently in the report (${[...gens.map(x => 'Level ' + x), ...specs].join(', ')}) — header vs checkpoint sample-size column to be checked.`, action:'Confirm the sampling plan actually applied and restate the AQL basis.' }); cpIssue('CP6', 'nc'); }
+
+  // ── CP1 ──
+  // (packed < 80% and lot-size checks come from friAqlCheck)
+  // ── CP2: wooden pallets without ISPM 15 evidence ──
+  if (/pallet/i.test(all) && /(wood|wooden|timber)/i.test(all) && !/(ISPM|\bHT\b|\bMB\b|\bKD\b|heat[-\s]*treat)/i.test(all)) { add({ cp:'CP2', sev:'Major', photo:true, evid:true, title:'Wooden pallets mentioned but no ISPM 15 mark recorded.', action:'Add the ISPM 15 mark (country-producer-treatment) and photo.' }); cpIssue('CP2', 'gap'); }
+  if (!/(shipping\s*mark|side\s*mark|main\s*mark|carton\s*mark)/i.test(all)) { add({ cp:'CP2', sev:'Major', photo:true, evid:true, title:'Shipping marks not recorded.', action:'Record shipping / side marks (P.O., item code, GTIN, qty, batch, carton no.) with photo.' }); cpIssue('CP2', 'gap'); }
+  // ── CP3: barcode scan, GPSR identity, batch code ──
+  if (!/(scan|scanned|scanner)/i.test(all)) { add({ cp:'CP3', sev:'Major', photo:true, evid:true, title:'Barcode scan result (EAN-13 / ITF-14) not recorded.', action:'Record the decoded value vs the P.O. EAN / GTIN with a scan photo.' }); cpIssue('CP3', 'gap'); }
+  if (!/(GPSR|manufacturer|importer|responsible\s*person|address|contact)/i.test(all)) { add({ pattern:4, cp:'CP3', sev:'Critical', photo:true, title:'GPSR Art. 9 identity / contact on product or packaging not evidenced in CP3.', action:'Record the operator name, postal and electronic address on the product / label, with photo.' }); cpIssue('CP3', 'nc'); }
+  if (!/(batch|lot\s*code|date\s*code|production\s*code)/i.test(all)) { add({ cp:'CP3', sev:'Major', photo:true, evid:true, title:'Batch / lot code not recorded.', action:'Record the batch code on product and carton with photo.' }); cpIssue('CP3', 'gap'); }
+  if (!/(released|print\s*file|artwork\s*(?:rev|v\d|version)|prepress)/i.test(all)) { add({ cp:'CP3', sev:'Minor', title:'Released artwork / print-file version not cited.', action:'Cite the released artwork file and revision used for the check.' }); cpIssue('CP3', 'gap'); }
+  // ── CP4: golden sample ──
+  if (!/(golden|reference\s*sample|approved\s*sample|counter\s*sample|sealed\s*sample)/i.test(all)) { add({ cp:'CP4', sev:'Major', photo:true, evid:true, title:'No golden / reference sample comparison recorded.', action:'Compare side by side with the approved sample (brand tag visible) and record the result with photo.' }); cpIssue('CP4', 'gap'); }
+  // ── CP5: cartons measured, deviation > 3 % ──
+  const ctn = all.match(/(\d{1,3})\s*(?:cartons?|ctns?)\s*(?:were\s*)?(?:weighed|measured|checked)/i) || all.match(/(?:cartons?|ctns?)\s*(?:weighed|measured|checked)\s*[:|]?\s*(\d{1,3})/i);
+  if (ctn && +ctn[1] < 5) { add({ cp:'CP5', sev:'Major', title:`Only ${ctn[1]} carton(s) weighed / measured (≥5 required).`, action:'Weigh and measure at least 5 cartons.' }); cpIssue('CP5', 'gap'); }
+  const devs = []; lines.filter(l => FRI_CP_KEYS.CP5.kw.test(l)).forEach(l => { (l.match(/[+\-±]?\s?\d+(?:[.,]\d+)?\s?%/g) || []).forEach(p => { const n = Math.abs(parseFloat(p.replace(/[^\d.,-]/g, '').replace(',', '.'))); if (n > 3 && n < 100) devs.push({ l, n }); }); });
+  if (devs.length) {
+    const passed = said('CP5') === 'Passed' || devs.some(d => /pass|ok|conform/i.test(d.l));
+    add({ pattern: passed ? 1 : '', cp:'CP5', sev: passed ? 'Critical' : 'Major', title:`Deviation above ±3% recorded (${devs.slice(0,3).map(d => d.n + '%').join(', ')})${passed ? ' while CP5 is Passed' : ''}.`, action:'Confirm the measurement against the QSD spec; correct the CP5 result.' });
+    add({ type:'NC', cp:'CP5', sev:'Medium', resp:'QC + supplier', title:`Weight / dimension outside ±3% tolerance (${devs[0].n}%).`, action:'Containment: hold the lot; supplier to correct; re-measure.' });
+    cpIssue('CP5', 'nc');
+  } else if (!out.cps.CP5.ev.length) cpIssue('CP5', 'gap');
+  // ── CP7: tests not done ──
+  const nt = lines.filter(l => !friIsSummaryRow(l) && FRI_CP_KEYS.CP7.kw.test(l) && /(not\s*tested|n\/a|not\s*applicable|not\s*done|not\s*performed)/i.test(l));
+  if (nt.length) { add({ pattern:7, cp:'CP7', sev:'Major', title:`On-site test row(s) not tested / N/A without justification: ${nt.slice(0,2).map(l => l.slice(0,60)).join(' · ')}.`, action:'Perform the test at the required special level or record the justification.' }); cpIssue('CP7', 'gap'); }
+  if (said('CP7') === 'N/A' && (v.inspType || 'FRI') === 'FRI') { add({ pattern:7, cp:'CP7', sev:'Critical', title:'CP7 On-site tests marked N/A on a Final Random Inspection.', action:'Perform the department test rows (S3, or S1 outdoor furniture).' }); cpIssue('CP7', 'nc'); }
+  // ── CP8: disposal data ──
+  if (!out.cps.CP8.ev.length) { add({ cp:'CP8', sev:'Major', evid:true, title:'Disposal data table (packaging weight + material per SKU) absent.', action:'Complete the disposal data table (PPWR data feed).' }); cpIssue('CP8', 'gap'); }
+  // ── CP9: expired document marked available (pattern #9) ──
+  const exp = lines.filter(l => /(expired|copy\s*only)/i.test(l) && /available/i.test(l));
+  if (exp.length) { add({ pattern:9, cp:'CP9', sev:'Major', title:`Expired / COPY ONLY document marked AVAILABLE: ${exp[0].slice(0,80)}.`, action:'Mark the document status correctly; QS to request the valid document.' }); cpIssue('CP9', 'gap'); }
+  // ── CP10: acknowledgement ──
+  if (!out.cps.CP10.ev.length) { add({ cp:'CP10', sev:'Major', evid:true, title:'No close-meeting record / supplier acknowledgement signature.', action:'Attach the signed close-meeting acknowledgement.' }); cpIssue('CP10', 'gap'); }
+
+  // ── checkpoints with no evidence at all (Step 3 key rules) ──
+  FRI_CPS.forEach(([cp, name]) => {
+    const r = out.cps[cp];
+    if (!r.ev.length && !r.issues.length) {
+      const passed = r.said === 'Passed';
+      add({ pattern: passed ? 3 : '', cp, sev: passed ? 'Critical' : 'Major', title:`${cp} ${name}: no data in the report${passed ? ' while the report marks it Passed' : ''}.`, action:`Record the ${name.toLowerCase()} check results and evidence.` });
+      r.issues.push(passed ? 'nc' : 'gap');
+    }
+  });
+  // ── pre-verdict per CP ──
+  FRI_CPS.forEach(([cp]) => {
+    const r = out.cps[cp];
+    r.verdict = r.issues.includes('nc') ? 'Not Compliant' : r.issues.length ? 'Cannot Confirm' : r.said === 'N/A' ? 'N/A' : 'Compliant';
+    r.shows = (r.said ? `[Report: ${r.said}] ` : '') + (r.ev.length ? r.ev.map(l => l.length > 140 ? l.slice(0,140) + '…' : l).join(' ¶ ') : '— no data found in the report —');
+  });
+  return out;
+}
+function friApplyPre(silent){
+  if (!friCur || !friCur.source) { alert('Import the FRI report first (⬆ Import report) — the pre-validation reads the report text.'); return; }
+  const pre = friPreValidate(friCur); if (!pre) return;
+  friCur.cps.forEach(r => { const p = pre.cps[r.cp]; if (!p) return;
+    if (r.auto || (!r.shows && !r.verdict)) { r.shows = p.shows; r.verdict = p.verdict; r.said = p.said; r.auto = true; } });
+  friCur.findings = friCur.findings.filter(f => !(f.auto && f.status !== 'Closed'));
+  const have = new Set(friCur.findings.map(f => f.title));
+  pre.findings.forEach(f => { if (!have.has(f.title)) friCur.findings.push(f); });
+  friRenumber(); friCur.preAt = new Date().toISOString().slice(0,16).replace('T',' '); friDirty = true;
+  friRenderWorkbench();
+  if (!silent) { const m = g('fri-save-msg'); if (m) m.textContent = `Pre-validation: ${pre.findings.length} finding(s) extracted — review each "auto" item.`; }
 }
 
 </script>
