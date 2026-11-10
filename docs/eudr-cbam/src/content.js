@@ -140,7 +140,9 @@ const CBAM_STATUS = [
   [b('Certificate sales', 'Bán chứng chỉ'), b('From 1 Feb 2027 on the common central platform', 'Từ 1/2/2027 trên nền tảng trung tâm chung'), 'Reg. 2025/2083; Commission Q&A'],
   [b('Quarterly holding', 'Nắm giữ hằng quý'), b('From 2027: at least 50% of embedded emissions imported since the start of the year', 'Từ 2027: tối thiểu 50% lượng phát thải nhập khẩu từ đầu năm'), 'Reg. 2025/2083'],
   [b('First annual declaration', 'Khai báo năm đầu tiên'), b('30 Sep 2027 for 2026 imports (not 31 May); certificates surrendered by the same date', '30/9/2027 cho hàng nhập 2026 (không phải 31/5); nộp lại chứng chỉ cùng hạn'), 'Reg. 2025/2083; Commission factsheet'],
-  [b('Default values', 'Giá trị mặc định'), b('Implementing act of 17 Dec 2025 with mark-ups +10% (2026), +20% (2027), +30% (2028 on). Act number (EU) 2025/2621: VERIFY', 'Văn bản thực thi ngày 17/12/2025, cộng thêm +10% (2026), +20% (2027), +30% (từ 2028). Số hiệu (EU) 2025/2621: VERIFY'), 'Commission'],
+  [b('Default values', 'Giá trị mặc định'), b('IR (EU) 2025/2621, Annex I replaced by IR (EU) 2026/1740 (OJ 31.7.2026, applies from 1 Jan 2026): "total emissions" column + mark-up +10% (2026), +20% (2027), +30% (2028 on)', 'IR (EU) 2025/2621, Phụ lục I thay bằng IR (EU) 2026/1740 (OJ 31/7/2026, áp dụng từ 1/1/2026): cột "total emissions" + mức cộng +10% (2026), +20% (2027), +30% (từ 2028)'), 'EUR-Lex via skill, 10.11.2026'],
+  [b('Benchmarks / free allocation', 'Giá trị chuẩn / hạn ngạch miễn phí'), b('IR (EU) 2025/2620 (BMg Col. B, BMg* Col. A); CSCF 100% 2026–2030 (Decision (EU) 2026/1862); CBAM factor 97.5% (2026) → 0% (2034)', 'IR (EU) 2025/2620 (BMg Cột B, BMg* Cột A); CSCF 100% 2026–2030 (Quyết định (EU) 2026/1862); hệ số CBAM 97,5% (2026) → 0% (2034)'), 'EUR-Lex via skill, 10.11.2026'],
+  [b('Certificate price', 'Giá chứng chỉ'), b('2026 quarterly: Q1 €75.36 · Q2 €75.28 · Q3 €82.32 · Q4 published 4 Jan 2027; weekly from 2027', '2026 theo quý: Q1 75,36 € · Q2 75,28 € · Q3 82,32 € · Q4 công bố 4/1/2027; theo tuần từ 2027'), 'Commission price page'],
   [b('Downstream extension', 'Mở rộng hạ nguồn'), b('COM(2025) 989 — proposal only (~180 downstream goods, from 1 Jan 2028 if adopted)', 'COM(2025) 989 — mới là đề xuất (~180 mặt hàng hạ nguồn, từ 1/1/2028 nếu thông qua)'), '2025/0419 (COD)'],
   [b('UK CBAM', 'CBAM Anh'), b('From 1 Jan 2027; £50,000 12-month threshold; HMRC registration (opening date VERIFY); first return and payment 31 May 2028 for 2027', 'Từ 1/1/2027; ngưỡng 50.000 £/12 tháng; đăng ký HMRC (ngày mở VERIFY); tờ khai và nộp thuế đầu tiên 31/5/2028 cho năm 2027'), 'Finance Act 2026; HMRC'],
 ];
@@ -185,7 +187,7 @@ const CBAM_WORKFLOW = [
   [b('C1 Scope', 'C1 Phạm vi'), b('Confirm the 8-digit CN code of each finished good from the supplier invoice/HS classification; check Annex I (Console scope check).', 'Xác nhận mã CN 8 số của từng thành phẩm theo hóa đơn/phân loại HS của nhà cung cấp; đối chiếu Phụ lục I (chức năng kiểm tra phạm vi của Console).'), b('QS (draft)', 'QS (dự thảo)'), b('CN list', 'Danh sách CN')],
   [b('C2 Data request', 'C2 Yêu cầu dữ liệu'), b('Send the EU Communication Template v2.1.1 to the supplier; ask for actual installation data and precursor data (wire rod, coil, billet).', 'Gửi Mẫu trao đổi thông tin EU v2.1.1 cho nhà cung cấp; yêu cầu dữ liệu thực tế của cơ sở và dữ liệu tiền chất (dây thép, cuộn, phôi).'), b('QS', 'QS'), b('Sent date', 'Ngày gửi')],
   [b('C3 Compile', 'C3 Tổng hợp'), b('Check completeness and plausibility against default values (SEE ledger, gap register). Gaps go back to the supplier; never estimate missing figures.', 'Kiểm tra đầy đủ và hợp lý so với giá trị mặc định (sổ SEE, sổ khoảng trống). Thiếu thì trả lại nhà cung cấp; không tự ước tính.'), b('QS / IQA', 'QS / IQA'), b('Gap register', 'Sổ khoảng trống')],
-  [b('C4 Draft', 'C4 Dự thảo'), b('Draft the report marked "DRAFT — data provided by [Supplier]; for the declarant\'s review". Supplier signs its data.', 'Soạn dự thảo ghi "DỰ THẢO — dữ liệu do [Nhà cung cấp] cung cấp; để người khai xem xét". Nhà cung cấp ký xác nhận dữ liệu.'), b('IQA', 'IQA'), b('Draft version', 'Phiên bản dự thảo')],
+  [b('C4 Draft + cost', 'C4 Dự thảo + chi phí'), b('Draft the report marked "DRAFT — data provided by [Supplier]; for the declarant\'s review". Add the CBAM cost per piece next to FOB, default and actual (§5.3). Supplier signs its data.', 'Soạn dự thảo ghi "DỰ THẢO — dữ liệu do [Nhà cung cấp] cung cấp; để người khai xem xét". Thêm chi phí CBAM/sp bên cạnh giá FOB, theo giá trị mặc định và thực tế (§5.3). Nhà cung cấp ký xác nhận dữ liệu.'), b('IQA', 'IQA'), b('Draft + cost pack', 'Dự thảo + bảng chi phí')],
   [b('C5 Hand-over', 'C5 Bàn giao'), b('Send the draft to the Ally\'s declarant (EU) or the UK importer (UK). They validate, declare and pay.', 'Gửi dự thảo cho người khai của Ally (EU) hoặc nhà nhập khẩu Anh (UK). Họ thẩm tra, khai báo và nộp tiền.'), b('IQA → Ally', 'IQA → Ally'), b('Hand-over e-mail', 'E-mail bàn giao')],
   [b('C6 Close', 'C6 Đóng'), b('Close the case. No standing mandate: the next period needs a new written request.', 'Đóng hồ sơ. Không có ủy quyền thường trực: kỳ sau cần yêu cầu bằng văn bản mới.'), b('IQA', 'IQA'), b('Case closed', 'Đóng hồ sơ')],
 ];
@@ -197,6 +199,68 @@ const CBAM_SUPPLIER_DATA = [
   b('Precursors: tonnes used per tonne of product and their embedded emissions from the steel/aluminium mill (or defaults).', 'Tiền chất: số tấn dùng cho mỗi tấn sản phẩm và phát thải nội hàm từ nhà máy thép/nhôm (hoặc giá trị mặc định).'),
   b('Carbon price paid in the country of production, with evidence (Art. 9).', 'Giá carbon đã trả tại nước sản xuất, kèm bằng chứng (Điều 9).'),
   b('Signed declaration that the data are accurate; verifier statement where available.', 'Cam kết có chữ ký về tính chính xác của dữ liệu; báo cáo kiểm định nếu có.'),
+  b('For the cost line: net steel/aluminium mass per piece (kg, without packaging or non-CBAM parts) and FOB USD/pc from the quotation or P.O./P.I.', 'Cho dòng chi phí: khối lượng tịnh thép/nhôm mỗi sản phẩm (kg, không gồm bao bì hay chi tiết không thuộc CBAM) và giá FOB USD/sp theo báo giá hoặc P.O./P.I.'),
+];
+
+// ---------------------------------------------------------------- 5.3 CBAM cost next to FOB
+const CBAM_COST_PRINCIPLES = [
+  b('CBAM cost is shown as a separate line next to FOB — never inside FOB. FOB is the basis of the customs value; a CBAM amount built into FOB would also attract duty and VAT.',
+    'Chi phí CBAM được thể hiện thành dòng riêng bên cạnh FOB — không gộp vào FOB. FOB là cơ sở trị giá hải quan; gộp CBAM vào FOB sẽ bị tính thêm thuế nhập khẩu và VAT.'),
+  b('Always show two figures per item: the DEFAULT value (route A) and the ACTUAL value (route C, or route B where only the factory\'s own process data exist). The declarant chooses the route.',
+    'Luôn thể hiện hai con số cho mỗi mặt hàng: giá trị MẶC ĐỊNH (phương án A) và giá trị THỰC TẾ (phương án C, hoặc B khi chỉ có dữ liệu quy trình của nhà máy). Người khai quyết định phương án.'),
+  b('When: only on a written Ally request — at quotation/RFx (cost column next to FOB) and per P.O./P.I. line (cost pack). No request, no cost line.',
+    'Khi nào: chỉ khi Ally yêu cầu bằng văn bản — ở bước báo giá/RFx (cột chi phí bên cạnh FOB) và theo từng dòng P.O./P.I. (bảng chi phí). Không có yêu cầu thì không có dòng chi phí.'),
+  b('Show € per piece, USD per piece and % of FOB, using the import year (EU customs release date): the factor falls and the mark-up rises each year, so the cost rises.',
+    'Thể hiện €/sp, USD/sp và % FOB theo năm nhập khẩu (ngày thông quan EU): hệ số giảm và mức cộng tăng hằng năm nên chi phí tăng.'),
+  b('Cost sharing (surcharge to the Ally or price concession by the supplier) is a commercial decision between Supplier and Ally. A.R.E.N.A. only shows the numbers; it never negotiates or invoices CBAM.',
+    'Chia sẻ chi phí (phụ thu cho Ally hoặc nhà cung cấp giảm giá) là quyết định thương mại giữa Nhà cung cấp và Ally. A.R.E.N.A. chỉ thể hiện số liệu; không đàm phán hay xuất hóa đơn CBAM.'),
+  b('50 t de minimis: if the Ally\'s total CBAM imports in the year (all suppliers) are 50 t or less, nothing is payable. Only the Ally knows its total — record the Ally\'s figure, never assume it.',
+    'Ngưỡng 50 tấn: nếu tổng hàng CBAM nhập trong năm của Ally (mọi nhà cung cấp) ≤ 50 tấn thì không phải nộp. Chỉ Ally biết tổng này — ghi theo số Ally cung cấp, không tự giả định.'),
+];
+
+// [Element, Default value (route A), Actual value (route C)]
+const CBAM_COST_FORMULA = [
+  [b('SEE used (tCO₂e/t)', 'SEE áp dụng (tCO₂e/t)'),
+   b('Default "total emissions" for CN + origin × (1 + mark-up 10% / 20% / 30% from 2028). Country not listed → "Other Countries and Territories".', 'Giá trị "total emissions" theo CN + xuất xứ × (1 + mức cộng 10% / 20% / 30% từ 2028). Nước không có tên → bảng "Other Countries and Territories".'),
+   b('(Direct emissions of the process + Σ precursor t × precursor SEE) ÷ t produced. No mark-up.', '(Phát thải trực tiếp của quy trình + Σ tấn tiền chất × SEE tiền chất) ÷ tấn sản xuất. Không có mức cộng.')],
+  [b('Free-allocation adjustment SEFA (tCO₂e/t)', 'Điều chỉnh hạn ngạch SEFA (tCO₂e/t)'),
+   b('CBAM factor × CSCF × BMg (Column B, route of the default table).', 'Hệ số CBAM × CSCF × BMg (Cột B, theo quy trình của bảng mặc định).'),
+   b('Factor × CSCF × BMg* (Column A, own process) + Σ m_i × SEFA_i of the precursors.', 'Hệ số × CSCF × BMg* (Cột A, quy trình của hàng) + Σ m_i × SEFA_i của tiền chất.')],
+  [b('Certificates', 'Số chứng chỉ'),
+   b('MAX(0, tonnes × (SEE used − SEFA) − carbon price paid at origin ÷ certificate price)', 'MAX(0, tấn × (SEE áp dụng − SEFA) − giá carbon đã trả ÷ giá chứng chỉ)'),
+   b('Same formula.', 'Cùng công thức.')],
+  [b('Cost', 'Chi phí'),
+   b('€ = certificates × price · €/pc = € ÷ pcs · % of FOB = (€/pc × USD per €) ÷ FOB USD/pc', '€ = số chứng chỉ × giá · €/sp = € ÷ số sp · % FOB = (€/sp × USD/€) ÷ FOB USD/sp'),
+   b('Same formula.', 'Cùng công thức.')],
+  [b('Declarable?', 'Được khai?'),
+   b('Yes, without supplier data (Art. 7(2)(b)); needs a documented justification and a named Ally authoriser.', 'Có, không cần dữ liệu NCC (Điều 7(2)(b)); cần lý do bằng văn bản và người phê duyệt phía Ally.'),
+   b('Only when verified by an accredited verifier (Art. 8). Unverified → falls back to default.', 'Chỉ khi đã được tổ chức thẩm định công nhận xác minh (Điều 8). Chưa xác minh → quay về giá trị mặc định.')],
+];
+
+const CBAM_COST_EXAMPLE_INTRO = b(
+  'Worked example — steel garden frame, CN 7326 90 98, origin Viet Nam, 1,200 pcs × 8.5 kg (10.2 t), FOB USD 18.50/pc, EU release 15 Aug 2026 (Q3 price €82.32), FX 1.1256 USD/€ (assumption).',
+  'Ví dụ — khung sân vườn bằng thép, CN 7326 90 98, xuất xứ Việt Nam, 1.200 sp × 8,5 kg (10,2 tấn), FOB 18,50 USD/sp, thông quan EU 15/8/2026 (giá Q3 82,32 €), tỷ giá 1,1256 USD/€ (giả định).');
+
+// [Route, SEE used, SEFA, Certificates per t, € per piece, % of FOB]
+const CBAM_COST_EXAMPLE = [
+  [b('A — Default (final good)', 'A — Mặc định (thành phẩm)'), '2.37 × 1.10 = 2.607', '0.975 × 1.00 × 1.491 = 1.454', '1.153', '€0.807', '4.9%'],
+  [b('B — Factory process + steel coil at default', 'B — Quy trình nhà máy + thép cuộn mặc định'), '3.789', '1.534', '2.255', '€1.578', '9.6%'],
+  [b('C — Actual, verified (ILLUSTRATIVE mill SEE 2.10)', 'C — Thực tế, đã xác minh (SEE nhà máy thép GIẢ ĐỊNH 2,10)'), '2.290', '1.534', '0.756', '€0.529', '3.2%'],
+];
+const CBAM_COST_EXAMPLE_NOTES = [
+  b('Route B is not always cheaper: Chinese HR coil at its default (3.187 × 1.1) pushes the cost above the Viet Nam final-good default. Always compare A, B and C; the declarant decides.',
+    'Phương án B không phải lúc nào cũng rẻ hơn: thép cuộn Trung Quốc theo giá trị mặc định (3,187 × 1,1) làm chi phí cao hơn giá trị mặc định thành phẩm Việt Nam. Luôn so sánh A, B và C; người khai quyết định.'),
+  b('Break-even mill SEE (route C = route A): 2.47 (2026) · 2.69 (2027) · 2.91 (2028) tCO₂e/t of coil. Below it, actual data lowers the cost — the key figure for the supplier–Ally discussion.',
+    'Ngưỡng SEE hòa vốn của nhà máy thép (C = A): 2,47 (2026) · 2,69 (2027) · 2,91 (2028) tCO₂e/t thép cuộn. Thấp hơn ngưỡng này, dữ liệu thực tế giúp giảm chi phí — con số then chốt khi Nhà cung cấp và Ally trao đổi.'),
+  b('Values: IR (EU) 2026/1740 Annex I and IR (EU) 2025/2620 as read on 10 Nov 2026 (skill cbam-default-value-po-cost). Route C mill data are illustrative only.',
+    'Số liệu: Phụ lục I IR (EU) 2026/1740 và IR (EU) 2025/2620 theo bản đọc ngày 10/11/2026 (skill cbam-default-value-po-cost). Dữ liệu nhà máy thép ở phương án C chỉ để minh họa.'),
+];
+
+// Projection, route A, same item, price held at €82.32: [year, €/pc, % FOB]
+const CBAM_COST_PROJECTION = [
+  ['2026', '€0.807', '4.9%'],
+  ['2028', '€1.217', '7.4%'],
+  ['2034', '€2.156', '13.1%'],
 ];
 
 const CBAM_ARENA_RULES = [
@@ -212,7 +276,10 @@ const CBAM_ARENA_RULES = [
 const SOP_ALIGNMENT = [
   [b('RFx (ARENA-SOP-01-04) / new item intake', 'RFx (ARENA-SOP-01-04) / tiếp nhận hàng mới'),
    b('Awareness only: note Annex I material in the item description. No ARENA requirement on the supplier.', 'Chỉ nhận biết: ghi chú vật liệu Phụ lục I trong mô tả hàng. Không đặt yêu cầu ARENA cho nhà cung cấp.'),
-   b('Record finished-good CN code; flag Annex I items for the Ally.', 'Ghi mã CN thành phẩm; đánh dấu hàng Phụ lục I để Ally biết.')],
+   b('Record finished-good CN code; flag Annex I items for the Ally. On a written Ally request: quotation shows FOB plus CBAM €/pc (default and actual) as separate columns (§5.3).', 'Ghi mã CN thành phẩm; đánh dấu hàng Phụ lục I để Ally biết. Khi Ally yêu cầu bằng văn bản: báo giá thể hiện FOB và chi phí CBAM €/sp (mặc định và thực tế) ở cột riêng (§5.3).')],
+  [b('P.O. / P.I. issue', 'Phát hành P.O. / P.I.'),
+   b('No EUDR line.', 'Không có dòng EUDR.'),
+   b('On a written Ally request: CBAM cost pack per P.O./P.I. line — €/pc and % of FOB, default and actual, beside (never inside) FOB.', 'Khi Ally yêu cầu bằng văn bản: bảng chi phí CBAM theo dòng P.O./P.I. — €/sp và % FOB, mặc định và thực tế, đặt bên cạnh (không gộp vào) FOB.')],
   [b('4-step determination / Pathway (links 1–2)', 'Xác định 4 bước / Lộ trình (mắt xích 1–2)'),
    b('Not a pathway input. EUDR is not CE marking.', 'Không phải đầu vào lộ trình. EUDR không phải dấu CE.'),
    b('Not a pathway input.', 'Không phải đầu vào lộ trình.')],
@@ -240,6 +307,7 @@ const TIMELINE = [
   ['18 Sep 2026', b('EUDR Annex I amended by (EU) 2026/2102', 'Phụ lục I EUDR sửa đổi theo (EU) 2026/2102'), 'EUDR'],
   ['30 Dec 2026', b('EUDR applies — large and medium operators', 'EUDR áp dụng — doanh nghiệp lớn và vừa'), 'EUDR'],
   ['1 Jan 2027', b('UK CBAM starts (GB/NI)', 'CBAM Anh bắt đầu (GB/NI)'), 'UK CBAM'],
+  ['4 Jan 2027', b('2026-Q4 CBAM certificate price published', 'Công bố giá chứng chỉ CBAM quý 4/2026'), 'CBAM'],
   ['1 Feb 2027', b('EU CBAM certificate sales open', 'Mở bán chứng chỉ CBAM EU'), 'CBAM'],
   ['30 Jun 2027', b('EUDR applies — micro and small operators', 'EUDR áp dụng — doanh nghiệp siêu nhỏ và nhỏ'), 'EUDR'],
   ['30 Sep 2027', b('First EU CBAM declaration (2026 imports) and surrender', 'Khai báo CBAM EU đầu tiên (hàng nhập 2026) và nộp chứng chỉ'), 'CBAM'],
@@ -267,7 +335,7 @@ const VERIFY = [
   b('EUDR: exact Annex I CN wording after 2026/2102 (tyres, ex 4016, palm derivatives, packaging).', 'EUDR: câu chữ CN Phụ lục I sau 2026/2102 (lốp, ex 4016, dẫn xuất cọ, bao bì).'),
   b('EUDR: current country benchmarking list (IR (EU) 2025/1093 as amended), per harvest country.', 'EUDR: danh sách phân loại quốc gia hiện hành (QĐ thực thi (EU) 2025/1093 và sửa đổi), theo nước khai thác.'),
   b('EUDR: EEA incorporation and NI application.', 'EUDR: EEA tiếp nhận và áp dụng tại NI.'),
-  b('CBAM: number of the default-values implementing act (2025/2621?).', 'CBAM: số hiệu văn bản thực thi giá trị mặc định (2025/2621?).'),
+  b('CBAM: re-check default values (IR 2026/1740), benchmarks (IR 2025/2620) and the 2026-Q4 price on EUR-Lex / the Commission page; values here are the skill\'s 10 Nov 2026 reading. Mark-up on precursor defaults (route B): confirm with the declarant\'s verifier.', 'CBAM: kiểm tra lại giá trị mặc định (IR 2026/1740), giá trị chuẩn (IR 2025/2620) và giá Q4/2026 trên EUR-Lex / trang Ủy ban; số liệu ở đây theo skill đọc ngày 10/11/2026. Mức cộng cho tiền chất mặc định (phương án B): xác nhận với bên thẩm định của người khai.'),
   b('CBAM: transitional rule for declarant applications filed in time (dates).', 'CBAM: quy tắc chuyển tiếp cho hồ sơ xin tư cách người khai nộp đúng hạn (ngày).'),
   b('CBAM: EU CBAM position in NI; UK CBAM HMRC registration opening date; UK CBAM sector list.', 'CBAM: vị trí CBAM EU tại NI; ngày mở đăng ký HMRC cho CBAM Anh; danh mục ngành CBAM Anh.'),
   b('CBAM: Vietnam carbon-pricing status at each declaration (Art. 9).', 'CBAM: tình trạng định giá carbon của Việt Nam tại mỗi kỳ khai (Điều 9).'),
@@ -282,6 +350,8 @@ const SOURCES = [
   'European Commission, DG TAXUD — CBAM Questions & Answers; CBAM communication and news (2026)',
   'Council document WK-1676-2026-INIT (3.2.2026), interinstitutional file 2025/0419 (COD) — COM(2025) 989',
   'HM Government — Finance Act 2026, Part 5 (UK CBAM); HMRC guidance (Aug 2026) — via secondary summaries, VERIFY',
+  'EUR-Lex — IR (EU) 2026/1740 (Annex I default values, OJ L 31.7.2026); IR (EU) 2025/2620 (benchmarks); Decision (EU) 2026/1862 (CSCF) — as read by skill cbam-default-value-po-cost on 10.11.2026',
+  'European Commission — CBAM certificate price page (2026 quarterly prices)',
   'EU CBAM Communication Template v2.1.1, Parameters_CNCodes (569 codes) — as embedded in this repository',
   'ARENA Rulebook rev. c2 (1 Nov 2026), §2–§4, §10',
 ];
@@ -291,5 +361,6 @@ module.exports = {
   EUDR_STATUS, EUDR_COMMODITIES, EUDR_OPERATOR_DUTIES, EUDR_ARENA_RULES,
   CBAM_STATUS, CBAM_CN, CBAM_CN_NOTE, CBAM_MARKETS, CBAM_DECLARANT_DUTIES,
   CBAM_WORKFLOW, CBAM_SUPPLIER_DATA, CBAM_ARENA_RULES,
+  CBAM_COST_PRINCIPLES, CBAM_COST_FORMULA, CBAM_COST_EXAMPLE_INTRO, CBAM_COST_EXAMPLE, CBAM_COST_EXAMPLE_NOTES, CBAM_COST_PROJECTION,
   SOP_ALIGNMENT, TIMELINE, SKILL_FLAGS, VERIFY, SOURCES,
 };

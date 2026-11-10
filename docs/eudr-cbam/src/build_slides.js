@@ -201,11 +201,45 @@ const next = () => { n += 1; return pptx.addSlide(); };
   col(6.83, 6.0, CORAL_D, hdr('A.R.E.N.A. never…', 'A.R.E.N.A. không bao giờ…'), C.CBAM_ARENA_RULES, 10.5, 8.5);
 }
 
+// ---------- 12b. CBAM cost next to FOB — principles + formula
+{
+  const s = next();
+  frame(s, n, 'CBAM cost next to FOB — default and actual', 'Chi phí CBAM bên cạnh FOB — mặc định và thực tế');
+  // FOB | + | CBAM default | CBAM actual strip
+  const boxes = [[hdr('FOB USD/pc', 'Giá FOB USD/sp'), NAVY_T], [hdr('+ CBAM default €/pc', '+ CBAM mặc định €/sp'), CORAL_D], [hdr('+ CBAM actual €/pc', '+ CBAM thực tế €/sp'), BLUE]];
+  boxes.forEach(([t, col], i) => {
+    const x = 0.5 + i * 2.15;
+    s.addShape(pptx.ShapeType.rect, { x, y: 1.55, w: 2.0, h: 0.75, fill: { color: col }, line: { color: col } });
+    s.addText(biRuns([t], { en: 12.5, vn: 9.5, bold: true, color: WHITE, vnColor: 'E3E9EE' }), { x: x + 0.08, y: 1.55, w: 1.84, h: 0.75, fontFace: F, align: 'center', valign: 'middle', margin: 0 });
+  });
+  s.addText(biRuns([hdr('Separate lines — never CBAM inside FOB (FOB = customs value basis).', 'Dòng riêng — không gộp CBAM vào FOB (FOB = cơ sở trị giá hải quan).')], { en: 12, vn: 10, bold: true, color: CORAL_D }), { x: 7.0, y: 1.55, w: 5.83, h: 0.75, fontFace: F, valign: 'middle', margin: 0 });
+  table(s, [hdr('Element', 'Yếu tố'), hdr('Default value (A)', 'Giá trị mặc định (A)'), hdr('Actual value (C)', 'Giá trị thực tế (C)')], C.CBAM_COST_FORMULA, [2.4, 4.97, 4.96], 2.5, { en: 10, vn: 8.5, boldFirst: true });
+}
+
+// ---------- 12c. Worked example
+{
+  const s = next();
+  frame(s, n, 'CBAM cost per piece — worked example', 'Chi phí CBAM mỗi sản phẩm — ví dụ minh họa');
+  s.addText(biRuns([C.CBAM_COST_EXAMPLE_INTRO], { en: 11.5, vn: 9.5 }), { x: 0.5, y: 1.5, w: 12.33, h: 0.75, fontFace: F, margin: 0 });
+  table(s, [hdr('Route', 'Phương án'), hdr('SEE used', 'SEE áp dụng'), hdr('SEFA', 'SEFA'), hdr('Cert./t', 'Chứng chỉ/t'), hdr('€/pc', '€/sp'), hdr('% FOB', '% FOB')],
+    C.CBAM_COST_EXAMPLE, [4.3, 2.2, 2.5, 1.1, 1.1, 1.13], 2.3, { en: 11, vn: 9, boldFirst: true });
+  // projection bars (route A)
+  s.addText(biRuns([hdr('Default cost rises each year (route A, €82.32 held)', 'Chi phí mặc định tăng theo năm (A, giữ giá 82,32 €)')], { en: 12, vn: 9.5, bold: true }), { x: 0.5, y: 4.6, w: 5.6, h: 0.55, fontFace: F, margin: 0 });
+  const maxV = 2.156;
+  C.CBAM_COST_PROJECTION.forEach(([y, e, pct], i) => {
+    const v = parseFloat(e.replace('€', '')); const yy = 5.25 + i * 0.55; const bw = 3.6 * v / maxV;
+    s.addText(y, { x: 0.5, y: yy, w: 0.7, h: 0.45, fontFace: F, fontSize: 12, bold: true, color: NAVY, valign: 'middle', margin: 0 });
+    s.addShape(pptx.ShapeType.rect, { x: 1.25, y: yy + 0.05, w: bw, h: 0.35, fill: { color: i === 2 ? CORAL_D : BLUE }, line: { color: i === 2 ? CORAL_D : BLUE } });
+    s.addText(`${e}/pc · ${pct} FOB`, { x: 1.35 + bw, y: yy, w: 2.2, h: 0.45, fontFace: F, fontSize: 11, color: NAVY, valign: 'middle', margin: 0 });
+  });
+  s.addText(biRuns(C.CBAM_COST_EXAMPLE_NOTES.slice(0, 2), { en: 10.5, vn: 8.5, bullet: true, gap: 6 }), { x: 6.4, y: 4.6, w: 6.43, h: 2.35, fontFace: F, valign: 'top', margin: 0 });
+}
+
 // ---------- 13. SOP alignment
 {
   const s = next();
   frame(s, n, 'Alignment with A.R.E.N.A. procedures', 'Đối chiếu với quy trình A.R.E.N.A. — không thêm cổng mới');
-  table(s, [hdr('A.R.E.N.A. touchpoint', 'Điểm tiếp xúc A.R.E.N.A.'), hdr('EUDR', 'EUDR'), hdr('CBAM', 'CBAM')], C.SOP_ALIGNMENT, [3.4, 4.46, 4.47], 1.5, { en: 12, vn: 10, boldFirst: true });
+  table(s, [hdr('A.R.E.N.A. touchpoint', 'Điểm tiếp xúc A.R.E.N.A.'), hdr('EUDR', 'EUDR'), hdr('CBAM', 'CBAM')], C.SOP_ALIGNMENT, [3.0, 4.66, 4.67], 1.45, { en: 10, vn: 8, boldFirst: true });
 }
 
 // ---------- 14. Timeline
