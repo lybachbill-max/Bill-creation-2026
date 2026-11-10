@@ -2484,9 +2484,7 @@ function friApplyPO(key, silent){
     friCur.ally = r.ally || ''; friCur.sup = r.sup || r.prod || ''; friCur.dept = r.dept || ''; friCur.pf = r.pf || '';
     if (!friCur.inspBody) friCur.inspBody = r.inspCompany || '';
     if (!friCur.inspDate && r.inspActual) friCur.inspDate = String(r.inspActual).slice(0,10);
-    const od = (typeof MASTER_ORDER_DATA !== 'undefined' ? MASTER_ORDER_DATA : []).filter(x => String(x.po) === String(po) && (x.lot || 'Lot 1') === lot && +x.qty > 0);
-    if (!friCur.aql.poQty) { const tq = od.length ? od.reduce((s, x) => s + +x.qty, 0) : +r.qty; if (tq) friCur.aql.poQty = String(tq); }
-    if (!(friCur.aql.items || []).length && od.length) friCur.aql.items = od.map(x => ({ ref: x.allyRef || x.supRef || '', desc: x.desc || '', ship: +x.qty, packed: '', nII: '', nS3: '', src:'master' }));
+    friSyncMasterItems();
     const outdoorFurn = /furniture|bench|chair|table|lounger|sofa/i.test(r.pf || '') && /GARDEN|OUTDOOR/i.test(r.dept || '');
     if (outdoorFurn) { friCur.aql.aqlMa = '1.0'; friCur.aql.spec = 'S1'; }
   }
@@ -2622,7 +2620,7 @@ function friVerdictCls(v){ return /^CANNOT/.test(v) ? 'sev-Critical' : /^CONDITI
 
 // Latest saved validation for a lot — used by Issue SRC
 function friLatestFor(po, lot){
-  return FRI_DB.filter(x => x.po === po && (x.lot || 'Lot 1') === (lot || 'Lot 1')).sort((a,b) => ((b.rev||0)-(a.rev||0)) || String(b.updated).localeCompare(String(a.updated)))[0] || null;
+  return FRI_DB.filter(x => friPos(x).some(p => p.po === String(po) && p.lot === (lot || 'Lot 1'))).sort((a,b) => ((b.rev||0)-(a.rev||0)) || String(b.updated).localeCompare(String(a.updated)))[0] || null;
 }
 function friTag(po, lot){
   const v = friLatestFor(po, lot); if (!v) return '';
@@ -2651,13 +2649,13 @@ function friRenderRegister(){
   const tb = g('fri-reg-tbody'); if (!tb) return;
   const q = (g('fri-flt-q')?.value || '').toLowerCase().trim(), fv = g('fri-flt-v')?.value || '', fs = g('fri-flt-s')?.value || '';
   const rows = FRI_DB.map(v => ({ v, c: friCompute(v) })).filter(({v,c}) =>
-    (!q || [v.ref,v.po,v.lot,v.ally,v.sup,v.reportNo,v.inspBody].join(' ').toLowerCase().includes(q)) &&
+    (!q || [v.ref,friPosLabel(v),v.ally,v.sup,v.reportNo,v.inspBody].join(' ').toLowerCase().includes(q)) &&
     (!fv || c.verdict.startsWith(fv)) && (!fs || c.ship === fs));
   const info = g('fri-reg-info'); if (info) info.textContent = FRI_DB.length ? `${rows.length} of ${FRI_DB.length} validation(s) — click a row to open it` : '';
   if (!rows.length) { tb.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:28px;color:var(--t3)">${FRI_DB.length ? 'No validation matches the filters.' : 'No validation yet — click <b>+ New validation</b> or <b>+ FRI Validation</b> on Order Fulfilment.'}</td></tr>`; return; }
   tb.innerHTML = rows.map(({v,c}) => `<tr class="row-click" onclick="friOpen('${v.id}')">
     <td><span class="col-id">${friE(v.ref)}</span>${v.rev?` <span class="tag t-gray">Rev.${v.rev}</span>`:''}${v.status==='Draft'?' <span class="tag t-gray">Draft</span>':''}</td>
-    <td style="white-space:nowrap">${friE(v.po)} · ${friE(v.lot)}</td><td>${friE(v.ally)||'—'}</td>
+    <td style="white-space:nowrap">${friE(v.po)} · ${friE(v.lot)}${(v.morePos||[]).length ? `<div class="fri-note">+ ${friE(v.morePos.map(p => p.po).join(', '))}</div>` : ''}</td><td>${friE(v.ally)||'—'}</td>
     <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${friE(v.sup)||'—'}</td>
     <td>${friE(v.reportNo)||'—'}</td><td style="white-space:nowrap">${friE(v.inspDate)||'—'}<div class="fri-note">${friE(v.inspBody)}</div></td>
     <td style="white-space:nowrap"><b style="color:#C0392B">${c.cr}</b> / <b style="color:#B9770E">${c.ma}</b> / ${c.mi}</td>
@@ -2694,7 +2692,10 @@ function friRenderWorkbench(){
         <button class="btn btn-p btn-sm" onclick="friSave()">💾 Save</button></div></div>
     <div class="fri-sec">1 · Report under validation</div>
     <div class="fri-grid">
-      <div style="grid-column:span 2"><label class="fl2">P.O. · lot (open P.O.s)</label><select class="fc" onchange="friApplyPO(this.value)">${friPoOptions()}</select></div>
+      <div style="grid-column:span 2"><label class="fl2">P.O. · lot (open P.O.s)</label><select class="fc" onchange="friApplyPO(this.value)">${friPoOptions()}</select>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px">${(v.morePos || []).map((p, i) => `<span class="tag t-b" style="height:auto;padding:3px 8px">+ ${friE(p.po)} · ${friE(p.lot)} <a style="cursor:pointer;margin-left:4px" title="Remove from this report" onclick="friDelPo(${i})">✕</a></span>`).join('')}
+          ${v.po ? `<select class="fc" style="height:28px;font-size:12px;width:auto;max-width:260px" onchange="friAddPo(this.value)"><option value="">＋ Add P.O. covered by this report…</option>${friPoOptions().replace(/ selected/g, '').replace(/<option value="">[^<]*<\/option>/, '')}</select>` : ''}
+          ${friPos(v).length > 1 ? `<span class="fri-note">${friPos(v).length} P.O.s — order qty = sum of all P.O.s</span>` : ''}</div></div>
       <div><label class="fl2">Ally</label>${friIn('ally',v.ally)}</div>
       <div><label class="fl2">Supplier / factory</label>${friIn('sup',v.sup)}</div>
       <div><label class="fl2">Department</label>${friIn('dept',v.dept)}</div>
@@ -2832,7 +2833,7 @@ async function friPrint(){
   if (!friCur) return;
   const evImgs = {}; for (const f of friCur.findings) evImgs[f.ref] = await friFindingImages(f, 4);
   const v = friCur, c = friCompute(v), aq = friAqlCheck(v);
-  const meta = [['Validation ref', (v.ref||'(not saved)') + (v.rev?` · Rev.${v.rev}`:'')],['Ally',v.ally],['P.O. · lot',`${v.po} · ${v.lot}`],['Supplier',v.sup],['Department / product',`${v.dept} / ${v.pf}`],
+  const meta = [['Validation ref', (v.ref||'(not saved)') + (v.rev?` · Rev.${v.rev}`:'')],['Ally',v.ally],['P.O. · lot',friPosLabel(v)],['Supplier',v.sup],['Department / product',`${v.dept} / ${v.pf}`],
     ['FRI report no. / date',`${v.reportNo||'—'} / ${v.inspDate||'—'}`],['Inspection body / inspector',`${v.inspBody||'—'} / ${v.inspector||'—'}`],['Basis',v.basis?`${v.basis} (${v.basisStatus})`:'No ARENA FRI Standard for this category / P.O.'],['Validator / date',`${v.validator} / ${v.valDate}`]];
   const F = v.findings;
   printToPDF(`
@@ -2869,7 +2870,7 @@ function friExport(){
   const fnd = [['Validation ref','Rev','P.O.','Lot','Ref','Type','CP / Req ID','Severity / grade','Pattern #','What is wrong','Required action','Responsibility','Status','Evidence / reference']];
   const cpm = [['Validation ref','Rev','P.O.','Lot','CP','Checkpoint','Requirement source','What the report shows','Verdict']];
   FRI_DB.forEach(v => { const c = friCompute(v);
-    reg.push([v.ref,v.rev||0,v.status,v.po,v.lot,v.ally,v.sup,v.dept,v.pf,v.reportNo,v.inspDate,v.inspBody,v.inspector,v.basis,v.basisStatus,c.cr,c.ma,c.mi,c.nc,c.rg,c.ob,c.verdict,c.ship,c.cov??'',c.conf??'',c.evid??'',v.validator,v.valDate,v.updated]);
+    reg.push([v.ref,v.rev||0,v.status,v.po + ((v.morePos||[]).length ? ' + ' + v.morePos.map(p => p.po).join(' + ') : ''),v.lot,v.ally,v.sup,v.dept,v.pf,v.reportNo,v.inspDate,v.inspBody,v.inspector,v.basis,v.basisStatus,c.cr,c.ma,c.mi,c.nc,c.rg,c.ob,c.verdict,c.ship,c.cov??'',c.conf??'',c.evid??'',v.validator,v.valDate,v.updated]);
     v.findings.forEach(f => fnd.push([v.ref,v.rev||0,v.po,v.lot,f.ref,f.type,f.cp,f.sev,f.pattern,f.title,f.action,f.resp,f.status,(f.refs||[]).map(r => r.kind==='photo' ? r.label : `${r.kind==='master'?'Master file':r.label}: ${r.excerpt}`).join(' | ') + ((f.refs||[]).some(r => r.kind==='photo' && !r.doc) ? '' : ' | Reference photo: none available in the report.')]));
     v.cps.forEach((r,i) => cpm.push([v.ref,v.rev||0,v.po,v.lot,r.cp,FRI_CPS[i][1],r.src,r.shows,r.verdict])); });
   const add = (rows, name, widths) => { const ws = XLSX.utils.aoa_to_sheet(rows); ws['!cols'] = widths.map(w => ({wch:w})); XLSX.utils.book_append_sheet(wb, ws, name); };
@@ -3073,9 +3074,17 @@ function friStartFromReport(name, kind, size, text, photos, imgs){
     if (r) friApplyPO(`${r.po}||${friLotOf(r)}`, true); else { friCur.po = get('po').value; friCur.lot = lot; } }
   found.forEach(f => { if (f.apply === false || f.key === 'po' || f.key === 'lot') return;
     const p = f.key.split('.'); if (p.length === 2) friCur[p[0]][p[1]] = f.value; else friCur[f.key] = f.value; });
+  { const lotRe = /\bLot\s*(?:#|No\.?)?\s*[:：]?\s*(\d{1,2})\b/i; const T = text;
+    const known = [...new Set(friRows().map(r => String(r.po)).filter(p => p && p.length >= 4))].sort((a, b) => b.length - a.length);
+    const seen = new Set(friPos(friCur).map(p => p.po));
+    known.forEach(po => { if (seen.has(po) || !T.includes(po)) return; if ([...seen].some(s2 => s2.includes(po))) return;
+      const rows = friRows().filter(r => String(r.po) === po), open = rows.filter(r => r.status === 'Open');
+      const lot = (rows.find(r => friLotOf(r) === friCur.lot) || open[0] || rows[0]); seen.add(po);
+      (friCur.morePos = friCur.morePos || []).push({ po, lot: friLotOf(lot) }); });
+    if ((friCur.morePos || []).length) { found.push({ key:'_', label:'Other P.O.s in the report', value: friCur.morePos.map(p => p.po).join(', '), snippet:`${friPos(friCur).length} P.O.s found in the report text` }); friSyncMasterItems(); } }
   const pit = friParseItems(text);
   if (pit.items.length) {
-    friCur.aql.items = pit.items;
+    friCur.aql.items = pit.items; friCur.aql.qtySrc = 'report';
     const sumShip = pit.items.reduce((x, i) => x + i.ship, 0), sumPacked = pit.items.reduce((x, i) => x + i.packed, 0);
     friCur.aql.poQty = String(pit.tot ? pit.tot.ship : sumShip); friCur.aql.packed = String(pit.tot ? pit.tot.packed : sumPacked);
     if (pit.tot) friCur.aql.nInsp = String(pit.tot.nII);
@@ -3184,7 +3193,7 @@ async function friExportDocx(){
     const vFill = /^CANNOT/.test(c.verdict) ? 'FADBD8' : /^CONDITIONAL/.test(c.verdict) ? 'FDEBD0' : /NOTES/.test(c.verdict) ? 'F2F3F4' : 'D5F5E3';
     let b = friP('A.R.E.N.A. VIETNAM — FRI VALIDATION ASSESSMENT', { b:true, sz:30, color:'1B3A5C', after:40 });
     b += friP(`${v.ref || '(not saved)'}${v.rev ? ' · Rev.' + v.rev : ''} · ${v.status}`, { sz:18, color:'707070', after:160 });
-    b += friTbl(null, [['Ally', v.ally], ['P.O. · lot', `${v.po} · ${v.lot}`], ['Supplier / factory', v.sup], ['Department / product', `${v.dept} / ${v.pf}`],
+    b += friTbl(null, [['Ally', v.ally], ['P.O. · lot', friPosLabel(v)], ['Supplier / factory', v.sup], ['Department / product', `${v.dept} / ${v.pf}`],
       ['FRI report no. / date', `${v.reportNo || '—'} / ${v.inspDate || '—'}`], ['Inspection body / inspector / reviewer', `${v.inspBody || '—'} / ${v.inspector || '—'} / ${v.reviewer || '—'}`],
       ['Basis', v.basis ? `${v.basis} (${v.basisStatus})` : 'No ARENA FRI Standard for this category / P.O.'], ['Source reviewed', v.photos + (v.source ? ` — ${v.source.name}` : '')],
       ['Validator / date', `${v.validator} / ${v.valDate}`]], [3000, W - 3000]);
@@ -3493,13 +3502,30 @@ function friDocsPanel(){
 }
 
 // ── P.O. reconciliation: master file (Order Fulfill + Orders Data) × FRI report × uploaded documents ──
+// A report can cover several P.O.s: the main P.O. / lot + v.morePos. Order qty = sum over all of them.
+function friPos(v){ const out = []; if (v && v.po) out.push({ po: String(v.po), lot: v.lot || 'Lot 1' });
+  ((v && v.morePos) || []).forEach(p => { if (p && p.po && !out.some(q => q.po === String(p.po) && q.lot === (p.lot || 'Lot 1'))) out.push({ po: String(p.po), lot: p.lot || 'Lot 1' }); }); return out; }
+function friPosLabel(v){ const p = friPos(v); return p.length ? p.map(x => `${x.po} · ${x.lot}`).join(' + ') : '—'; }
+function friLotRow(p){ return friRows().find(r => String(r.po) === p.po && friLotOf(r) === p.lot) || friRows().find(r => String(r.po) === p.po); }
+function friLotItems(p){ const od = (typeof MASTER_ORDER_DATA !== 'undefined' ? MASTER_ORDER_DATA : []).filter(r => String(r.po) === p.po); const l = od.filter(r => (r.lot || 'Lot 1') === p.lot); return l.length ? l : od; }
+function friSyncMasterItems(){   // item lines + order qty from the master file for every P.O. of the report (unless the report's own items table was read)
+  if (!friCur) return; const a = friCur.aql;
+  if (a.qtySrc === 'report') return;
+  const items = friPos(friCur).flatMap(p => friLotItems(p).filter(x => +x.qty > 0).map(x => ({ po: p.po, ref: x.allyRef || x.supRef || '', desc: x.desc || '', ship: +x.qty, packed: '', nII: '', nS3: '', src:'master' })));
+  a.items = items;
+  const tot = items.length ? items.reduce((s, x) => s + x.ship, 0) : friPos(friCur).reduce((s, p) => s + (+(friLotRow(p) || {}).qty || 0), 0);
+  if (tot) { a.poQty = String(tot); a.qtySrc = 'master'; }
+}
+function friAddPo(key){ if (!friCur || !key) return; const [po, lot] = key.split('||'); friCur.morePos = friCur.morePos || [];
+  if (!friPos(friCur).some(p => p.po === po && p.lot === lot)) friCur.morePos.push({ po, lot }); friDirty = true; friSyncMasterItems(); friRenderWorkbench(); }
+function friDelPo(i){ if (!friCur) return; friCur.morePos.splice(i, 1); friDirty = true; friSyncMasterItems(); friRenderWorkbench(); }
 function friReconcile(v){
   const out = { rows:[], items:[], issues:[], fu:null };
   if (!v.po) return out;
-  const fu = friRows().find(r => String(r.po) === String(v.po) && friLotOf(r) === v.lot) || friRows().find(r => String(r.po) === String(v.po));
-  out.fu = fu;
-  const OD = (typeof MASTER_ORDER_DATA !== 'undefined' ? MASTER_ORDER_DATA : []).filter(r => String(r.po) === String(v.po));
-  const items = OD.filter(r => (r.lot || 'Lot 1') === v.lot).length ? OD.filter(r => (r.lot || 'Lot 1') === v.lot) : OD;
+  const pos = friPos(v), multi = pos.length > 1;
+  const fus = pos.map(p => ({ p, fu: friLotRow(p) }));
+  const fu = fus[0].fu; out.fu = fu;
+  const items = pos.flatMap(p => friLotItems(p).map(it => Object.assign({ _po: p.po }, it)));
   const rep = (v.source && v.source.text) || '', repN = rep.toLowerCase(), repPhotoG = [...new Set(((v.source && v.source.imgs) || []).flatMap(im => im.codes || []))], repG = [...new Set([...friGtins(rep), ...repPhotoG])];
   const docs = v.docs || [], artDocs = docs.filter(d => d.type === 'art'), artG = [...new Set(artDocs.flatMap(d => d.gtins))];
   const poDocs = docs.filter(d => d.type === 'po'), poG = [...new Set(poDocs.flatMap(d => d.gtins))];
@@ -3507,19 +3533,24 @@ function friReconcile(v){
   const row = (check, master, report, doc, res, note) => out.rows.push({ check, master: master ?? '—', report: report ?? '—', doc: doc ?? '—', res, note: note || '' });
   const issue = x => out.issues.push(Object.assign({ type:'F', status:'Open', resp:'QC' }, x));
   const mref = t => ({ kind:'master', src:'master', label:'Master file', excerpt: t });
-  if (!fu) { row('P.O. in master file', 'not found', v.po, '', 'diff', 'Load the current master file, or check the P.O. number.'); return out; }
+  fus.filter(x => !x.fu).forEach(x => row(`P.O. ${x.p.po} in master file`, 'not found', x.p.po, '', 'diff', 'Load the current master file, or check the P.O. number.'));
+  if (!fus.some(x => x.fu)) return out;
+  if (multi) row('P.O.s in this report', `${pos.length} P.O. lot(s)`, friPosLabel(v), '', 'ok', 'order qty = sum of all P.O.s');
   const n = x => (x === '' || x == null || isNaN(+x)) ? null : +x;
-  // Ally / supplier
+  // Ally / supplier — per P.O.
+  fus.filter(x => x.fu).forEach(({ p, fu }) => { const tag = multi ? ` — ${p.po}` : '';
   const ally = fu.allyRaw || fu.ally;
-  row('Ally', ally, rep ? (has(repN, ally) || has(repN, fu.ally) ? 'found' : 'not found') : '—', '', !rep ? 'na' : (has(repN, ally) || has(repN, fu.ally)) ? 'ok' : 'diff');
-  if (rep && !(has(repN, ally) || has(repN, fu.ally))) issue({ cp:'CP9', sev:'Minor', title:`Ally "${ally}" (master file) not named in the FRI report.`, action:'Correct the Ally in the report header.' });
+  row('Ally' + tag, ally, rep ? (has(repN, ally) || has(repN, fu.ally) ? 'found' : 'not found') : '—', '', !rep ? 'na' : (has(repN, ally) || has(repN, fu.ally)) ? 'ok' : 'diff');
+  if (rep && !(has(repN, ally) || has(repN, fu.ally))) issue({ cp:'CP9', sev:'Minor', title:`Ally "${ally}" (master file${tag}) not named in the FRI report.`, action:'Correct the Ally in the report header.' });
   const supWord = String(fu.sup || '').split(/\s+/).find(w => w.length > 3) || fu.sup;
-  row('Supplier / factory', fu.sup, rep ? (has(repN, supWord) ? 'found' : 'not found') : '—', '', !rep ? 'na' : has(repN, supWord) ? 'ok' : 'diff');
-  if (rep && supWord && !has(repN, supWord)) issue({ type:'OB', sev:'—', resp:'QS', cp:'CP9', title:`Supplier "${fu.sup}" (master file) not found in the report — confirm the factory inspected is the P.O. supplier.`, action:'Confirm factory identity.' });
+  row('Supplier / factory' + tag, fu.sup, rep ? (has(repN, supWord) ? 'found' : 'not found') : '—', '', !rep ? 'na' : has(repN, supWord) ? 'ok' : 'diff');
+  if (rep && supWord && !has(repN, supWord)) issue({ type:'OB', sev:'—', resp:'QS', cp:'CP9', title:`Supplier "${fu.sup}" (master file${tag}) not found in the report — confirm the factory inspected is the P.O. supplier.`, action:'Confirm factory identity.' });
+  });
   // quantities
-  const poQty = items.length ? items.reduce((s, r) => s + (+r.qty || 0), 0) : n(fu.qty), repQty = n(v.aql.poQty), packed = n(v.aql.packed);   // total order qty of all item rows
-  row(items.length > 1 ? `P.O. qty (total of ${items.length} item rows)` : 'P.O. qty', poQty, repQty, poDocs.length ? `${poDocs.length} P.O. file(s)` : '', poQty == null || repQty == null ? 'na' : poQty === repQty ? 'ok' : 'diff', poQty && repQty && poQty !== repQty ? `${repQty > poQty ? '+' : ''}${Math.round((repQty - poQty) / poQty * 1000) / 10}%` : '');
-  if (poQty != null && repQty != null && poQty !== repQty) issue({ cp:'CP1', sev:'Major', title:`Shipment qty in the report (${repQty}) ≠ P.O. qty in the master file (${poQty}).`, action:'Confirm the P.O. qty (all P.O. lines) and the lot inspected; correct the report.' });
+  const poQty = items.length ? items.reduce((s, r) => s + (+r.qty || 0), 0) : fus.reduce((s, x) => s + (+(x.fu || {}).qty || 0), 0), repQty = n(v.aql.poQty), packed = n(v.aql.packed);   // total order qty of all item rows of ALL P.O.s in the report
+  if (multi) fus.forEach(({ p, fu }) => { const q = friLotItems(p).reduce((s, r) => s + (+r.qty || 0), 0) || +(fu || {}).qty || 0; row(`  ${p.po} · ${p.lot}`, q, '', '', 'na', `${friLotItems(p).length} item row(s)`); });
+  row(multi ? `Order qty — total of ${pos.length} P.O.s (${items.length} item rows)` : items.length > 1 ? `P.O. qty (total of ${items.length} item rows)` : 'P.O. qty', poQty, repQty, poDocs.length ? `${poDocs.length} P.O. file(s)` : '', poQty == null || repQty == null ? 'na' : poQty === repQty ? 'ok' : 'diff', poQty && repQty && poQty !== repQty ? `${repQty > poQty ? '+' : ''}${Math.round((repQty - poQty) / poQty * 1000) / 10}%` : '');
+  if (poQty != null && repQty != null && poQty !== repQty) issue({ cp:'CP1', sev:'Major', title:`Shipment qty in the report (${repQty}) ≠ ${multi ? `total order qty of the ${pos.length} P.O.s` : 'P.O. qty'} in the master file (${poQty}).`, action:'Confirm the P.O. qty (all P.O. lines) and the lot inspected; correct the report.' });
   if (poQty && packed != null) row('Packed qty ≥ 80% of P.O. qty', `${Math.round(poQty * .8)} min.`, packed, '', packed >= .8 * poQty ? 'ok' : 'diff', `${Math.round(packed / poQty * 100)}%`);
   // EAN in the master file must be a valid GTIN (8 / 12 / 13 / 14 digits, GS1 check digit) and not the item code
   const gtinOk = x => { const d = String(x || '').replace(/\D/g, ''); return [8,12,13,14].includes(d.length) && friGtinOk(d.length === 12 ? '0' + d : d); };
@@ -3536,8 +3567,8 @@ function friReconcile(v){
     const inRep = !!rep && ((code && has(repN, code)) || gt.some(x => repG.includes(x) || rep.includes(x)));
     const artG13 = artG.map(friGtin13of14);
     const eanArt = !artDocs.length ? null : badEan.includes(it) ? 'badmaster' : !artG.length ? 'unreadable' : (gt.length ? gt.every(x => artG.includes(x) || artG13.includes(friGtin13of14(x))) : null);
-    out.items.push({ eanBad: badEan.includes(it), code, desc: it.desc, ean: it.ean, itf: it.logCode, brand: it.brand, qty: it.qty, inRep, eanArt, brandRep: it.brand ? has(repN, it.brand) : null });
-    if (rep && !inRep) issue({ cp:'CP1', sev:'Major', title:`P.O. line ${code || it.ean} (${(it.desc || '').slice(0, 40)}) not found in the FRI report — no inspection record for this code.`, action:'Inspect / report every P.O. line; each code needs its own FRI record.' });
+    out.items.push({ po: it._po, eanBad: badEan.includes(it), code, desc: it.desc, ean: it.ean, itf: it.logCode, brand: it.brand, qty: it.qty, inRep, eanArt, brandRep: it.brand ? has(repN, it.brand) : null });
+    if (rep && !inRep) issue({ cp:'CP1', sev:'Major', title:`P.O.${multi ? ' ' + it._po : ''} line ${code || it.ean} (${(it.desc || '').slice(0, 40)}) not found in the FRI report — no inspection record for this code.`, action:'Inspect / report every P.O. line; each code needs its own FRI record.' });
     if (eanArt === false) issue({ type:'OB', sev:'—', resp:'QS', cp:'CP3', title:`GTIN ${gt.join(' / ')} of ${code || it.desc} not found in the uploaded artwork files (artwork GTINs read: ${artG.slice(0,3).join(', ')}).`, action:'Upload the released artwork of this item, or confirm its barcode visually.' });
     if (rep && it.brand && !has(repN, it.brand)) issue({ cp:'CP3', sev:'Minor', title:`Brand "${it.brand}" (master file) not mentioned in the report for ${code || it.desc}.`, action:'Record the brand checked on product / packaging.' });
   });
@@ -3554,31 +3585,33 @@ function friReconcile(v){
     if (extra.length) issue({ cp:'CP3', sev:'Major', title:`GTIN in the report not on the P.O.: ${extra.slice(0,3).join(', ')}.`, action:'Check that the goods inspected belong to this P.O. / item; correct the report.' });
     if (poG.length) { const miss = [...masterG].filter(x => x.length >= 13 && !poG.includes(x)); row('GTINs in uploaded P.O. vs master file', `${masterG.size}`, '', `${poG.length} in P.O. file`, miss.length ? 'diff' : 'ok', miss.length ? `not in P.O. file: ${miss.slice(0,3).join(', ')}` : ''); if (miss.length) issue({ type:'OB', sev:'—', resp:'QS', cp:'CP9', title:`Master file GTIN(s) ${miss.slice(0,3).join(', ')} not found in the uploaded P.O. file.`, action:'Check the master file against the P.O.' }); }
   } else row('Item lines (Orders Data)', 'no lines loaded', '', '', 'na', 'Load the master file to reconcile item codes and GTINs.');
-  // inspection data
+  // inspection data, ETD, gates, SRC, status — per P.O.
+  fus.filter(x => x.fu).forEach(({ p, fu }) => { const tag = multi ? ` — ${p.po}` : '';
   const mDate = fu.inspActual ? String(fu.inspActual).slice(0, 10) : '';
-  row('Inspection date', mDate || '—', v.inspDate || '—', '', !mDate || !v.inspDate ? 'na' : mDate === v.inspDate ? 'ok' : 'diff');
-  if (mDate && v.inspDate && mDate !== v.inspDate) issue({ type:'OB', sev:'—', resp:'QS', cp:'CP9', title:`Inspection date: master file ${mDate}, report ${v.inspDate}.`, action:'Update the master file or correct the report date.' });
-  if (fu.inspCompany || v.inspBody) { const ok = fu.inspCompany && v.inspBody && fu.inspCompany.toLowerCase().includes(v.inspBody.toLowerCase().split(/\s+/)[0]); row('Inspection company', fu.inspCompany, v.inspBody, '', !fu.inspCompany || !v.inspBody ? 'na' : ok ? 'ok' : 'diff'); }
+  row('Inspection date' + tag, mDate || '—', v.inspDate || '—', '', !mDate || !v.inspDate ? 'na' : mDate === v.inspDate ? 'ok' : 'diff');
+  if (mDate && v.inspDate && mDate !== v.inspDate) issue({ type:'OB', sev:'—', resp:'QS', cp:'CP9', title:`Inspection date${tag}: master file ${mDate}, report ${v.inspDate}.`, action:'Update the master file or correct the report date.' });
+  if (fu.inspCompany || v.inspBody) { const ok = fu.inspCompany && v.inspBody && fu.inspCompany.toLowerCase().includes(v.inspBody.toLowerCase().split(/\s+/)[0]); row('Inspection company' + tag, fu.inspCompany, v.inspBody, '', !fu.inspCompany || !v.inspBody ? 'na' : ok ? 'ok' : 'diff'); }
   const ov = ((v.source && v.source.read) || []).find(r => /Overall result/.test(r.label));
   if (fu.insp || ov) { const a = String(fu.insp || '').toUpperCase(), b = ov ? (/pass|accept/i.test(ov.value) ? 'PASS' : /fail|reject/i.test(ov.value) ? 'FAIL' : ov.value.toUpperCase()) : '';
-    row('Inspection result', fu.insp || '—', ov ? ov.value : '—', '', !a || !b || /PENDING/.test(a) ? 'na' : a === b ? 'ok' : 'diff');
-    if (a && b && !/PENDING/.test(a) && a !== b) issue({ type:'OB', sev:'—', resp:'QS', cp:'CP9', title:`Inspection result: master file ${fu.insp}, report ${ov.value}.`, action:'Update the master file after validation.' }); }
+    row('Inspection result' + tag, fu.insp || '—', ov ? ov.value : '—', '', !a || !b || /PENDING/.test(a) ? 'na' : a === b ? 'ok' : 'diff');
+    if (a && b && !/PENDING/.test(a) && a !== b) issue({ type:'OB', sev:'—', resp:'QS', cp:'CP9', title:`Inspection result${tag}: master file ${fu.insp}, report ${ov.value}.`, action:'Update the master file after validation.' }); }
   const etd = fu.realEtd || fu.etd;
-  if (etd) { const late = v.inspDate && String(etd).slice(0,10) < v.inspDate; row('ETD (real / P.O.)', String(etd).slice(0,10), v.inspDate ? `inspected ${v.inspDate}` : '—', '', !v.inspDate ? 'na' : late ? 'diff' : 'ok', late ? 'inspection after ETD' : '');
-    if (late) issue({ type:'OB', sev:'—', resp:'QS', cp:'CP1', title:`Inspection (${v.inspDate}) after ETD (${String(etd).slice(0,10)}).`, action:'Confirm the shipment status and ETD.' }); }
+  if (etd) { const late = v.inspDate && String(etd).slice(0,10) < v.inspDate; row('ETD (real / P.O.)' + tag, String(etd).slice(0,10), v.inspDate ? `inspected ${v.inspDate}` : '—', '', !v.inspDate ? 'na' : late ? 'diff' : 'ok', late ? 'inspection after ETD' : '');
+    if (late) issue({ type:'OB', sev:'—', resp:'QS', cp:'CP1', title:`Inspection (${v.inspDate}) after ETD${tag} (${String(etd).slice(0,10)}).`, action:'Confirm the shipment status and ETD.' }); }
   // gates
   const gate = (lbl, val, cp) => { if (val === undefined) return; const ok = /valid|approv|ok\b|done|yes|pass|✓|complete|received/i.test(String(val || ''));
-    row(`Gate — ${lbl}`, val || 'blank', '', '', ok ? 'ok' : 'diff');
-    if (!ok) issue({ type:'RG', sev:'—', resp:'QS + Compliance Director', cp, title:`${lbl} gate not validated in the master file (${val || 'blank'}) — requirement basis not confirmed at inspection date.`, action:`Confirm the approved ${lbl.toLowerCase()} before judging conformity; update the gate.` }); };
+    row(`Gate — ${lbl}${tag}`, val || 'blank', '', '', ok ? 'ok' : 'diff');
+    if (!ok) issue({ type:'RG', sev:'—', resp:'QS + Compliance Director', cp, title:`${lbl} gate not validated in the master file${tag} (${val || 'blank'}) — requirement basis not confirmed at inspection date.`, action:`Confirm the approved ${lbl.toLowerCase()} before judging conformity; update the gate.` }); };
   gate('Technical docs', fu.techDocs, 'CP9'); gate('Golden sample', fu.goldenSample, 'CP4'); gate('Artwork', fu.artwork, 'CP3');
-  if (fu.srcDate || fu.srcIssued) { row('SRC in master file', fu.srcDate || 'issued', '', '', 'diff', 'lot already released');
-    issue({ type:'OB', sev:'—', resp:'QS', cp:'CP9', title:`SRC already dated ${fu.srcDate || ''} in the master file — lot released before this validation.`, action:'If an NC- is found, check containment / read-across on the shipped goods.' }); }
-  if (fu.status && fu.status !== 'Open') row('P.O. status', fu.status, '', '', 'diff', fu.status === 'Done' ? 'shipped' : '');
+  if (fu.srcDate || fu.srcIssued) { row('SRC in master file' + tag, fu.srcDate || 'issued', '', '', 'diff', 'lot already released');
+    issue({ type:'OB', sev:'—', resp:'QS', cp:'CP9', title:`SRC${tag} already dated ${fu.srcDate || ''} in the master file — lot released before this validation.`, action:'If an NC- is found, check containment / read-across on the shipped goods.' }); }
+  if (fu.status && fu.status !== 'Open') row('P.O. status' + tag, fu.status, '', '', 'diff', fu.status === 'Done' ? 'shipped' : '');
+  });
   // master-file reference data for every reconciliation issue
-  const fuLine = `Order Fulfill — P.O. ${fu.po} · ${fu.lot || v.lot} · Ally ${fu.allyRaw || fu.ally || '—'} · supplier ${fu.sup || '—'} · P.O. qty ${items.length ? items.reduce((s, r) => s + (+r.qty || 0), 0) : (fu.qty ?? '—')}${items.length > 1 ? ` (total of ${items.length} item rows)` : ''} · inspection ${fu.insp || '—'} ${fu.inspActual ? String(fu.inspActual).slice(0,10) : ''} ${fu.inspCompany || ''} · ETD ${fu.realEtd || fu.etd || '—'} · gates tech docs ${fu.techDocs || '—'} / golden sample ${fu.goldenSample || '—'} / artwork ${fu.artwork || '—'}${fu.srcDate ? ' · SRC ' + fu.srcDate : ''}`;
+  const fuLine = fus.filter(x => x.fu).map(({ fu }) => `Order Fulfill — P.O. ${fu.po} · ${fu.lot || v.lot} · Ally ${fu.allyRaw || fu.ally || '—'} · supplier ${fu.sup || '—'} · P.O. qty ${items.length ? items.reduce((s, r) => s + (+r.qty || 0), 0) : (fu.qty ?? '—')}${items.length > 1 ? ` (total of ${items.length} item rows)` : ''} · inspection ${fu.insp || '—'} ${fu.inspActual ? String(fu.inspActual).slice(0,10) : ''} ${fu.inspCompany || ''} · ETD ${fu.realEtd || fu.etd || '—'} · gates tech docs ${fu.techDocs || '—'} / golden sample ${fu.goldenSample || '—'} / artwork ${fu.artwork || '—'}${fu.srcDate ? ' · SRC ' + fu.srcDate : ''}`).join(' ‖ ');
   out.issues.forEach(x => { x.refs = x.refs || [];
     const it = items.find(i => [i.allyRef, i.supRef, i.ean, i.logCode].filter(Boolean).some(k => x.title.includes(String(k))));
-    if (it) x.refs.push(mref(`Orders Data — ${it.allyRef || it.supRef || ''} · ${it.desc || ''} · EAN ${it.ean || '—'} · ITF ${it.logCode || '—'} · brand ${it.brand || '—'} · qty ${it.qty ?? '—'}`));
+    if (it) x.refs.push(mref(`Orders Data — ${multi ? 'P.O. ' + it._po + ' · ' : ''}${it.allyRef || it.supRef || ''} · ${it.desc || ''} · EAN ${it.ean || '—'} · ITF ${it.logCode || '—'} · brand ${it.brand || '—'} · qty ${it.qty ?? '—'}`));
     x.refs.push(mref(fuLine)); });
   return out;
 }
@@ -3591,8 +3624,8 @@ function friReconPanel(){
     <div class="ch2"><div class="ct" style="color:#F4811F;font-weight:700">1b · P.O. reconciliation — master file × FRI report × documents (Step 3d)</div><span class="fri-note">${friE(mf)} · recalculated on every master-file load</span></div>
     <div class="tw"><table class="tbl" style="font-size:12px"><thead><tr><th style="width:30px"></th><th>CHECK</th><th>MASTER FILE</th><th>FRI REPORT</th><th>DOCUMENTS</th><th>NOTE</th></tr></thead><tbody>
       ${r.rows.map(x => `<tr><td>${ic(x.res)}</td><td>${friE(x.check)}</td><td><b>${friE(x.master)}</b></td><td>${friE(x.report)}</td><td>${friE(x.doc)}</td><td class="fri-note">${friE(x.note)}</td></tr>`).join('')}</tbody></table></div>
-    ${r.items.length ? `<div class="fri-note" style="margin:10px 0 4px"><b>Item lines (Orders Data)</b></div><div class="tw"><table class="tbl" style="font-size:12px"><thead><tr><th>ITEM CODE</th><th>DESCRIPTION</th><th>EAN</th><th>ITF-14 / LOG</th><th>BRAND</th><th>QTY</th><th>IN REPORT</th><th>GTIN IN ARTWORK</th></tr></thead><tbody>
-      ${r.items.map(i => `<tr><td>${friE(i.code)||'—'}</td><td style="max-width:220px">${friE(i.desc)}</td><td>${friE(i.ean)||'—'}${i.eanBad?' <span class="tag t-o" title="not a valid GTIN (length / check digit) or equal to the item code">invalid</span>':''}</td><td>${friE(i.itf)||'—'}</td><td>${friE(i.brand)||'—'}</td><td>${i.qty ?? '—'}</td>
+    ${r.items.length ? `<div class="fri-note" style="margin:10px 0 4px"><b>Item lines (Orders Data)</b></div><div class="tw"><table class="tbl" style="font-size:12px"><thead><tr>${friPos(v).length > 1 ? '<th>P.O.</th>' : ''}<th>ITEM CODE</th><th>DESCRIPTION</th><th>EAN</th><th>ITF-14 / LOG</th><th>BRAND</th><th>QTY</th><th>IN REPORT</th><th>GTIN IN ARTWORK</th></tr></thead><tbody>
+      ${r.items.map(i => `<tr>${friPos(v).length > 1 ? `<td>${friE(i.po)}</td>` : ''}<td>${friE(i.code)||'—'}</td><td style="max-width:220px">${friE(i.desc)}</td><td>${friE(i.ean)||'—'}${i.eanBad?' <span class="tag t-o" title="not a valid GTIN (length / check digit) or equal to the item code">invalid</span>':''}</td><td>${friE(i.itf)||'—'}</td><td>${friE(i.brand)||'—'}</td><td>${i.qty ?? '—'}</td>
         <td>${!v.source ? '—' : i.inRep ? ic('ok') : ic('diff') + ' not found'}</td><td>${i.eanArt === null ? '—' : i.eanArt === 'badmaster' ? '<span class="fri-note">fix master EAN first</span>' : i.eanArt === 'unreadable' ? '<span class="fri-note">no GTIN read in artwork</span>' : i.eanArt ? ic('ok') : ic('diff') + ' mismatch'}</td></tr>`).join('')}</tbody></table></div>` : ''}
     ${r.issues.length ? `<div style="margin-top:8px">${r.issues.map(x => `<div style="display:flex;gap:8px;align-items:center;margin-top:5px;font-size:12px"><span class="tag ${x.type==='NC'?'t-r':x.type==='RG'?'t-p':x.type==='OB'?'t-gray':x.sev==='Major'?'t-o':'t-gray'}">${x.type==='F'?x.sev:x.type+'-'}</span><span style="flex:1">${friE(x.title)}</span>
         ${titles.has(x.title) ? '<span class="fri-note">logged</span>' : `<button class="btn btn-d btn-sm" onclick='friAddFinding(${JSON.stringify(x).replace(/'/g,"&#39;")})'>+ Add</button>`}</div>`).join('')}</div>` : ''}
