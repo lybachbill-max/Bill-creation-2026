@@ -2808,6 +2808,7 @@ function friRefreshDerived(){
       <div style="margin-left:auto;text-align:right"><div class="fri-note">Shipment status (independent of the report verdict)</div>
         <span class="s ${friShipCls(c.ship)}" style="display:inline-block;border:1px solid currentColor">${friE(c.ship)}</span>
         <div style="font-size:11.5px;margin-top:3px">${c.reasons.length ? friE(c.reasons.join(' · ')) : 'report accepted, no open NC-'}</div></div>
+      ${friPos(friCur).length > 1 ? `<div style="width:100%;font-size:12px">SRC is issued <b>separately for each P.O.</b> (Issue SRC page, one certificate per P.O. · lot): ${friPos(friCur).map(p => { const iss = (typeof SRC_DATA !== 'undefined') && SRC_DATA.find(x => String(x.po) === p.po && (x.lot || 'Lot 1') === p.lot); return `${friE(p.po)} · ${friE(p.lot)} — ${iss ? 'SRC ' + friE(iss.no) : 'not issued'}`; }).join(' · ')}</div>` : ''}
       ${c.cov!==null||c.conf!==null||c.evid!==null ? `<div style="width:100%;font-size:12px">Coverage ${c.cov??'—'}% · Conformity ${c.conf??'—'}% · Evidence ${c.evid??'—'}%${friCur.basis?` — basis ${friE(friCur.basis)} (${friE(friCur.basisStatus)})`:''}</div>` : ''}
     </div>`;
   const w = g('fri-cp-warn');
