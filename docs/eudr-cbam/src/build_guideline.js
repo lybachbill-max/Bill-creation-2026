@@ -161,6 +161,13 @@ const body = [
   table([H('Import year (route A, €82.32 held)', 'Năm nhập khẩu (A, giữ giá 82,32 €)'), H('CBAM €/pc', 'CBAM €/sp'), H('% of FOB', '% FOB')], C.CBAM_COST_PROJECTION, [0.5, 0.25, 0.25]),
   gap(),
   ...biList(C.CBAM_COST_EXAMPLE_NOTES),
+  ...heading(H('5.4 Origin comparison — Viet Nam, China, India (default route)', '5.4 So sánh xuất xứ — Việt Nam, Trung Quốc, Ấn Độ (giá trị mặc định)'), 2),
+  ...biList(C.ORIGIN_INTRO),
+  table([H('CN', 'CN'), H('Goods', 'Hàng hóa'), H('Default VN', 'Mặc định VN'), H('Default IN', 'Mặc định IN'), H('Default CN', 'Mặc định CN'),
+    H('€/t 2026 VN · IN · CN', '€/tấn 2026 VN · IN · CN'), H('€/t 2028 VN · IN · CN', '€/tấn 2028 VN · IN · CN')],
+    C.ORIGIN_MATRIX, [0.12, 0.22, 0.09, 0.09, 0.09, 0.195, 0.195]),
+  ...note(H('Default values in tCO₂e/t before mark-up. € per tonne of goods at €82.32 per certificate.', 'Giá trị mặc định tính bằng tCO₂e/tấn, trước mức cộng. € mỗi tấn hàng với giá 82,32 €/chứng chỉ.')),
+  ...biList(C.ORIGIN_NOTES),
   ...note(H('Tool: skill cbam-default-value-po-cost builds the per-P.O./P.I. cost pack (A/B/C comparison, € per piece, % of FOB, 50 t check, 2026–2034 projection) as a DRAFT for Ally review.', 'Công cụ: skill cbam-default-value-po-cost lập bảng chi phí theo P.O./P.I. (so sánh A/B/C, €/sp, % FOB, kiểm tra 50 tấn, dự báo 2026–2034) dưới dạng DỰ THẢO để Ally xem xét.')),
 
   ...heading(H('6. Alignment with A.R.E.N.A. procedures', '6. Đối chiếu với quy trình A.R.E.N.A.')),

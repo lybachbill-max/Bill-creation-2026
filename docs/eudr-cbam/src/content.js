@@ -256,6 +256,38 @@ const CBAM_COST_EXAMPLE_NOTES = [
     'Số liệu: Phụ lục I IR (EU) 2026/1740 và IR (EU) 2025/2620 theo bản đọc ngày 10/11/2026 (skill cbam-default-value-po-cost). Dữ liệu nhà máy thép ở phương án C chỉ để minh họa.'),
 ];
 
+// ---------------------------------------------------------------- 5.4 Origin comparison VN / CN / IN
+const ORIGIN_INTRO = [
+  b('The CBAM factor (97.5% in 2026 → 0% in 2034) and the mark-up are the same for every origin. What differs by country is the default emission value per CN code and, for aluminium, the benchmark route used for the free-allocation adjustment.',
+    'Hệ số CBAM (97,5% năm 2026 → 0% năm 2034) và mức cộng giống nhau cho mọi xuất xứ. Khác biệt theo quốc gia là giá trị phát thải mặc định theo mã CN và, với nhôm, quy trình chuẩn dùng để điều chỉnh hạn ngạch miễn phí.'),
+];
+// [CN, goods, default VN, IN, CN, €/t 2026 VN|IN|CN, €/t 2028 VN|IN|CN]
+const ORIGIN_MATRIX = [
+  ['7326 90 98', b('Articles of iron/steel n.e.s.', 'Sản phẩm sắt/thép khác'), '2.370', '4.910', '3.076', '95 · 325 · 159', '143 · 415 · 219'],
+  ['7326 20 00', b('Articles of steel wire', 'Sản phẩm dây thép'), '2.350', '4.910', '3.076', '101 · 332 · 166', '148 · 422 · 226'],
+  ['7308 90 98', b('Structures and parts', 'Kết cấu và bộ phận'), '2.840', '5.930', '6.035', '137 · 417 · 427', '193 · 524 · 535'],
+  ['7318 15 88', b('Hex / threaded bolts', 'Bu lông ren / lục giác'), '2.750', '5.720', '6.375', '140 · 408 · 468', '193 · 511 · 581'],
+  ['7318 16 99', b('Nuts', 'Đai ốc'), '2.960', '5.140', '5.045', '159 · 356 · 347', '216 · 449 · 439'],
+  ['7318 22 00', b('Washers', 'Long đen'), '2.410', '5.140', '4.555', '109 · 356 · 303', '157 · 449 · 386'],
+  ['7318 12 90', b('Wood screws', 'Vít gỗ'), '2.350', '4.270', '2.738', '103 · 277 · 138', '150 · 356 · 192'],
+  ['7306 30 77', b('Welded circular tubes', 'Ống thép hàn tròn'), '2.370', '4.320', '3.565', '95 · 272 · 203', '143 · 352 · 271'],
+  ['7616 99 90', b('Aluminium articles n.e.s.', 'Sản phẩm nhôm khác'), '2.480', '4.126', '5.559', '213 · 254 · 384', '254 · 332 · 485'],
+  ['7610 90 90', b('Aluminium structures', 'Kết cấu nhôm'), '2.040', '3.444', '4.896', '173 · 192 · 324', '207 · 258 · 413'],
+  ['7604 29 90', b('Aluminium profiles', 'Nhôm định hình'), '2.040', '3.444', '4.881', '173 · 192 · 322', '207 · 258 · 412'],
+];
+const ORIGIN_NOTES = [
+  b('Viet Nam is the lowest-cost origin on the default route for every CN shown: for steel about ⅓ of India and ½–⅔ of China; for structures and bolts about ⅓ of both.',
+    'Việt Nam là xuất xứ có chi phí thấp nhất theo giá trị mặc định cho mọi mã CN trong bảng: với thép khoảng ⅓ của Ấn Độ và ½–⅔ của Trung Quốc; với kết cấu và bu lông khoảng ⅓ của cả hai.'),
+  b('Aluminium gap is smaller: the Viet Nam default is based on the recycling route (L), whose benchmark (BMg ≈ 0.15) gives a much smaller adjustment than the primary route (K, BMg ≈ 1.49) used for China and India — Viet Nam is only 10–20% below India, about 45% below China.',
+    'Chênh lệch với nhôm nhỏ hơn: giá trị mặc định của Việt Nam theo quy trình tái chế (L), giá trị chuẩn (BMg ≈ 0,15) cho mức điều chỉnh nhỏ hơn nhiều so với quy trình sơ cấp (K, BMg ≈ 1,49) áp dụng cho Trung Quốc và Ấn Độ — Việt Nam chỉ thấp hơn Ấn Độ 10–20%, thấp hơn Trung Quốc khoảng 45%.'),
+  b('China vs India is mixed: China is cheaper for most steel articles (n.e.s., wire, washers, wood screws, tubes) but dearer for bolts and structures.',
+    'Trung Quốc so với Ấn Độ không đồng nhất: Trung Quốc rẻ hơn với phần lớn sản phẩm thép (khác, dây, long đen, vít gỗ, ống) nhưng đắt hơn với bu lông và kết cấu.'),
+  b('Carbon price paid at origin (Art. 9): none for Viet Nam or India; China\'s national ETS may allow a deduction — VERIFY with the declarant.',
+    'Giá carbon đã trả tại nước xuất xứ (Điều 9): Việt Nam và Ấn Độ chưa có; ETS quốc gia của Trung Quốc có thể được khấu trừ — VERIFY với người khai.'),
+  b('Basis: € per tonne of goods = MAX(0, default × (1 + mark-up) − factor × CSCF × BMg) × €82.32. 2026: mark-up 10%, factor 97.5%; 2028: mark-up 30%, factor 90%; CSCF 100%. Default route only — actual verified data can change the ranking. Values: IR (EU) 2026/1740 and 2025/2620 as read on 10 Nov 2026 (skill cbam-default-value-po-cost).',
+    'Cơ sở: € mỗi tấn hàng = MAX(0, mặc định × (1 + mức cộng) − hệ số × CSCF × BMg) × 82,32 €. 2026: mức cộng 10%, hệ số 97,5%; 2028: mức cộng 30%, hệ số 90%; CSCF 100%. Chỉ theo giá trị mặc định — dữ liệu thực tế đã xác minh có thể thay đổi thứ hạng. Số liệu: IR (EU) 2026/1740 và 2025/2620 theo bản đọc ngày 10/11/2026 (skill cbam-default-value-po-cost).'),
+];
+
 // Projection, route A, same item, price held at €82.32: [year, €/pc, % FOB]
 const CBAM_COST_PROJECTION = [
   ['2026', '€0.807', '4.9%'],
@@ -362,5 +394,6 @@ module.exports = {
   CBAM_STATUS, CBAM_CN, CBAM_CN_NOTE, CBAM_MARKETS, CBAM_DECLARANT_DUTIES,
   CBAM_WORKFLOW, CBAM_SUPPLIER_DATA, CBAM_ARENA_RULES,
   CBAM_COST_PRINCIPLES, CBAM_COST_FORMULA, CBAM_COST_EXAMPLE_INTRO, CBAM_COST_EXAMPLE, CBAM_COST_EXAMPLE_NOTES, CBAM_COST_PROJECTION,
+  ORIGIN_INTRO, ORIGIN_MATRIX, ORIGIN_NOTES,
   SOP_ALIGNMENT, TIMELINE, SKILL_FLAGS, VERIFY, SOURCES,
 };

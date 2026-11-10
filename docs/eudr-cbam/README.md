@@ -4,8 +4,8 @@
 
 | File | What it is |
 |---|---|
-| `ARENA-GL-QC-EUDR-CBAM-01_EUDR_CBAM_Alignment_Guideline_Rev0.docx` | Bilingual (EN/VN) guideline: roles, EU requirements, CBAM procedure C0–C6, CBAM cost next to FOB (default vs actual), SOP alignment, dates, skill corrections, VERIFY register |
-| `ARENA-GL-QC-EUDR-CBAM-01_EUDR_CBAM_Training_Deck_Rev0.pptx` | 18-slide bilingual training deck built from the same content |
+| `ARENA-GL-QC-EUDR-CBAM-01_EUDR_CBAM_Alignment_Guideline_Rev0.docx` | Bilingual (EN/VN) guideline: roles, EU requirements, CBAM procedure C0–C6, CBAM cost next to FOB (default vs actual), VN/CN/IN origin comparison, SOP alignment, dates, skill corrections, VERIFY register |
+| `ARENA-GL-QC-EUDR-CBAM-01_EUDR_CBAM_Training_Deck_Rev0.pptx` | 19-slide bilingual training deck built from the same content |
 | `src/content.js` | Single source of all text (edit here, then rebuild) |
 | `src/build_guideline.js`, `src/build_slides.js` | Generators (docx-js, pptxgenjs) |
 

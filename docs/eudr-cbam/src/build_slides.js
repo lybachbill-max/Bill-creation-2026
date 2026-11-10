@@ -235,6 +235,19 @@ const next = () => { n += 1; return pptx.addSlide(); };
   s.addText(biRuns(C.CBAM_COST_EXAMPLE_NOTES.slice(0, 2), { en: 10.5, vn: 8.5, bullet: true, gap: 6 }), { x: 6.4, y: 4.6, w: 6.43, h: 2.35, fontFace: F, valign: 'top', margin: 0 });
 }
 
+// ---------- 12d. Origin comparison VN / CN / IN
+{
+  const s = next();
+  frame(s, n, 'Origin comparison — Viet Nam · China · India', 'So sánh xuất xứ — Việt Nam · Trung Quốc · Ấn Độ (giá trị mặc định)');
+  table(s, [hdr('CN', 'CN'), hdr('Goods', 'Hàng hóa'), hdr('Default VN', 'Mặc định VN'), hdr('Default IN', 'Mặc định IN'), hdr('Default CN', 'Mặc định CN'),
+    hdr('€/t 2026  VN · IN · CN', '€/tấn 2026'), hdr('€/t 2028  VN · IN · CN', '€/tấn 2028')],
+    C.ORIGIN_MATRIX, [1.15, 2.05, 0.95, 0.95, 0.95, 1.55, 1.55], 1.5, { en: 9.5, vn: 7.5, boldFirst: true });
+  s.addShape(pptx.ShapeType.rect, { x: 9.75, y: 1.5, w: 3.08, h: 0.45, fill: { color: CORAL_D }, line: { color: CORAL_D } });
+  s.addText('Key points · Điểm chính', { x: 9.85, y: 1.5, w: 2.9, h: 0.45, fontFace: F, fontSize: 12, bold: true, color: WHITE, valign: 'middle', margin: 0 });
+  s.addText(biRuns(C.ORIGIN_NOTES.slice(0, 4), { en: 9, vn: 7.5, bullet: true, gap: 4 }), { x: 9.75, y: 2.02, w: 3.08, h: 4.9, fontFace: F, valign: 'top', margin: 2 });
+  s.addText(C.ORIGIN_NOTES[4].en, { x: 0.5, y: 6.35, w: 9.1, h: 0.6, fontFace: F, fontSize: 8, color: GREY, valign: 'top', margin: 0 });
+}
+
 // ---------- 13. SOP alignment
 {
   const s = next();
