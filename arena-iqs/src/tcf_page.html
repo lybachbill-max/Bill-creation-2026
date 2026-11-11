@@ -1,0 +1,35 @@
+<style>
+#page-tcf .tcs-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#page-tcf .tcs-chip{display:inline-flex;align-items:center;gap:6px;background:#EEF4FB;border:1px solid #CFE0F3;border-radius:14px;padding:3px 10px;font-size:12px}
+#page-tcf .tcs-chip button{border:0;background:none;cursor:pointer;font-size:14px;line-height:1;color:var(--t2)}
+#page-tcf .tcs-out{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+#page-tcf .tcs-pill{display:inline-block;border-radius:10px;padding:2px 8px;font-size:11.5px;font-weight:600;white-space:nowrap}
+#page-tcf .p-open{background:#FDE2E1;color:#B42318}#page-tcf .p-cond{background:#FEF0C7;color:#93370D}#page-tcf .p-acc{background:#DCFAE6;color:#067647}#page-tcf .p-na{background:#F2F4F7;color:#475467}
+#page-tcf .tcs-thumb{width:56px;height:42px;object-fit:contain;background:#fff;border:1px solid var(--bd);border-radius:4px}
+#page-tcf select.tcs-sel{height:30px;font-size:12px}
+#page-tcf .tcs-note{font-size:12px;color:var(--t2)}
+</style>
+<div id="page-tcf" class="page">
+  <div class="bc"><span>Technical Compliance</span><span class="sep">›</span><span class="cur">TCF Status &amp; Action Plan</span></div>
+  <div class="ph">
+    <div class="ph-l"><h2>TCF Status &amp; Action Plan</h2><p>Per ordered item: TCF test / document requirements, existing valid reports, supplier refs, actions and due dates · Trạng thái TCF và kế hoạch hành động — rules: tcf-status-action-plan (K-1 validity at ETD · K-2 existing reports first · K-3 supplier ref). A.R.E.N.A. validates only.</p></div>
+    <div class="ph-r tcs-row">
+      <input type="file" id="tcs-pi-input" multiple accept=".xlsx,.xlsm,.xls,.csv,.pdf,.docx" style="display:none" onchange="tcsAddPI(this)"/>
+      <input type="file" id="tcs-offer-input" accept=".xlsx,.xlsm" style="display:none" onchange="tcsAddOffer(this)"/>
+      <input type="file" id="tcs-rep-input" multiple accept=".pdf,.docx,.docm,.xlsx,.xls,.jpg,.jpeg,.png" style="display:none" onchange="tcsAddReports(this)"/>
+      <button class="btn btn-d" onclick="g('tcs-pi-input').click()" title="ARENA P.I. / VPO files (sheet ProformaInvoice) or other P.O. / P.I. files — priority source for P.O. lines, FRI and ETD">⬆ P.O. / P.I. files</button>
+      <button class="btn btn-d" onclick="g('tcs-offer-input').click()" title="Ally offer / quotation sheet (ARENA template, sheet ARENA, headers in row 8): item names, descriptions, materials, pictures, certificate columns">⬆ Offer sheet</button>
+      <button class="btn btn-d" onclick="g('tcs-rep-input').click()" title="Supplier test reports, declarations, mill certs, accreditation certificates (PDF / Word)">📎 Reports &amp; declarations</button>
+      <select class="fsel" id="tcs-lang" onchange="TCS.lang=this.value;tcsRender()" title="Workbook language"><option value="bi">Bilingual EN / VI (QS team)</option><option value="en">English only (Ally / supplier)</option></select>
+    </div>
+  </div>
+  <div class="card" style="padding:12px 14px">
+    <div class="tcs-row"><span class="tcs-note" style="font-weight:600">P.O. from the master file (fallback when no P.O. / P.I. file):</span>
+      <select class="fsel" id="tcs-po-pick" style="max-width:360px"></select><button class="btn btn-d btn-sm" onclick="tcsAddMasterPo()">+ Add P.O.</button>
+      <span id="tcs-po-chips" class="tcs-row"></span></div>
+    <div id="tcs-msg" class="tcs-note" style="margin-top:8px"></div>
+  </div>
+  <div id="tcs-out"></div>
+  <div id="tcs-items"></div>
+  <div id="tcs-reps"></div>
+</div>

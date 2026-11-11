@@ -673,6 +673,13 @@ html *{scrollbar-width:auto;scrollbar-color:#9AA3AF #ECEEF1}
       A.R.E.N.A. Order Book
     </div>
 
+<!-- TCF-NAV:BEGIN -->
+    <div class="nav-grp">TECHNICAL COMPLIANCE</div>
+    <div class="ni" id="nav-tcf-item" onclick="go('tcf',this)" title="TCF Status &amp; Action Plan — per item TCF test / document requirements, existing valid reports (K-1/K-2/K-3), actions and due dates; downloads the workbook">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M9 15l2 2 4-4"/></svg>
+      TCF Status &amp; Action Plan
+    </div>
+<!-- TCF-NAV:END -->
     <div class="nav-grp">DOCUMENTS</div>
     <div class="ni" onclick="go('suppliers',this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Factories
@@ -995,6 +1002,44 @@ html *{scrollbar-width:auto;scrollbar-color:#9AA3AF #ECEEF1}
 
 <!-- page-tcf (TCF Status & Action Plan) removed (11 Nov 2026) -->
 
+<!-- TCF-PAGE:BEGIN -->
+<style>
+#page-tcf .tcs-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#page-tcf .tcs-chip{display:inline-flex;align-items:center;gap:6px;background:#EEF4FB;border:1px solid #CFE0F3;border-radius:14px;padding:3px 10px;font-size:12px}
+#page-tcf .tcs-chip button{border:0;background:none;cursor:pointer;font-size:14px;line-height:1;color:var(--t2)}
+#page-tcf .tcs-out{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+#page-tcf .tcs-pill{display:inline-block;border-radius:10px;padding:2px 8px;font-size:11.5px;font-weight:600;white-space:nowrap}
+#page-tcf .p-open{background:#FDE2E1;color:#B42318}#page-tcf .p-cond{background:#FEF0C7;color:#93370D}#page-tcf .p-acc{background:#DCFAE6;color:#067647}#page-tcf .p-na{background:#F2F4F7;color:#475467}
+#page-tcf .tcs-thumb{width:56px;height:42px;object-fit:contain;background:#fff;border:1px solid var(--bd);border-radius:4px}
+#page-tcf select.tcs-sel{height:30px;font-size:12px}
+#page-tcf .tcs-note{font-size:12px;color:var(--t2)}
+</style>
+<div id="page-tcf" class="page">
+  <div class="bc"><span>Technical Compliance</span><span class="sep">›</span><span class="cur">TCF Status &amp; Action Plan</span></div>
+  <div class="ph">
+    <div class="ph-l"><h2>TCF Status &amp; Action Plan</h2><p>Per ordered item: TCF test / document requirements, existing valid reports, supplier refs, actions and due dates · Trạng thái TCF và kế hoạch hành động — rules: tcf-status-action-plan (K-1 validity at ETD · K-2 existing reports first · K-3 supplier ref). A.R.E.N.A. validates only.</p></div>
+    <div class="ph-r tcs-row">
+      <input type="file" id="tcs-pi-input" multiple accept=".xlsx,.xlsm,.xls,.csv,.pdf,.docx" style="display:none" onchange="tcsAddPI(this)"/>
+      <input type="file" id="tcs-offer-input" accept=".xlsx,.xlsm" style="display:none" onchange="tcsAddOffer(this)"/>
+      <input type="file" id="tcs-rep-input" multiple accept=".pdf,.docx,.docm,.xlsx,.xls,.jpg,.jpeg,.png" style="display:none" onchange="tcsAddReports(this)"/>
+      <button class="btn btn-d" onclick="g('tcs-pi-input').click()" title="ARENA P.I. / VPO files (sheet ProformaInvoice) or other P.O. / P.I. files — priority source for P.O. lines, FRI and ETD">⬆ P.O. / P.I. files</button>
+      <button class="btn btn-d" onclick="g('tcs-offer-input').click()" title="Ally offer / quotation sheet (ARENA template, sheet ARENA, headers in row 8): item names, descriptions, materials, pictures, certificate columns">⬆ Offer sheet</button>
+      <button class="btn btn-d" onclick="g('tcs-rep-input').click()" title="Supplier test reports, declarations, mill certs, accreditation certificates (PDF / Word)">📎 Reports &amp; declarations</button>
+      <select class="fsel" id="tcs-lang" onchange="TCS.lang=this.value;tcsRender()" title="Workbook language"><option value="bi">Bilingual EN / VI (QS team)</option><option value="en">English only (Ally / supplier)</option></select>
+    </div>
+  </div>
+  <div class="card" style="padding:12px 14px">
+    <div class="tcs-row"><span class="tcs-note" style="font-weight:600">P.O. from the master file (fallback when no P.O. / P.I. file):</span>
+      <select class="fsel" id="tcs-po-pick" style="max-width:360px"></select><button class="btn btn-d btn-sm" onclick="tcsAddMasterPo()">+ Add P.O.</button>
+      <span id="tcs-po-chips" class="tcs-row"></span></div>
+    <div id="tcs-msg" class="tcs-note" style="margin-top:8px"></div>
+  </div>
+  <div id="tcs-out"></div>
+  <div id="tcs-items"></div>
+  <div id="tcs-reps"></div>
+</div>
+
+<!-- TCF-PAGE:END -->
 <div id="page-new-repeat" class="page">
   <!-- Page-scoped overrides: the table gets its own bounded, independently
        scrolling body (sticky header + sticky Supplier/Supplier-ref columns)
@@ -5898,7 +5943,7 @@ tick(); setInterval(tick, 30000);
 // ═══════════════════════════════════════════════════
 // NAVIGATION
 // ═══════════════════════════════════════════════════
-const TITLES = {'order-book':'A.R.E.N.A. Order Book',dashboard:'Dashboard',src:'Issue SRC','fri-val':'FRI Validation Report',orders:'Order Fulfilment','order-data':'Order Data',folder:'Order Folder',inspections:'Inspections','inspection-form':'Create Inspection Report',ppwr:'PPWR DoC',asc:'ASC Tracker',reporting:'Reporting & Analytics','sup-perf':'Supplier Performance',suppliers:'Factory Directory','audit-folder':'Factory Audit Folder','turnover-reports':'Supplier Turnover Reports',scorecard:'Supplier Scorecard','quality-kpis':'Dashboard — Quality KPI Register','nc-alerts':'Risk Assessment','new-repeat':'New vs Repeat Items'};
+const TITLES = {'tcf':'TCF Status & Action Plan','order-book':'A.R.E.N.A. Order Book',dashboard:'Dashboard',src:'Issue SRC','fri-val':'FRI Validation Report',orders:'Order Fulfilment','order-data':'Order Data',folder:'Order Folder',inspections:'Inspections','inspection-form':'Create Inspection Report',ppwr:'PPWR DoC',asc:'ASC Tracker',reporting:'Reporting & Analytics','sup-perf':'Supplier Performance',suppliers:'Factory Directory','audit-folder':'Factory Audit Folder','turnover-reports':'Supplier Turnover Reports',scorecard:'Supplier Scorecard','quality-kpis':'Dashboard — Quality KPI Register','nc-alerts':'Risk Assessment','new-repeat':'New vs Repeat Items'};
 
 // ─ Dashboard on/off toggle ────────────────────────────────
 let dashboardEnabled = localStorage.getItem('iqs-dashboard-enabled') === '1';
@@ -6038,6 +6083,7 @@ function go(id, el2) {
   if (id === 'dashboard') setTimeout(() => { initDashCharts(); dashSection(_secTarget || 'all'); }, 80);
   if (_titleOverride) g('topbar-title').textContent = _titleOverride;
   if (id === 'fri-val') friRenderAll();
+  if (id === 'tcf' && typeof tcsRender === 'function') tcsRender();
   if (id === 'inspection-form') initInspectionForm();
   if (id === 'src') { renderSrcPage(); if(!srcProductRows.length) initSrcProductRows(); }
   if (id === 'ppwr') renderPPWR();
@@ -7620,6 +7666,7 @@ function mfProcessWorkbook(wb, sourceName) {
 
   // ── 3. FRI Validation Report (replaces Inspection Booking) ───────────
   if (typeof friRenderAll === 'function') friRenderAll();
+  if (typeof tcsPoOptions === 'function') tcsPoOptions();
 
   // ── 4. Suppliers-Factories ───────────────────────────────────────────
   const wsSFName = wb.SheetNames.find(n =>
@@ -8378,7 +8425,8 @@ function tbApplyAll() {
   _markSrcDateSorted();
   renderDashboardOrders();       // Dashboard preview
   renderOrderDataPage();         // Order Data
-  if (typeof friRenderAll === 'function') friRenderAll();   // FRI Validation Report
+  if (typeof friRenderAll === 'function') friRenderAll();
+  if (typeof tcsPoOptions === 'function') tcsPoOptions();   // FRI Validation Report
 }
 
 // ── Global search ────────────────────────────────────
@@ -24657,7 +24705,855 @@ function iqaApplyCorrections() {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
 
+</script><!-- TCF-JS:BEGIN -->
+<script>
+// ═════════════ TCF STATUS & ACTION PLAN — built on the tcf-status-action-plan skill ═════════════
+// Inputs: P.O./P.I. files (priority; ARENA VPO template sheet "ProformaInvoice") or P.O.s of the loaded master file (fallback),
+// the Ally offer sheet (ARENA template: headers row 8, pictures in the "Item Picture" column, mapped by picture centre),
+// supplier reports / declarations. Rules: K-1 report valid 2 years from issue and up to ETD · K-2 existing valid reports first,
+// retest ASAP when expired before ETD or scope gap · K-3 supplier ref on every report / document.
+// Output: the TCF Status & Action Plan workbook (full layout). A.R.E.N.A. validates only — never manufacturer, importer or DoC signatory.
+const TCS = { lang: 'bi', pis: [], masterPos: [], offer: null, reports: [], streams: {} };
+const tcsE = s => friE(s);
+const TCS_MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// ── dates ──
+function tcsDate(v){
+  if (v === null || v === undefined || v === '') return '';
+  if (v instanceof Date && !isNaN(v)) return new Date(Date.UTC(v.getFullYear(), v.getMonth(), v.getDate())).toISOString().slice(0, 10);
+  if (typeof v === 'number' && v > 20000 && v < 80000) return new Date(Date.UTC(1899, 11, 30) + v * 864e5).toISOString().slice(0, 10);
+  const s = String(v).trim(); let m;
+  const iso = (y, mo, d) => { y = +y; if (y < 100) y += 2000; const t = new Date(Date.UTC(y, mo - 1, +d)); return (t.getUTCMonth() === mo - 1 && y > 1990 && y < 2100) ? t.toISOString().slice(0, 10) : ''; };
+  if ((m = s.match(/\b(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})\b/))) return iso(m[1], +m[2], m[3]);
+  if ((m = s.match(/\b(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})\b/))) return iso(m[3], +m[2], m[1]);   // dd/mm/yyyy (ARENA / EU convention)
+  const mon = x => TCS_MON.findIndex(n => x.toLowerCase().startsWith(n.toLowerCase())) + 1;
+  if ((m = s.match(/\b(\d{1,2})(?:st|nd|rd|th)?[\s\-.]+([A-Za-z]{3,9})\.?[\s\-.,]+(\d{2,4})\b/)) && mon(m[2])) return iso(m[3], mon(m[2]), m[1]);
+  if ((m = s.match(/\b([A-Za-z]{3,9})\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})\b/)) && mon(m[1])) return iso(m[3], mon(m[1]), m[2]);
+  return '';
+}
+const tcsFmt = d => { if (!d) return ''; const [y, mo, da] = d.split('-'); return `${da} ${TCS_MON[+mo - 1]} ${y}`; };
+const tcsAddYears = (d, n) => { if (!d) return ''; const [y, mo, da] = d.split('-').map(Number); const t = new Date(Date.UTC(y + n, mo - 1, da)); if (t.getUTCDate() !== da) t.setUTCDate(0); return t.toISOString().slice(0, 10); };
+const tcsAddDays = (d, n) => d ? new Date(Date.parse(d + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10) : '';
+const tcsToday = () => new Date().toISOString().slice(0, 10);
+const tcsNorm = s => String(s ?? '').toLowerCase().replace(/[\s\-_.]+/g, '');
+
+// ── language ──
+function BI(en, vi){ return TCS.lang === 'bi' && vi ? en + '\n' + vi : en; }
+function tcsT(o, k){ return BI(o.en.replace(/\{(\w+)\}/g, (_, x) => k[x] ?? ''), o.vi && o.vi.replace(/\{(\w+)\}/g, (_, x) => k[x] ?? '')); }
+
+// ═════ inputs ═════
+function tcsMsg(t){ const m = g('tcs-msg'); if (m) m.innerHTML = t; }
+async function tcsHash(f){ try { const b = await crypto.subtle.digest('SHA-256', await f.arrayBuffer()); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); } catch(e) { return f.name + ':' + f.size; } }
+
+// P.O. / P.I. — ARENA VPO template first, generic P.O. table reader otherwise
+async function tcsAddPI(inp){
+  const files = [...(inp.files || [])]; inp.value = ''; let n = 0;
+  for (const f of files) {
+    tcsMsg(`Reading ${tcsE(f.name)}…`);
+    try { const pi = await tcsReadPI(f); if (!pi.lines.length) { tcsMsg(`No P.O. lines found in ${tcsE(f.name)}.`); continue; }
+      // a "_revised" file supersedes the earlier one of the same P.O.
+      TCS.pis = TCS.pis.filter(p => !(p.po === pi.po && (/_revised/i.test(f.name) || p.name === f.name)));
+      if (!TCS.pis.some(p => p.po === pi.po && /_revised/i.test(p.name))) TCS.pis.push(pi); n++;
+    } catch(e) { tcsMsg(`Could not read ${tcsE(f.name)}: ${tcsE(e.message)}`); }
+  }
+  if (n) tcsMsg(`${n} P.O. / P.I. file(s) read.`);
+  tcsRender();
+}
+async function tcsReadPI(f){
+  const ext = (f.name.split('.').pop() || '').toLowerCase();
+  if (['xlsx','xlsm','xls','csv'].includes(ext)) {
+    const wb = XLSX.read(new Uint8Array(await f.arrayBuffer()), { type:'array', cellDates:true });
+    for (const sn of [...wb.SheetNames].sort((a, b) => (/proforma/i.test(b) ? 1 : 0) - (/proforma/i.test(a) ? 1 : 0))) {
+      const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header:1, raw:true, defval:'' });
+      const hr = aoa.findIndex((r, i) => i < 40 && r.some(c => /supplier\s*ref/i.test(String(c))) && r.some(c => /q'?ty|quantity|ean/i.test(String(c))));
+      if (hr < 0) continue;
+      const H = aoa[hr].map(c => String(c).trim()), col = re => H.findIndex(h => re.test(h));
+      const C = { sref: col(/supplier\s*ref/i), ally: col(/^(?!.*supplier).*(item\s*(number|no)|article)/i), hage: col(/^hage\b|\bhage\s*(no|number|nr)|second\s*(no|number)/i), desc: col(/descr/i), ean: col(/\b(ean|gtin|barcode)\b/i),
+        qty: col(/order\s*q|^q'?ty|quantity/i), fri: col(/inspection|\bfri\b/i), etd: col(/\betd\b|shipment/i), arena: col(/arena.*id/i) };
+      let po = String((aoa[10] || [])[13] || '').trim(), piDate = tcsDate((aoa[12] || [])[13]);
+      if (!po) { for (let i = 0; i < hr && !po; i++) { const r = aoa[i]; const k = r.findIndex(c => /p\.?\s?o\.?\s*(no|number|#)/i.test(String(c))); if (k >= 0) po = String(r.slice(k + 1).find(c => String(c).trim()) || '').trim(); } }
+      if (!po) po = (f.name.match(/_(\d{6,12})_/) || [])[1] || f.name.replace(/\.[^.]+$/, '');
+      const lines = [];
+      for (let i = hr + 1; i < aoa.length; i++) {
+        const r = aoa[i]; if (r.some(c => /^\s*(grand\s*)?total\b/i.test(String(c)))) break;
+        const get = k => C[k] >= 0 ? r[C[k]] : '';
+        const sref = String(get('sref')).trim(), qty = +String(get('qty')).replace(/[^\d.]/g, '') || 0;
+        if (!sref && !String(get('ean')).trim()) continue;
+        lines.push({ line: lines.length + 1, sref, ally: String(get('ally')).trim(), hage: String(get('hage')).trim(), desc: String(get('desc')).trim(),
+          ean: String(get('ean')).replace(/\D/g, ''), qty, fri: tcsDate(get('fri')), etd: tcsDate(get('etd')) });
+      }
+      return { name: f.name, po, piDate, lines, src: 'P.I.' };
+    }
+  }
+  // other P.O. / P.I. layouts: the shared table reader; FRI / ETD from the master file for that P.O.
+  const r = await friReadFileText(f), ls = await friReadPoDoc(f, r.text || '');
+  const po = ((r.text || '').match(/\bP\.?\s?O\.?\s*(?:No\.?|Number|#)?\s*[:：]?\s*([A-Z0-9][A-Z0-9\-\/]{4,})/i) || [])[1] || (f.name.match(/(\d{6,12}|\d{2}-\d{4}-\d+)/) || [])[1] || f.name;
+  const fu = friRows().find(x => String(x.po) === String(po)) || {};
+  return { name: f.name, po, piDate: '', src: 'P.O. file', lines: ls.map((l, i) => ({ line: i + 1, sref: l.sref || '', ally: l.code || '', hage: '', desc: l.desc || '', ean: l.ean || '', qty: l.qty || 0, fri: tcsDate(fu.inspPlan), etd: tcsDate(fu.etd) })) };
+}
+function tcsPoOptions(){
+  const s = g('tcs-po-pick'); if (!s) return;
+  const rows = friRows().filter(r => r.status === 'Open');
+  s.innerHTML = rows.length ? '<option value="">— open P.O. · lot —</option>' + rows.map(r => `<option value="${tcsE(r.po + '||' + friLotOf(r))}">${tcsE(r.po)} · ${tcsE(friLotOf(r))} — ${tcsE(r.ally || '')} · ${tcsE(r.sup || '')}${r.etd ? ' · ETD ' + tcsE(tcsFmt(tcsDate(r.etd))) : ''}</option>`).join('')
+    : '<option value="">Load the master file to list open P.O.s</option>';
+}
+function tcsAddMasterPo(){
+  const v = g('tcs-po-pick')?.value; if (!v) return; const [po, lot] = v.split('||');
+  if (!TCS.masterPos.some(p => p.po === po && p.lot === lot)) TCS.masterPos.push({ po, lot });
+  tcsRender();
+}
+function tcsDelPo(kind, i){ (kind === 'pi' ? TCS.pis : TCS.masterPos).splice(i, 1); tcsRender(); }
+// master P.O. → P.I.-like lines (ETD / FRI of the lot)
+function tcsMasterPI(p){
+  const fu = friLotRow(p) || {}, items = friLotItems(p);
+  return { name: 'Master file', po: p.po, lot: p.lot, src: 'master', ally: fu.ally, sup: fu.sup, lines: items.map((it, i) => ({ line: i + 1, sref: String(it.supRef || '').trim(), ally: String(it.allyRef || '').trim(), hage: '', desc: it.desc || '', ean: String(it.ean || '').replace(/\D/g, ''), qty: +it.qty || 0, fri: tcsDate(fu.inspPlan || fu.inspActual), etd: tcsDate(it.etd || fu.etd), cn: it.cn || it.hs || '' })) };
+}
+
+// Offer sheet (ARENA template) with pictures mapped by picture centre
+async function tcsAddOffer(inp){
+  const f = inp.files && inp.files[0]; inp.value = ''; if (!f) return;
+  tcsMsg(`Reading offer sheet ${tcsE(f.name)}…`);
+  try { TCS.offer = await tcsReadOffer(f); tcsMsg(`Offer sheet: ${TCS.offer.items.length} item(s), ${TCS.offer.items.filter(i => i.pic).length} picture(s) mapped by picture centre.`); }
+  catch(e) { tcsMsg(`Could not read the offer sheet: ${tcsE(e.message)}`); }
+  tcsRender();
+}
+async function tcsReadOffer(f){
+  const buf = await f.arrayBuffer(), wb = XLSX.read(new Uint8Array(buf), { type:'array', cellDates:true });
+  const sn = wb.SheetNames.find(n => /^arena$/i.test(n)) || wb.SheetNames[0];
+  const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header:1, raw:false, defval:'' });
+  const hr = aoa.findIndex((r, i) => i < 20 && r.some(c => /supplier.*(ref|item)|item\s*description/i.test(String(c))));
+  if (hr < 0) throw new Error('header row (Supplier Ref / Item Description) not found');
+  const H = aoa[hr].map(c => String(c).replace(/\s+/g, ' ').trim()), col = re => H.findIndex(h => re.test(h));
+  const C = { sref: col(/supplier.*(ref|item\s*no)/i), ean: col(/\b(ean|gtin)\b/i), name: col(/item\s*name|product\s*name|article\s*name/i), desc: col(/item\s*description/i), mat: col(/^material/i), pic: col(/picture/i) };
+  const certCols = H.map((h, i) => /certif|test\s*report|report/i.test(h) && i !== C.desc ? i : -1).filter(i => i >= 0);
+  const items = []; let blank = 0;
+  for (let i = hr + 1; i < aoa.length && blank < 6; i++) {
+    const r = aoa[i], get = k => C[k] >= 0 ? String(r[C[k]] || '').trim() : '';
+    if (!get('sref') && !get('desc') && !get('name')) { blank++; continue; } blank = 0;
+    items.push({ row: i + 1, sref: get('sref'), ean: get('ean').replace(/\D/g, ''), name: get('name'), desc: get('desc'), mat: get('mat'),
+      certs: certCols.map(k => String(r[k] || '').trim()).filter(Boolean), pic: null, picAlt: 0 });
+  }
+  // pictures: drawing anchors of that sheet; centre row decides the item (offer pictures are often anchored in the row above)
+  try {
+    const z = await friUnzip(buf), txt = async n => z.names.includes(n) ? new TextDecoder().decode(await z.read(n)) : '';
+    const wbx = await txt('xl/workbook.xml'), wbr = await txt('xl/_rels/workbook.xml.rels');
+    const rid = ([...wbx.matchAll(/<sheet\b[^>]*>/g)].map(m => m[0]).find(t => (t.match(/name="([^"]*)"/) || [])[1]?.replace(/&amp;/g, '&') === sn) || '').match(/r:id="([^"]+)"/)?.[1];
+    const tgt = rid && (wbr.match(new RegExp(`<Relationship[^>]*Id="${rid}"[^>]*Target="([^"]+)"`)) || wbr.match(new RegExp(`<Relationship[^>]*Target="([^"]+)"[^>]*Id="${rid}"`)) || [])[1];
+    const sp = tgt ? 'xl/' + tgt.replace(/^\/?xl\//, '') : 'xl/worksheets/sheet1.xml';
+    const sx = await txt(sp), sr = await txt(sp.replace(/worksheets\/([^/]+)$/, 'worksheets/_rels/$1.rels'));
+    const did = (sx.match(/<drawing\b[^>]*\br:id="([^"]+)"/) || [])[1];
+    const dt = did && (sr.match(new RegExp(`Id="${did}"[^>]*Target="([^"]+)"`)) || sr.match(new RegExp(`Target="([^"]+)"[^>]*Id="${did}"`)) || [])[1];
+    if (dt) {
+      const dp = 'xl/' + dt.replace(/^\.\.\//, '').replace(/^\/?xl\//, ''), dx = await txt(dp), dr = await txt(dp.replace(/drawings\/([^/]+)$/, 'drawings/_rels/$1.rels'));
+      const defHt = +((sx.match(/<sheetFormatPr[^>]*defaultRowHeight="([\d.]+)"/) || [])[1] || 15), hts = {};
+      for (const m of sx.matchAll(/<row\b[^>]*\br="(\d+)"[^>]*>/g)) { const h = (m[0].match(/\bht="([\d.]+)"/) || [])[1]; if (h) hts[+m[1] - 1] = +h; }
+      const rowTop = r => { let t = 0; for (let i = 0; i < r; i++) t += (hts[i] ?? defHt); return t * 12700; };   // EMU
+      const rowAt = y => { let t = 0, i = 0; while (i < 100000) { const h = (hts[i] ?? defHt) * 12700; if (y < t + h) return i; t += h; i++; } return i; };
+      const anchors = [...dx.matchAll(/<((?:xdr:)?(?:twoCellAnchor|oneCellAnchor))\b[\s\S]*?<\/\1>/g)].map(m => m[0]);   // with or without the xdr: prefix
+      const byRow = {};
+      for (const a of anchors) {
+        const fr = a.match(/<(?:xdr:)?from>[\s\S]*?<(?:xdr:)?col>(\d+)<\/(?:xdr:)?col>[\s\S]*?<(?:xdr:)?row>(\d+)<\/(?:xdr:)?row>[\s\S]*?<(?:xdr:)?rowOff>(-?\d+)<\/(?:xdr:)?rowOff>/);
+        const emb = (a.match(/r:embed="([^"]+)"/) || [])[1]; if (!fr || !emb) continue;
+        const col0 = +fr[1]; if (C.pic >= 0 && Math.abs(col0 - C.pic) > 1) continue;      // only the picture column (logos ignored)
+        const top = rowTop(+fr[2]) + +fr[3]; let bot;
+        const to = a.match(/<(?:xdr:)?to>[\s\S]*?<(?:xdr:)?row>(\d+)<\/(?:xdr:)?row>[\s\S]*?<(?:xdr:)?rowOff>(-?\d+)<\/(?:xdr:)?rowOff>/);
+        if (to) bot = rowTop(+to[1]) + +to[2]; else bot = top + +((a.match(/<(?:xdr:)?ext cx="\d+" cy="(\d+)"/) || [])[1] || 0);
+        const r0 = rowAt((top + bot) / 2) + 1;   // 1-based sheet row containing the picture centre
+        const target = (dr.match(new RegExp(`Id="${emb}"[^>]*Target="([^"]+)"`)) || dr.match(new RegExp(`Target="([^"]+)"[^>]*Id="${emb}"`)) || [])[1];
+        if (!target) continue;
+        (byRow[r0] = byRow[r0] || []).push({ top, path: 'xl/' + target.replace(/^\.\.\//, '').replace(/^\/?xl\//, '') });
+      }
+      for (const it of items) {
+        const list = (byRow[it.row] || []).sort((a, b) => a.top - b.top); if (!list.length) continue;
+        const p = list[0], ext = (p.path.split('.').pop() || '').toLowerCase(); if (!['png','jpg','jpeg','gif'].includes(ext)) continue;
+        const bytes = await z.read(p.path), blob = new Blob([bytes], { type: ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg' });
+        let w = 0, h = 0; try { const bm = await createImageBitmap(blob); w = bm.width; h = bm.height; } catch(e) {}
+        it.pic = { bytes, ext: ext === 'jpg' ? 'jpeg' : ext, w, h, url: URL.createObjectURL(blob), hash: await tcsHash(blob) };
+        it.picAlt = list.length - 1;
+      }
+    }
+  } catch(e) { console.warn('offer pictures', e); }
+  return { name: f.name, items };
+}
+
+// Reports, declarations, certificates
+async function tcsAddReports(inp){
+  const files = [...(inp.files || [])]; inp.value = ''; let n = 0, dup = 0;
+  for (const f of files) {
+    tcsMsg(`Reading ${tcsE(f.name)}…`);
+    try { const h = await tcsHash(f); if (TCS.reports.some(r => r.hash === h)) { dup++; continue; }
+      const r = await friReadFileText(f); TCS.reports.push(tcsParseReport(f.name, r.text || '', h, f)); n++;
+    } catch(e) { tcsMsg(`Could not read ${tcsE(f.name)}: ${tcsE(e.message)}`); }
+  }
+  TCS.reports.forEach((r, i) => { r.R = 'R' + (i + 1); });
+  tcsMsg(`${n} document(s) added${dup ? `, ${dup} duplicate(s) skipped (same content)` : ''}.`);
+  tcsRender();
+}
+const TCS_LABS = [['SGS',/\bSGS\b/],['Intertek',/intertek/i],['TÜV Rheinland',/t[uü]v\s*rheinland/i],['TÜV SÜD',/t[uü]v\s*s[uü]d/i],['Bureau Veritas',/bureau\s*veritas|\bBV\b/],['QIMA',/\bqima\b/i],['Eurofins',/eurofins/i],['UL',/\bUL\b/],['Hohenstein',/hohenstein/i],['Applus+',/applus/i],['CTI',/\bCTI\b/],['CCIC',/\bCCIC\b/],['Vinacontrol',/vinacontrol/i],['Quatest',/quatest/i]];
+function tcsParseReport(name, text, hash, file){
+  const t = String(text), head = t.slice(0, 2500);
+  const isDecl = /declaration|statement|certificate of (conformity|compliance)|mill\s*cert|inspection certificate|EN\s*10204|3\.1\b/i.test(name + ' ' + head.slice(0, 600)) && !/test\s*report/i.test(head.slice(0, 600));
+  const isAccr = /accreditation\s*certificate|certificate\s*of\s*accreditation/i.test(head);
+  const no = ((t.match(/(?:test\s*)?report\s*(?:no\.?|number|#)\s*[:：]?\s*([A-Z0-9][A-Z0-9\-\/.]{4,}[A-Z0-9])/i) || [])[1]) || ((t.match(/certificate\s*(?:no\.?|number)\s*[:：]?\s*([A-Z0-9][A-Z0-9\-\/.]{3,})/i) || [])[1]) || '';
+  const orig = t.match(/original\s*(?:report\s*)?(?:issue\s*)?date\s*[:：]?\s*([^\n|]{6,30})/i);
+  const di = t.match(/(?:date\s*of\s*issue|issue\s*date|issued\s*(?:on|date)?|report\s*date|date)\s*[:：]?\s*([^\n|]{6,30})/i);
+  const issue = tcsDate(orig ? orig[1] : '') || tcsDate(di ? di[1] : '') || '';
+  const lab = (TCS_LABS.find(([, re]) => re.test(head)) || [])[0] || '';
+  const applicant = ((t.match(/applicant\s*[:：]?\s*([^\n|]{3,80})/i) || [])[1] || '').trim();
+  const fail = /\b(fail(ed)?|does\s*not\s*(comply|conform|meet)|non[-\s]?conform)/i.test(t.replace(/pass\s*\/\s*fail/ig, ''));
+  const accredited = /ISO\/IEC\s*17025|accredit|CNAS|DAkkS|VILAS|UKAS|A2LA|ILAC/i.test(t);
+  return { name, text: t, hash, file, kind: isAccr ? 'accr' : isDecl ? 'doc' : 'test', no, issue, lab, applicant, fail, accredited, R: '' };
+}
+
+// ═════ items ═════
+const TCS_STREAM = { toy: 'Toy – TSD 2009/48/EC (CE)', ce: 'Other CE legislation (CE)', gpsr: 'GPSR (EU) 2023/988 – no CE' };
+function tcsAutoStream(t){
+  if (/\b(toys?|play(ing)?\s*(tent|house|set)?|sand\s*(box|pit)|kids?|child(ren)?'?s?|for\s*play|pretend)\b/i.test(t)) return 'toy';
+  if (/\b(led|battery|batteries|electric(al)?|usb|solar|charger|volt|230\s*v|lamp|motor|radio|bluetooth)\b/i.test(t)) return 'ce';
+  return 'gpsr';
+}
+function tcsFlags(t){
+  const x = String(t).toLowerCase();
+  return {
+    wpc: /\bwpc\b|wood[\s-]*plastic/.test(x), coex: /co-?\s*extru|co-?\s*extrution|capped/.test(x), single: /single[\s-]*extru/.test(x),
+    recycled: /recycl/.test(x), plastic: /\b(pp|pe|hdpe|ldpe|abs|pvc|ps|pet|pa6?|plastic|polypropylene|polyethylene|nylon|rubber|tpr|silicone|resin|bristles?)\b/.test(x),
+    pvc: /\bpvc\b/.test(x), steel: /\b(steel|iron|galvani[sz]ed|zinc)\b/.test(x), stainless: /stainless|\b(304|201|430)\b/.test(x), alu: /alumin/.test(x),
+    wood: /\b(wood(en)?|timber|pine|acacia|bamboo|fsc|eucalyptus|oak|beech|teak|rattan)\b/.test(x) && !/wood[\s-]*plastic|wood\s*flour/.test(x),
+    board: /\b(mdf|plywood|particle\s*board|chipboard|hdf)\b/.test(x), coat: /coat|paint|lacquer|varnish|powder|enamel/.test(x),
+    print: /print|logo/.test(x), textile: /textile|fabric|polyester|cotton|canvas|oxford|linen/.test(x),
+    food: /\b(food|kitchen|cutlery|plates?|cups?|mugs?|bowls?|cook(ing|ware)?|bbq|barbecue|grill|lunch\s*box|bottles?|tableware|utensils?|spatula|tongs)\b/.test(x),
+    brush: /brush|broom|bristle/.test(x), heat: /\b(bbq|barbecue|grill|oven|heat|fire\s*pit|stove)\b/.test(x),
+    load: /\b(bed|table|chair|bench|shelf|shelves|stand|rack|stool|trellis|arch|pergola|planter|sand\s*(box|pit)|swing|hammock|cart|trolley)\b/.test(x),
+    loose: /accessory\s*for\s*assembly|\bset\s*:|\d+\s*x\s+\w|assembl|\bkit\b|screws?|bolts?|panels?/.test(x), fixing: /trellis|wall|fix(ing)?\b|mount/.test(x),
+    ground: /\b(stakes?|spikes?|pegs?|edging|border|into\s*(the\s*)?ground)\b/.test(x),
+    pack: ((x.match(/\b(pallet|sleeve|poly\s*bag|polybag|colou?r\s*box|gift\s*box|display\s*box|blister|shrink)\b/) || [])[1] || 'carton').replace(/\s+/g, ' '),
+  };
+}
+function tcsItems(){
+  const pis = [...TCS.pis, ...TCS.masterPos.filter(p => !TCS.pis.some(x => x.po === p.po)).map(tcsMasterPI)];
+  const offer = (TCS.offer && TCS.offer.items) || [], items = [], key = l => tcsNorm(l.sref) || 'ean' + l.ean || 'ally' + tcsNorm(l.ally);
+  const findOffer = l => offer.find(o => (l.sref && tcsNorm(o.sref) === tcsNorm(l.sref)) || (l.ean && o.ean && o.ean === l.ean));
+  pis.forEach(pi => pi.lines.forEach(l => {
+    let it = items.find(i => i.key === key(l));
+    if (!it) { it = { key: key(l), sref: l.sref, ean: l.ean, ally: l.ally, hage: l.hage, poDesc: l.desc, lines: [], cn: l.cn || '', offer: findOffer(l) }; items.push(it); }
+    it.lines.push(Object.assign({ po: pi.po }, l));
+    if (!it.ally && l.ally) it.ally = l.ally; if (!it.ean && l.ean) it.ean = l.ean;
+  }));
+  const notOnPo = pis.length ? offer.filter(o => !items.some(i => i.offer === o)) : [];
+  if (!pis.length) offer.forEach(o => items.push({ key: tcsNorm(o.sref) || 'ean' + o.ean, sref: o.sref, ean: o.ean, ally: '', hage: '', poDesc: '', lines: [], cn: '', offer: o }));
+  const picHash = {};
+  items.forEach((it, i) => {
+    it.n = i + 1; const o = it.offer || {};
+    it.text = [it.poDesc, o.name, o.desc, o.mat].filter(Boolean).join(' · ');
+    it.f = tcsFlags(it.text);
+    // item name: product noun of the P.O. description, dimensions / material from the quotation; WPC extrusion type stated
+    let name = it.poDesc || o.name || o.desc || it.sref;
+    if (it.poDesc && o.name) { const dim = (o.name.match(/\d+\s*(?:x\s*\d+\s*)*(?:cm|mm|m)\b/i) || [])[0]; if (dim && !tcsNorm(it.poDesc).includes(tcsNorm(dim))) name = it.poDesc.replace(/\s*\d+\s*(?:x\s*\d+\s*)*(?:cm|mm|m)\b/i, '').trim() + ' ' + dim; }
+    if (it.f.wpc) name = name.replace(/\b(co-?extruded\s+|single-?extruded\s+)?WPC\b/i, '').replace(/\s{2,}/g, ' ').trim() + ', ' + (it.f.coex ? 'co-extruded WPC' : it.f.single ? 'single-extruded WPC' : 'WPC – extrusion type TBC');
+    it.name = name;
+    it.etd = it.lines.map(l => l.etd).filter(Boolean).sort()[0] || '';
+    it.fri = it.lines.map(l => l.fri).filter(Boolean).sort()[0] || '';
+    it.stream = TCS.streams[it.key] || tcsAutoStream(it.text);
+    it.pic = o.pic || null;
+    it.issues = [];
+    if (!it.pic && TCS.offer) it.issues.push({ en: 'No picture in offer sheet – supplier to send a correct picture', vi: 'Không có hình trong offer sheet – NCC gửi hình đúng' });
+    if (it.pic) { if (picHash[it.pic.hash]) it.issues.push({ en: `Offer picture is identical to item ${picHash[it.pic.hash]} – supplier to send the correct picture`, vi: `Hình trong offer giống mặt hàng ${picHash[it.pic.hash]} – NCC gửi hình đúng` }); else picHash[it.pic.hash] = it.n; }
+    if (/\bnew\b/i.test(o.ean || '') || (it.ean && it.ean.length !== 13 && it.ean.length !== 8)) it.issues.push({ en: `GTIN "${it.ean || o.ean}" not a valid EAN-13 – Merchandiser to confirm`, vi: `GTIN "${it.ean || o.ean}" không phải EAN-13 hợp lệ – Merchandiser xác nhận` });
+    if (it.offer && it.ean && it.offer.ean && it.offer.ean !== it.ean) it.issues.push({ en: `EAN on P.O. ${it.ean} differs from offer ${it.offer.ean} – confirm supplier ref ↔ Ally no. ↔ EAN before artwork release`, vi: `EAN trên P.O. ${it.ean} khác offer ${it.offer.ean} – xác nhận mã NCC ↔ mã Ally ↔ EAN trước khi duyệt artwork` });
+  });
+  return { items, pis, notOnPo };
+}
+
+// ═════ requirement catalogue (skill: Build procedure step 3) ═════
+// type: mat / prod / doc / qc · by: lab / wit / li / qc / doc · sev: CRI / MAJ · kw: report text that evidences the line
+const TCS_TYPE = { mat: ['Material test','Thử vật liệu'], prod: ['Product test','Thử sản phẩm'], doc: ['Document','Tài liệu'], qc: ['QC check','Kiểm tra QC'], sup: ['Supporting','Hỗ trợ'] };
+const TCS_BY = { lab: ['Lab only (ISO/IEC 17025)','Chỉ PTN (ISO/IEC 17025)'], wit: ['Lab or internal – witnessed','PTN hoặc nội bộ – có QC chứng kiến'], li: ['Lab or internal','PTN hoặc nội bộ'], qc: ['Internal – A.R.E.N.A. QC','Nội bộ – QC A.R.E.N.A.'], doc: ['Document','Tài liệu'] };
+const TCS_JOB = { J1: ['Toy / food contact tests','Thử nghiệm đồ chơi / tiếp xúc thực phẩm'], J2: ['Material chemistry per compound','Hóa chất vật liệu theo hỗn hợp'], J3: ['Coating / ink chemistry','Hóa chất lớp phủ / mực in'], J4: ['Physical tests per item','Thử nghiệm cơ lý theo mặt hàng'], J5: ['SVHC per material','SVHC theo vật liệu'], J6: ['Packaging heavy metals per packaging type','Kim loại nặng bao bì theo loại bao bì'], J7: ['Assembly instruction / instructions for use – document review','Hướng dẫn lắp ráp / sử dụng – xem xét tài liệu'] };
+function tcsReqs(it){
+  const f = it.f, L = [], add = (id, en, vi, type, by, sev, kw, job) => L.push({ id, en, vi, type, by, sev, kw, job });
+  const layer = f.wpc && f.coex ? ' – core and cap layer tested separately' : '', layerVi = f.wpc && f.coex ? ' – thử riêng lõi và lớp phủ' : '';
+  if (it.stream === 'toy') {
+    add('t71_1', 'EN 71-1 mechanical and physical properties (sharp edges / points, small parts, stability)', 'EN 71-1 tính chất cơ lý (cạnh sắc / đầu nhọn, chi tiết nhỏ, độ ổn định)', 'prod', 'lab', 'CRI', /EN\s*71-1\b/i, 'J1');
+    add('t71_2', 'EN 71-2 flammability', 'EN 71-2 tính dễ cháy', 'prod', 'lab', 'MAJ', /EN\s*71-2\b/i, 'J1');
+    add('t71_3', 'EN 71-3 migration of certain elements (each material / colour)' + layer, 'EN 71-3 thôi nhiễm một số nguyên tố (mỗi vật liệu / màu)' + layerVi, 'mat', 'lab', 'CRI', /EN\s*71-3\b/i, 'J1');
+  }
+  if (it.stream === 'ce') add('ceT', 'LVD / EMC / RoHS tests to the applicable harmonised standards', 'Thử nghiệm LVD / EMC / RoHS theo tiêu chuẩn hài hòa áp dụng', 'prod', 'lab', 'CRI', /\bEN\s*(60|61|55)\d{3}|\bLVD\b|\bEMC\b|RoHS|2011\/65/i, 'J4');
+  if (f.food) {
+    if (f.steel || f.stainless || f.alu) add('fcM', 'Food contact: metal release (EDQM CM/Res(2013)9, 3 migrations)', 'Tiếp xúc thực phẩm: thôi nhiễm kim loại (EDQM CM/Res(2013)9, 3 lần thôi nhiễm)', 'mat', 'lab', 'CRI', /metal\s*release|EDQM|CM\/Res/i, 'J1');
+    if (f.plastic || f.wpc) { add('fcO', 'Food contact: overall migration (Reg. (EU) 10/2011)', 'Tiếp xúc thực phẩm: thôi nhiễm tổng (Quy định (EU) 10/2011)', 'mat', 'lab', 'CRI', /overall\s*migration|\bOML\b/i, 'J1');
+      add('fcS', 'Food contact: specific migration (Reg. (EU) 10/2011 Annex I)', 'Tiếp xúc thực phẩm: thôi nhiễm riêng (Quy định (EU) 10/2011 Phụ lục I)', 'mat', 'lab', 'MAJ', /specific\s*migration|\bSML\b/i, 'J1'); }
+    add('fcSe', 'Food contact: sensory test (odour, taste – DIN 10955)', 'Tiếp xúc thực phẩm: thử cảm quan (mùi, vị – DIN 10955)', 'prod', 'lab', 'MAJ', /sensory|organoleptic|odou?r|10955/i, 'J1');
+  }
+  if (f.plastic || f.wpc || f.recycled) add('chem', 'REACH Annex XVII: PAH (AfPS GS 2019:01), Cd, Pb, phthalates in plastic / rubber / WPC parts' + layer, 'REACH Phụ lục XVII: PAH (AfPS GS 2019:01), Cd, Pb, phthalate trong chi tiết nhựa / cao su / WPC' + layerVi, 'mat', 'lab', 'MAJ', /\bPAH\b|\bPAK\b|phthalat|cadmium/i, 'J2');
+  if (f.wpc || f.recycled) add('pops', 'POPs Reg. (EU) 2019/1021: SCCP / MCCP, PBDE (recycled plastic / WPC)' + layer, 'POPs Quy định (EU) 2019/1021: SCCP / MCCP, PBDE (nhựa tái chế / WPC)' + layerVi, 'mat', 'lab', 'MAJ', /SCCP|MCCP|PBDE|\bPOPs?\b|2019\/1021/i, 'J2');
+  if (f.board) add('form', 'Formaldehyde emission of wood-based panels (REACH Annex XVII Entry 77)', 'Phát thải formaldehyde của ván gỗ (REACH Phụ lục XVII mục 77)', 'mat', 'lab', 'MAJ', /formaldehyde|717-1|16516/i, 'J2');
+  if (f.textile) add('tex', 'Textile parts: azo dyes, phthalates, PAH (REACH Annex XVII)', 'Chi tiết vải: thuốc nhuộm azo, phthalate, PAH (REACH Phụ lục XVII)', 'mat', 'lab', 'MAJ', /\bazo\b|aromatic\s*amine/i, 'J2');
+  if (f.coat) add('coat', 'Surface coating: Pb and Cd (REACH Annex XVII)', 'Lớp phủ bề mặt: Pb và Cd (REACH Phụ lục XVII)', 'mat', 'lab', 'MAJ', /(lead|\bPb\b|cadmium|\bCd\b)[^\n]{0,60}coating|coating[^\n]{0,60}(lead|\bPb\b|cadmium|\bCd\b)/i, 'J3');
+  if (f.print) add('ink', 'Printed logo / ink: heavy metals and PAH of the ink', 'Logo in / mực in: kim loại nặng và PAH của mực', 'mat', 'lab', 'MAJ', /\bink\b|printing/i, 'J3');
+  add('svhc', 'SVHC Candidate List screening per material (REACH Art. 33)', 'Sàng lọc SVHC theo Danh sách ứng viên cho mỗi vật liệu (REACH Điều 33)', 'mat', 'lab', 'MAJ', /SVHC|candidate\s*list|art(icle|\.)?\s*33/i, 'J5');
+  add('pack', `Packaging heavy metals Pb+Cd+Hg+Cr(VI) ≤ 100 mg/kg (PPWR (EU) 2025/40 Art. 5) – packaging type: ${f.pack}`, `Kim loại nặng trong bao bì Pb+Cd+Hg+Cr(VI) ≤ 100 mg/kg (PPWR (EU) 2025/40 Điều 5) – loại bao bì: ${f.pack}`, 'mat', 'lab', 'MAJ', /packag[^\n]{0,60}(heavy\s*metal|\bPb\b|\bHg\b)|heavy\s*metals?[^\n]{0,30}packag|94\/62|2025\/40/i, 'J6');
+  if (it.stream !== 'toy') add('edge', 'Sharp edges, points and burrs (all accessible parts)', 'Cạnh sắc, đầu nhọn và bavia (mọi chi tiết tiếp cận được)', 'prod', 'li', 'MAJ', /sharp\s*(edge|point)|burr/i, 'J4');
+  if (f.load && it.stream !== 'toy') add('load', 'Stability and strength under load (declared maximum load)', 'Độ ổn định và độ bền khi chịu tải (tải trọng tối đa công bố)', 'prod', 'li', 'MAJ', /stability|load\s*test|static\s*load|strength/i, 'J4');
+  if (f.steel && !f.stainless) add('corr', 'Corrosion resistance of steel parts (neutral salt spray ISO 9227)', 'Khả năng chống ăn mòn chi tiết thép (phun muối trung tính ISO 9227)', 'prod', 'wit', 'MAJ', /salt\s*spray|\bNSS\b|9227|corrosion/i, 'J4');
+  if (f.brush) add('bris', 'Bristle retention / pull-out force', 'Độ bám lông chổi / lực kéo bật', 'prod', 'wit', 'CRI', /bristle|pull-?\s*out|tuft/i, 'J4');
+  if (f.heat) add('heat', 'Heat resistance / deformation', 'Khả năng chịu nhiệt / biến dạng', 'prod', 'li', 'MAJ', /heat\s*resist|deformation/i, 'J4');
+  if (f.stainless || f.alu) add('xrf', 'Material identity of the declared metal grade (XRF at FRI or mill cert 3.1)', 'Xác định vật liệu theo mác kim loại công bố (XRF tại FRI hoặc chứng chỉ vật liệu 3.1)', 'qc', 'qc', 'MAJ', /\bXRF\b|mill\s*cert|EN\s*10204|3\.1\b/i, 'J4');
+  // documents
+  if (it.stream === 'toy') {
+    add('tSA', 'Toy safety assessment (TSD Art. 18) and technical documentation (Annex IV) – see sheet CE & DoC guideline', 'Đánh giá an toàn đồ chơi (TSD Điều 18) và hồ sơ kỹ thuật (Phụ lục IV) – xem sheet CE & DoC guideline', 'doc', 'doc', 'CRI', /safety\s*assessment|technical\s*documentation/i);
+    add('tDoC', 'EC declaration of conformity (TSD Annex III) and CE marking – see sheet CE & DoC guideline', 'Tuyên bố hợp quy EC (TSD Phụ lục III) và dấu CE – xem sheet CE & DoC guideline', 'doc', 'doc', 'CRI', /declaration\s*of\s*conformity|\bEC\s*DoC\b/i);
+    add('tMark', 'Toy marking and warnings (TSD Art. 11, Annex V): type / batch, manufacturer name and address, warnings decided in the safety assessment', 'Ghi nhãn và cảnh báo đồ chơi (TSD Điều 11, Phụ lục V): kiểu / lô, tên và địa chỉ nhà sản xuất, cảnh báo theo đánh giá an toàn', 'doc', 'doc', 'MAJ', /toy\s*marking|warnings?\s*label/i);
+  } else if (it.stream === 'ce') {
+    add('ceDoC', 'EU declaration of conformity, technical documentation and CE marking (Decision 768/2008/EC Annex III) – see sheet CE & DoC guideline', 'Tuyên bố hợp quy EU, hồ sơ kỹ thuật và dấu CE (Quyết định 768/2008/EC Phụ lục III) – xem sheet CE & DoC guideline', 'doc', 'doc', 'CRI', /declaration\s*of\s*conformity|\bDoC\b/i);
+  } else {
+    add('gpsr', 'GPSR Art. 9 marking: type / batch ID, manufacturer name, postal and electronic address, warnings; NO CE marking (GPSR product)', 'Ghi nhãn GPSR Điều 9: ID kiểu / lô, tên nhà sản xuất, địa chỉ bưu chính và điện tử, cảnh báo; KHÔNG dấu CE (sản phẩm GPSR)', 'doc', 'doc', 'MAJ', /GPSR|2023\/988/i);
+  }
+  if (f.food) add('fcD', 'Food contact declaration of compliance (Reg. (EC) 1935/2004; (EU) 10/2011 Annex IV for plastics)', 'Tuyên bố tuân thủ tiếp xúc thực phẩm (Quy định (EC) 1935/2004; (EU) 10/2011 Phụ lục IV cho nhựa)', 'doc', 'doc', 'MAJ', /declaration\s*of\s*compliance|1935\/2004/i);
+  add('md', 'Material declaration per component (signed PDF; supplier ref, Ally no. / GTIN; metal grade, coating and weight %; polymer, recycled content, additives, binder, biocides, flame retardants' + (f.wpc ? '; WPC extrusion type' : '') + ')',
+    'Khai báo vật liệu cho từng chi tiết (PDF có ký; mã NCC, mã Ally / GTIN; mác kim loại, lớp phủ và % khối lượng; polymer, hàm lượng tái chế, phụ gia, chất kết dính, chất diệt khuẩn, chất chống cháy' + (f.wpc ? '; kiểu đùn WPC' : '') + ')', 'doc', 'doc', 'MAJ', /material\s*(declaration|composition)|declaration\s*of\s*material/i);
+  // assembly instruction / instructions for use — one line per item, by how it reaches the consumer
+  const ally = tcsAlly();
+  if (it.stream === 'toy' && f.loose) add('ai', 'Assembly instruction + instructions for use – toy (TSD Art. 11 + Annex V; EN 71-1; EN 82079-1: adult-assembly warning where required, parts and screw list, periodic check of fixings, care, warnings and age grading consistent with the packaging)', 'Hướng dẫn lắp ráp + hướng dẫn sử dụng – đồ chơi (TSD Điều 11 + Phụ lục V; EN 71-1; EN 82079-1: cảnh báo người lớn lắp ráp khi cần, danh sách chi tiết và vít, kiểm tra định kỳ liên kết, bảo quản, cảnh báo và độ tuổi khớp với bao bì)', 'doc', 'doc', 'MAJ', /assembly\s*instruction|instructions?\s*for\s*use|user\s*manual/i, 'J7');
+  else if (f.loose && f.fixing) add('ai', 'Assembly instruction + fixing instruction (EN 82079-1; GPSR Art. 9(7): safety information first, parts and hardware list with quantities, tools, illustrated steps, fixing method, anchor type, max. load, care)', 'Hướng dẫn lắp ráp + hướng dẫn cố định (EN 82079-1; GPSR Điều 9(7): thông tin an toàn trước, danh sách chi tiết và phụ kiện kèm số lượng, dụng cụ, các bước có hình, cách cố định, loại tắc kê, tải tối đa, bảo quản)', 'doc', 'doc', 'MAJ', /assembly\s*instruction|fixing\s*instruction/i, 'J7');
+  else if (f.loose) add('ai', 'Assembly instruction + instructions for use (EN 82079-1; GPSR Art. 9(7): safety information first, parts and hardware list with quantities, tools, illustrated steps, use limits, care, UV / weathering)', 'Hướng dẫn lắp ráp + hướng dẫn sử dụng (EN 82079-1; GPSR Điều 9(7): thông tin an toàn trước, danh sách chi tiết và phụ kiện kèm số lượng, dụng cụ, các bước có hình, giới hạn sử dụng, bảo quản, chống tia UV / thời tiết)', 'doc', 'doc', 'MAJ', /assembly\s*instruction|instructions?\s*for\s*use/i, 'J7');
+  else if (f.ground) add('ai', 'Instructions for use / installation (GPSR Art. 9(7): installation depth, check for buried cables / pipes, CAUTION metal parts, care; may be on label / insert – Ally to confirm)', 'Hướng dẫn sử dụng / lắp đặt (GPSR Điều 9(7): độ sâu lắp đặt, kiểm tra cáp / ống ngầm, CẨN THẬN chi tiết kim loại, bảo quản; có thể in trên nhãn / tờ rời – Ally xác nhận)', 'doc', 'doc', 'MAJ', /instructions?\s*for\s*use|installation/i, 'J7');
+  else add('ai', 'Instructions for use (GPSR Art. 9(7): safe use, care, warnings; may be printed on packaging / label insert)', 'Hướng dẫn sử dụng (GPSR Điều 9(7): sử dụng an toàn, bảo quản, cảnh báo; có thể in trên bao bì / tờ nhãn)', 'doc', 'doc', 'MAJ', /instructions?\s*for\s*use|user\s*manual/i, 'J7');
+  L[L.length - 1].en += `; ${ally || 'Ally'} (manufacturer, own brand) name, postal + electronic address; product type / batch ID; language(s) of the Ally markets`;
+  L[L.length - 1].vi += `; tên, địa chỉ bưu chính + điện tử của ${ally || 'Ally'} (nhà sản xuất, thương hiệu riêng); ID kiểu / lô; ngôn ngữ theo thị trường của Ally`;
+  // CN code + overlays
+  const ov = [], ovVi = [];
+  if (f.steel || f.stainless) { ov.push('CBAM (CN 72/73 iron & steel: emissions data, authorised declarant)'); ovVi.push('CBAM (CN 72/73 sắt thép: dữ liệu phát thải, người khai báo được ủy quyền)'); }
+  if (f.alu) { ov.push('CBAM (CN 76 aluminium)'); ovVi.push('CBAM (CN 76 nhôm)'); }
+  if (f.wood) { ov.push('EUDR (wood CN 44 – A.R.E.N.A. has no EUDR role)'); ovVi.push('EUDR (gỗ CN 44 – A.R.E.N.A. không có vai trò EUDR)'); }
+  if (f.wpc) { ov.push('WPC under CN 39xx: EUDR out of scope once the CN code is confirmed'); ovVi.push('WPC thuộc CN 39xx: ngoài phạm vi EUDR khi CN được xác nhận'); }
+  add('cn', `CN code confirmation${it.cn ? ' (master: ' + it.cn + ')' : ''}${ov.length ? '; overlays: ' + ov.join('; ') : ''}`, `Xác nhận mã CN${it.cn ? ' (master: ' + it.cn + ')' : ''}${ovVi.length ? '; quy định liên quan: ' + ovVi.join('; ') : ''}`, 'doc', 'doc', 'MAJ', /\bCN\s*code|\bHS\s*code/i);
+  if (it.issues.length) add('spec', 'Specification consistency: ' + it.issues.map(x => x.en).join('; '), 'Tính nhất quán quy cách: ' + it.issues.map(x => x.vi).join('; '), 'doc', 'doc', 'MAJ', null);
+  return L;
+}
+function tcsAlly(){ const p = TCS.masterPos[0], fu = p ? friLotRow(p) : null; return (fu && fu.ally) || ((TCS.pis[0] || {}).ally) || (/hagebau/i.test(((TCS.pis[0] || {}).lines || []).map(l => l.ally).join(' ') + ' ' + (TCS.offer ? TCS.offer.name : '')) ? 'hagebau' : '') || 'Ally'; }
+
+// ═════ evaluation (K-1 / K-2 / K-3) ═════
+function tcsReportItems(r, items){
+  // which items a document is about: by supplier ref / Ally no. / EAN (ref stated), else by the item name (ref missing)
+  const T = tcsNorm(r.text), out = [];
+  items.forEach(it => {
+    const ids = [it.sref, it.ally, it.ean].filter(x => x && String(x).length >= 4);
+    const refOk = !!(it.sref && T.includes(tcsNorm(it.sref)));
+    const idHit = ids.some(x => T.includes(tcsNorm(x)));
+    const words = String(it.poDesc || (it.offer && it.offer.name) || it.name).toLowerCase().match(/[a-z]{4,}/g) || [];
+    const nameHit = words.length && words.filter(w => !/^(with|from|set|item|size|colou?r|wood|steel)$/.test(w)).every(w => r.text.toLowerCase().includes(w));
+    if (idHit || nameHit) out.push({ it, refOk: refOk || (!it.sref && idHit) });
+  });
+  return out;
+}
+function tcsEvaluate(){
+  const B = tcsItems(), items = B.items, today = tcsToday();
+  TCS.reports.forEach(r => { r.valid = r.issue ? tcsAddYears(r.issue, 2) : ''; r.cover = tcsReportItems(r, items); });
+  items.forEach(it => {
+    it.reqs = tcsReqs(it);
+    const ref = it.etd || today, etdTxt = it.etd ? tcsFmt(it.etd) : '';
+    it.reqs.forEach(q => {
+      const cands = TCS.reports.filter(r => r.kind !== 'accr' && q.kw && q.kw.test(r.text)).map(r => ({ r, c: r.cover.find(x => x.it === it) })).filter(x => x.c);
+      const sev = q.sev, rep = x => `${x.r.R} ${x.r.no || x.r.name}`, ok = x => x.c.refOk && x.r.valid && x.r.valid >= ref && !x.r.fail;
+      const best = cands.find(ok) || cands.find(x => x.c.refOk && !x.r.fail && !x.r.valid) || cands.find(x => !x.c.refOk) || cands.find(x => x.r.valid && x.r.valid < ref) || cands.find(x => x.r.fail) || cands[0];
+      q.ev = best || null; q.etd = it.etd;
+      const k = { sev, R: best ? best.r.R : '', no: best ? best.r.no : '', d: best ? tcsFmt(best.r.valid) : '', e: etdTxt, job: q.job || '', sref: it.sref || it.ally || '', n: it.n };
+      if (!best) { q.st = 'OPEN'; q.status = { en: `OPEN (${sev}) – no evidence`, vi: `MỞ (${sev}) – chưa có bằng chứng` }; q.evText = { en: 'None', vi: 'Chưa có' }; }
+      else if (q.type === 'doc' || best.r.kind === 'doc') {
+        if (!best.c.refOk) { q.st = 'OPEN'; q.status = { en: `OPEN (${sev}) – ${k.R} without supplier ref (K-3); issuer to amend`, vi: `MỞ (${sev}) – ${k.R} thiếu mã NCC (K-3); đơn vị phát hành sửa đổi` }; q.evText = { en: `${k.R} ${best.r.name} – supplier ref missing`, vi: `${k.R} ${best.r.name} – thiếu mã NCC` }; q.rv = 'ref'; }
+        else { q.st = 'CONDITIONAL'; q.status = { en: `CONDITIONAL – ${k.R} received; QS to check signature, stamp, signed PDF, components of this item`, vi: `CÓ ĐIỀU KIỆN – đã nhận ${k.R}; QS kiểm tra chữ ký, con dấu, PDF có ký, chi tiết của mặt hàng này` }; q.evText = { en: `${k.R} ${best.r.name} – received`, vi: `${k.R} ${best.r.name} – đã nhận` }; q.rv = 'cond'; }
+      }
+      else if (best.r.fail) { q.st = 'OPEN'; q.status = { en: `OPEN (${sev}) – ${k.R} failed result; correct and retest ASAP`, vi: `MỞ (${sev}) – ${k.R} kết quả không đạt; khắc phục và thử lại ngay` }; q.evText = { en: `${rep(best)} – failed result`, vi: `${rep(best)} – kết quả không đạt` }; q.rv = 'fail'; }
+      else if (!best.c.refOk) { q.st = 'OPEN'; q.status = { en: `OPEN (${sev}) – ${k.R} without supplier ref (K-3); lab to amend report`, vi: `MỞ (${sev}) – ${k.R} thiếu mã NCC (K-3); PTN sửa đổi báo cáo` }; q.evText = { en: `${rep(best)} – supplier ref missing`, vi: `${rep(best)} – thiếu mã NCC` }; q.rv = 'ref'; }
+      else if (!best.r.valid) { q.st = 'CONDITIONAL'; q.status = { en: `CONDITIONAL – ${k.R} issue date not readable; QS to confirm validity (K-1)`, vi: `CÓ ĐIỀU KIỆN – ${k.R} không đọc được ngày phát hành; QS xác nhận hiệu lực (K-1)` }; q.evText = { en: `${rep(best)} – issue date to confirm`, vi: `${rep(best)} – cần xác nhận ngày phát hành` }; q.rv = 'date'; }
+      else if (best.r.valid < ref) { q.st = 'OPEN'; q.status = it.etd ? { en: `OPEN (${sev}) – ${k.R} expires ${k.d} before ETD ${k.e} (K-1); retest ${k.job} ASAP`, vi: `MỞ (${sev}) – ${k.R} hết hiệu lực ${k.d} trước ETD ${k.e} (K-1); thử lại ${k.job} ngay` } : { en: `OPEN (${sev}) – ${k.R} expired ${k.d} (K-1); ETD not yet available; retest ${k.job} ASAP`, vi: `MỞ (${sev}) – ${k.R} hết hiệu lực ${k.d} (K-1); chưa có ETD; thử lại ${k.job} ngay` };
+        q.evText = { en: `${rep(best)} – expires ${k.d} before ETD ${k.e || '(n/a)'}`, vi: `${rep(best)} – hết hiệu lực ${k.d} trước ETD ${k.e || '(chưa có)'}` }; q.rv = 'exp'; }
+      else { q.st = 'ACCEPTED'; q.status = it.etd ? { en: `ACCEPTED – ${k.R} ${k.no}, valid to ${k.d} ≥ ETD ${k.e}`, vi: `CHẤP NHẬN – ${k.R} ${k.no}, hiệu lực đến ${k.d} ≥ ETD ${k.e}` } : { en: `ACCEPTED – ${k.R} ${k.no}, valid to ${k.d}; ETD not yet available – re-check at P.O.`, vi: `CHẤP NHẬN – ${k.R} ${k.no}, hiệu lực đến ${k.d}; chưa có ETD – kiểm tra lại khi có P.O.` };
+        q.evText = { en: `${rep(best)} – valid to ${k.d} / ETD ${k.e || '(n/a)'}`, vi: `${rep(best)} – hiệu lực đến ${k.d} / ETD ${k.e || '(chưa có)'}` }; q.rv = 'ok'; }
+      q.action = tcsAction(it, q, k); q.pic = q.st === 'ACCEPTED' ? 'QS' : q.by === 'qc' ? 'A.R.E.N.A. QC' : q.id === 'tDoC' || q.id === 'tSA' || q.id === 'ceDoC' ? `${tcsAlly()} / supplier` : 'Supplier';
+      q.due = q.st === 'ACCEPTED' ? '' : (it.etd ? tcsAddDays(it.etd, -45) : '');
+      q.done = q.st === 'ACCEPTED';
+    });
+    const tests = it.reqs.filter(q => q.type !== 'doc');
+    it.verdict = tests.some(q => q.st === 'OPEN' && q.sev === 'CRI') ? 'NOT MET' : !tests.some(q => q.st === 'ACCEPTED' || q.st === 'CONDITIONAL') ? 'NOT MET – no evidence' : tests.some(q => q.st !== 'ACCEPTED') ? 'CONDITIONAL' : 'MET';
+  });
+  // report verdicts (10-point check, automatic part)
+  TCS.reports.forEach(r => {
+    const covers = r.cover, etds = covers.map(c => c.it.etd).filter(Boolean).sort(), etd = etds[0] || '';
+    r.etd = etd; const refOk = covers.length && covers.every(c => c.refOk);
+    r.verdict = r.kind === 'accr' ? 'ACCEPTED (supporting)' : r.fail ? 'NOT ACCEPTED – failed result' : !covers.length ? 'NOT ACCEPTED – item not identified' : !refOk ? 'NOT ACCEPTED – supplier ref missing'
+      : r.kind === 'doc' ? 'CONDITIONAL – QS to check signature, stamp, components' : !r.valid ? 'CONDITIONAL – issue date to confirm' : r.valid < (etd || tcsToday()) ? 'NOT ACCEPTED – expires before ETD' : 'ACCEPTED';
+  });
+  return B;
+}
+function tcsAction(it, q, k){
+  const by = q.by, sref = k.sref, J = q.job ? `${q.job} ${TCS_JOB[q.job][0].toLowerCase()}` : '', Jv = q.job ? `${q.job} ${TCS_JOB[q.job][1].toLowerCase()}` : '';
+  const test = {
+    lab: { en: `Send sample of item ${it.n} to an ISO/IEC 17025 lab accredited for the method (${J}); supplier ref ${sref} on the report; file the report in the TCF.`, vi: `Gửi mẫu mặt hàng ${it.n} đến PTN ISO/IEC 17025 được công nhận cho phương pháp (${Jv}); ghi mã NCC ${sref} trên báo cáo; lưu báo cáo vào hồ sơ TCF.` },
+    li: { en: `Test item ${it.n} (${J}) at an ISO/IEC 17025 lab or in-house (IT-1…IT-5); supplier ref ${sref} on the report; file the report in the TCF.`, vi: `Thử mặt hàng ${it.n} (${Jv}) tại PTN ISO/IEC 17025 hoặc nội bộ (IT-1…IT-5); ghi mã NCC ${sref} trên báo cáo; lưu báo cáo vào hồ sơ TCF.` },
+    wit: { en: `Test item ${it.n} (${J}) at an ISO/IEC 17025 lab, or in-house witnessed by A.R.E.N.A. QC (IT-1…IT-6); supplier ref ${sref} on the report; file the report in the TCF.`, vi: `Thử mặt hàng ${it.n} (${Jv}) tại PTN ISO/IEC 17025, hoặc nội bộ có QC A.R.E.N.A. chứng kiến (IT-1…IT-6); ghi mã NCC ${sref} trên báo cáo; lưu báo cáo vào hồ sơ TCF.` },
+    qc: { en: `A.R.E.N.A. QC: XRF check at FRI (device ID, daily reference check, readings, photos), or supplier to submit mill cert 3.1 stating supplier ref ${sref}.`, vi: `QC A.R.E.N.A.: kiểm tra XRF tại FRI (mã thiết bị, kiểm tra chuẩn hằng ngày, kết quả, hình ảnh), hoặc NCC nộp chứng chỉ vật liệu 3.1 có mã NCC ${sref}.` },
+  }[by];
+  if (q.st === 'ACCEPTED') return { en: `Use existing report ${k.R} (valid to ${k.d}${k.e ? ' ≥ ETD ' + k.e : ''}); file in the item TCF; no retest.`, vi: `Sử dụng báo cáo hiện có ${k.R} (hiệu lực đến ${k.d}${k.e ? ' ≥ ETD ' + k.e : ''}); lưu vào hồ sơ TCF của mặt hàng; không thử lại.` };
+  if (q.rv === 'ref') return { en: `${q.type === 'doc' ? 'Issuer' : 'Lab'} to amend ${k.R} with supplier ref ${sref}; re-submit.`, vi: `${q.type === 'doc' ? 'Đơn vị phát hành' : 'PTN'} sửa đổi ${k.R} bổ sung mã NCC ${sref}; nộp lại.` };
+  if (q.rv === 'exp') return { en: `Retest ASAP – ${k.R} expires ${k.d}${k.e ? ' before ETD ' + k.e : ''}. ` + test.en, vi: `Thử nghiệm lại ngay – ${k.R} hết hiệu lực ${k.d}${k.e ? ' trước ETD ' + k.e : ''}. ` + test.vi };
+  if (q.rv === 'fail') return { en: `Failed result in ${k.R}: supplier to find the root cause, correct and retest ASAP. ` + (test ? test.en : ''), vi: `Kết quả không đạt trong ${k.R}: NCC tìm nguyên nhân, khắc phục và thử lại ngay. ` + (test ? test.vi : '') };
+  if (q.rv === 'cond' || q.rv === 'date') return { en: `QS to check ${k.R}: signature, stamp, signed PDF, components of this item only, supplier ref (K-3)${q.rv === 'date' ? ', issue date (K-1)' : ''}.`, vi: `QS kiểm tra ${k.R}: chữ ký, con dấu, PDF có ký, chỉ chi tiết của mặt hàng này, mã NCC (K-3)${q.rv === 'date' ? ', ngày phát hành (K-1)' : ''}.` };
+  if (q.id === 'ai') return { en: `Supplier: submit draft artwork (PDF + editable file) for A.R.E.N.A. QS review; ${tcsAlly()} approves final artwork before printing. A.R.E.N.A. QC: check correct version in each carton at FRI.`, vi: `NCC: nộp bản nháp artwork (PDF + file chỉnh sửa được) để QS A.R.E.N.A. xem xét; ${tcsAlly()} duyệt artwork cuối trước khi in. QC A.R.E.N.A.: kiểm tra đúng phiên bản trong mỗi thùng tại FRI.` };
+  if (q.id === 'tSA' || q.id === 'tDoC' || q.id === 'ceDoC') return { en: `${tcsAlly()} (manufacturer): follow sheet CE & DoC guideline steps; supplier provides samples, material declaration and test reports stating supplier ref ${sref}. A.R.E.N.A. validates, never signs.`, vi: `${tcsAlly()} (nhà sản xuất): thực hiện các bước trong sheet CE & DoC guideline; NCC cung cấp mẫu, khai báo vật liệu và báo cáo thử nghiệm có mã NCC ${sref}. A.R.E.N.A. thẩm định, không ký.` };
+  if (q.id === 'spec') return { en: 'Merchandiser: confirm supplier ref ↔ Ally no. ↔ EAN and the correct picture with the supplier before artwork / label release.', vi: 'Merchandiser: xác nhận mã NCC ↔ mã Ally ↔ EAN và hình đúng với NCC trước khi duyệt artwork / nhãn.' };
+  if (q.type === 'doc') { const d = q.en.split(/[(:–]/)[0].trim(), dv = q.vi.split(/[(:–]/)[0].trim(); return { en: `Supplier: submit ${d.charAt(0).toLowerCase() + d.slice(1)} stating supplier ref ${sref} (signed PDF).`, vi: `NCC: nộp ${dv.charAt(0).toLowerCase() + dv.slice(1)} có ghi mã NCC ${sref} (PDF có ký).` }; }
+  return test;
+}
+
+// ═════════════ minimal styled .xlsx writer (cells, formulas with cached values, merges, fills, wrap, freeze panes,
+// conditional formats, row heights, pictures, A3 landscape fit-to-width, print titles) — zipped by friZip ═════════════
+const tcsCol = n => { let s = ''; n++; while (n) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+const tcsRef = (r, c) => tcsCol(c) + r;
+const tcsX = s => String(s ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+function tcsSheet(name, cols){ return { name: name.replace(/[\[\]:*?/\\]/g, ' ').slice(0, 31), cols, cells: {}, ht: {}, merges: [], cf: [], images: [], freeze: null, titles: null, landscape: true }; }
+function tcsSet(sh, r, c, v, s, f){ sh.cells[r + ',' + c] = { v, s: s || {}, f }; }
+function tcsMerge(sh, r1, c1, r2, c2, s){ if (r1 === r2 && c1 === c2) return; sh.merges.push(`${tcsRef(r1, c1)}:${tcsRef(r2, c2)}`);
+  for (let r = r1; r <= r2; r++) for (let c = c1; c <= c2; c++) if (!(r === r1 && c === c1) && !sh.cells[r + ',' + c]) sh.cells[r + ',' + c] = { v: null, s: s || (sh.cells[r1 + ',' + c1] || {}).s || {} }; }
+function tcsXlsx(sheets, definedNames){
+  const fonts = [], fills = ['<fill><patternFill patternType="none"/></fill>', '<fill><patternFill patternType="gray125"/></fill>'], borders = ['<border><left/><right/><top/><bottom/><diagonal/></border>'], xfs = [], dxfs = [];
+  const idx = (arr, x) => { let i = arr.indexOf(x); if (i < 0) { arr.push(x); i = arr.length - 1; } return i; };
+  const font = s => idx(fonts, `<font>${s.b ? '<b/>' : ''}${s.i ? '<i/>' : ''}${s.u ? '<u/>' : ''}<sz val="${s.sz || 9}"/><color rgb="FF${s.color || '000000'}"/><name val="Arial"/><family val="2"/></font>`);
+  idx(fonts, '<font><sz val="10"/><color rgb="FF000000"/><name val="Arial"/><family val="2"/></font>');   // default font sets the column-width unit (7 px per char)
+  const xf = s => {
+    const fi = font(s), fl = s.fill ? idx(fills, `<fill><patternFill patternType="solid"><fgColor rgb="FF${s.fill}"/><bgColor indexed="64"/></patternFill></fill>`) : 0;
+    const bc = s.bc || 'A6A6A6', bo = s.border === false ? 0 : idx(borders, `<border><left style="thin"><color rgb="FF${bc}"/></left><right style="thin"><color rgb="FF${bc}"/></right><top style="thin"><color rgb="FF${bc}"/></top><bottom style="thin"><color rgb="FF${bc}"/></bottom><diagonal/></border>`);
+    const nf = s.date ? 164 : 0;
+    return idx(xfs, `<xf numFmtId="${nf}" fontId="${fi}" fillId="${fl}" borderId="${bo}" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"${nf ? ' applyNumberFormat="1"' : ''}><alignment horizontal="${s.h || 'left'}" vertical="${s.v || 'top'}" wrapText="${s.wrap === false ? 0 : 1}"/></xf>`);
+  };
+  xf({ border: false });
+  const files = [], ct = [], wbSheets = [], wbRels = [];
+  let imgN = 0, drawN = 0;
+  sheets.forEach((sh, si) => {
+    const rows = {};
+    Object.entries(sh.cells).forEach(([k, c]) => { const [r, col] = k.split(',').map(Number); (rows[r] = rows[r] || []).push([col, c]); });
+    const rnums = Object.keys(rows).map(Number).concat(Object.keys(sh.ht).map(Number)).filter((v, i, a) => a.indexOf(v) === i).sort((a, b) => a - b);
+    const data = rnums.map(r => {
+      const cs = (rows[r] || []).sort((a, b) => a[0] - b[0]).map(([c, cell]) => {
+        const s = xf(cell.s), ref = tcsRef(r, c), v = cell.v;
+        if (cell.f) { const isNum = typeof v === 'number'; return `<c r="${ref}" s="${s}"${isNum || v === null || v === undefined ? '' : ' t="str"'}><f>${tcsX(cell.f)}</f>${v === null || v === undefined || v === '' ? '' : `<v>${tcsX(v)}</v>`}</c>`; }
+        if (v === null || v === undefined || v === '') return `<c r="${ref}" s="${s}"/>`;
+        if (typeof v === 'number') return `<c r="${ref}" s="${s}"><v>${v}</v></c>`;
+        return `<c r="${ref}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${tcsX(v)}</t></is></c>`;
+      }).join('');
+      return `<row r="${r}"${sh.ht[r] ? ` ht="${sh.ht[r].toFixed(1)}" customHeight="1"` : ''}>${cs}</row>`;
+    }).join('');
+    const cfx = sh.cf.map((c, i) => `<conditionalFormatting sqref="${c.sqref}"><cfRule type="expression" dxfId="${idx(dxfs, `<dxf><font>${c.b ? '<b/>' : ''}<color rgb="FF${c.color}"/></font>${c.fill ? `<fill><patternFill patternType="solid"><fgColor rgb="FF${c.fill}"/><bgColor rgb="FF${c.fill}"/></patternFill></fill>` : ''}</dxf>`)}" priority="${i + 1}"${c.stop ? ' stopIfTrue="1"' : ''}><formula>${tcsX(c.formula)}</formula></cfRule></conditionalFormatting>`).join('');
+    const pane = sh.freeze ? `<pane xSplit="${sh.freeze.c}" ySplit="${sh.freeze.r}" topLeftCell="${tcsRef(sh.freeze.r + 1, sh.freeze.c)}" activePane="bottomRight" state="frozen"/><selection pane="bottomRight"/>` : '';
+    let drawing = '';
+    if (sh.images.length) {
+      drawN++; const dn = drawN, rels = [];
+      const anchors = sh.images.map((im, i) => { imgN++; const nm = `image${imgN}.${im.ext}`; files.push([`xl/media/${nm}`, im.bytes]); rels.push(`<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/${nm}"/>`);
+        return `<xdr:oneCellAnchor><xdr:from><xdr:col>${im.c}</xdr:col><xdr:colOff>${Math.round(im.colOff)}</xdr:colOff><xdr:row>${im.r - 1}</xdr:row><xdr:rowOff>${Math.round(im.rowOff)}</xdr:rowOff></xdr:from><xdr:ext cx="${Math.round(im.cx)}" cy="${Math.round(im.cy)}"/><xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${i + 2}" name="Picture ${i + 1}"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="rId${i + 1}"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${Math.round(im.cx)}" cy="${Math.round(im.cy)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>`; }).join('');
+      files.push([`xl/drawings/drawing${dn}.xml`, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">${anchors}</xdr:wsDr>`]);
+      files.push([`xl/drawings/_rels/drawing${dn}.xml.rels`, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels.join('')}</Relationships>`]);
+      files.push([`xl/worksheets/_rels/sheet${si + 1}.xml.rels`, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing${dn}.xml"/></Relationships>`]);
+      ct.push(`<Override PartName="/xl/drawings/drawing${dn}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>`);
+      drawing = '<drawing r:id="rId1"/>';
+    }
+    const lastR = rnums.length ? rnums[rnums.length - 1] : 1;
+    files.push([`xl/worksheets/sheet${si + 1}.xml`, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:${tcsRef(lastR, sh.cols.length - 1)}"/><sheetViews><sheetView workbookViewId="0"${si === 0 ? ' tabSelected="1"' : ''} zoomScale="90">${pane}</sheetView></sheetViews><sheetFormatPr defaultRowHeight="12.75"/><cols>${sh.cols.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${data}</sheetData>${sh.merges.length ? `<mergeCells count="${sh.merges.length}">${sh.merges.map(m => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : ''}${cfx}<printOptions horizontalCentered="1"/><pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/><pageSetup paperSize="8" orientation="${sh.landscape ? 'landscape' : 'portrait'}" fitToWidth="1" fitToHeight="0"/><headerFooter><oddFooter>&amp;L&amp;8${tcsX(sh.name)}&amp;R&amp;8&amp;P / &amp;N</oddFooter></headerFooter>${drawing}</worksheet>`]);
+    ct.push(`<Override PartName="/xl/worksheets/sheet${si + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`);
+    wbSheets.push(`<sheet name="${tcsX(sh.name)}" sheetId="${si + 1}" r:id="rId${si + 1}"/>`);
+    wbRels.push(`<Relationship Id="rId${si + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${si + 1}.xml"/>`);
+  });
+  const n = sheets.length;
+  const dn = sheets.map((sh, i) => sh.titles ? `<definedName name="_xlnm.Print_Titles" localSheetId="${i}">'${tcsX(sh.name.replace(/'/g, "''"))}'!${sh.titles}</definedName>` : '').join('') + (definedNames || '');
+  files.unshift(
+    ['[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpeg" ContentType="image/jpeg"/><Default Extension="gif" ContentType="image/gif"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>${ct.join('')}</Types>`],
+    ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>'],
+    ['docProps/core.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>TCF Status and Action Plan</dc:title><dc:creator>A.R.E.N.A. IQS</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString().slice(0, 19)}Z</dcterms:created></cp:coreProperties>`],
+    ['xl/workbook.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView activeTab="0"/></bookViews><sheets>${wbSheets.join('')}</sheets>${dn ? `<definedNames>${dn}</definedNames>` : ''}<calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>`],
+    ['xl/_rels/workbook.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${wbRels.join('')}<Relationship Id="rId${n + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`],
+    ['xl/styles.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="dd mmm yyyy"/></numFmts><fonts count="${fonts.length}">${fonts.join('')}</fonts><fills count="${fills.length}">${fills.join('')}</fills><borders count="${borders.length}">${borders.join('')}</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="${xfs.length}">${xfs.join('')}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles><dxfs count="${dxfs.length}">${dxfs.join('')}</dxfs></styleSheet>`]
+  );
+  return new Blob([friZip(files)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+const tcsSerial = d => d ? Math.round((Date.parse(d + 'T00:00:00Z') - Date.UTC(1899, 11, 30)) / 864e5) : '';
+// row height from wrapped text: 12.5 pt per line + 6 (Arial 9); chars per line ≈ column width × 1.2
+function tcsLines(text, width){ if (text === null || text === undefined || text === '') return 1; const cpl = Math.max(4, Math.floor(width * 1.15)); return String(text).split('\n').reduce((a, p) => a + Math.max(1, Math.ceil(p.length / cpl)), 0); }
+const tcsHt = n => 12.5 * n + 6;
+
+// ═════════════ the TCF workbook (full layout of the skill) ═════════════
+const TCS_K = [
+  { en: 'Report validity: an accredited (ISO/IEC 17025) laboratory test report is accepted for 2 years from its issue date and must remain valid up to the ETD of the shipment.', vi: 'Hiệu lực báo cáo: báo cáo thử nghiệm của phòng thử nghiệm được công nhận (ISO/IEC 17025) được chấp nhận trong 2 năm kể từ ngày phát hành và phải còn hiệu lực đến ngày ETD của lô hàng.' },
+  { en: 'Existing reports first: review and identify existing valid reports that can be leveraged for this shipment, to reduce testing cost and shorten the project timeline. For reports that expire before the shipment ETD or do not fully cover the product scope, arrange retesting as soon as possible to avoid delays in shipment approval and compliance clearance.', vi: 'Ưu tiên báo cáo hiện có: rà soát và xác định các báo cáo còn hiệu lực có thể sử dụng cho lô hàng này, nhằm giảm chi phí thử nghiệm và rút ngắn tiến độ dự án. Với báo cáo hết hiệu lực trước ngày ETD hoặc không bao phủ đầy đủ phạm vi sản phẩm, sắp xếp thử nghiệm lại càng sớm càng tốt để tránh chậm trễ phê duyệt xuất hàng và phê duyệt tuân thủ.' },
+  { en: 'Supplier reference: the supplier item reference must be stated in every test report and in every requested or concerned document; reports or documents without it are not accepted until amended by the issuer.', vi: 'Mã tham chiếu NCC: mã hàng của nhà cung cấp phải được ghi trên mọi báo cáo thử nghiệm và mọi tài liệu được yêu cầu hoặc liên quan; báo cáo hoặc tài liệu không có thông tin này không được chấp nhận cho đến khi được đơn vị phát hành sửa đổi.' },
+];
+const TCS_BANDS = ['EAF2FB', 'EEF7EC', 'FDF3E6', 'F3EEFA', 'E9F6F5', 'FBEFF2'];
+const S_H = { b: true, fill: '1F3864', color: 'FFFFFF', h: 'center', v: 'center' }, S_T = { b: true, sz: 12, color: '1F3864', border: false, v: 'center' };
+function tcsKeyBlock(sh, r, c2){
+  const y = { fill: 'FFF2CC', bc: 'D6B656' };
+  tcsSet(sh, r, 0, BI('Key requirements (mandatory in every build and revision)', 'Yêu cầu chính (bắt buộc cho mọi lần lập và sửa đổi)'), Object.assign({ b: true }, y)); tcsMerge(sh, r, 0, r, c2, y); sh.ht[r] = tcsHt(TCS.lang === 'bi' ? 2 : 1);
+  TCS_K.forEach((k, i) => { const t = `K-${i + 1}  ` + BI(k.en, k.vi); tcsSet(sh, r + 1 + i, 0, t, y); tcsMerge(sh, r + 1 + i, 0, r + 1 + i, c2, y); sh.ht[r + 1 + i] = tcsHt(tcsLines(t, 230)); });
+  return r + 4;
+}
+function tcsBuildBook(B){
+  const items = B.items, ally = tcsAlly(), lang = TCS.lang, today = tcsToday();
+  const sup = (TCS.masterPos[0] && (friLotRow(TCS.masterPos[0]) || {}).sup) || ((TCS.pis[0] || {}).name || '').replace(/\.[^.]+$/, '').split('_').slice(3).join(' ') || 'supplier';
+  const pos = [...new Set(B.pis.map(p => p.po))];
+  const etdPerPo = B.pis.map(p => { const e = p.lines.map(l => l.etd).filter(Boolean).sort()[0]; return `${p.po}${p.lot ? ' · ' + p.lot : ''}: ETD ${e ? tcsFmt(e) : 'n/a'}`; });
+  const noPo = !B.pis.length;
+  const sheets = [];
+  // ── sheet 1 ──
+  const W = [5, 24, 21, 19, 27, 17, 42, 12, 16, 30, 36, 32, 16, 44, 13, 11, 13];
+  const S1 = tcsSheet(`TCF status ${ally}`, W); sheets.push(S1);
+  const LAST = W.length - 1;
+  const title = `${ally} – TCF Status & Action Plan – ${sup} – ${pos.length ? 'P.O. ' + pos.join(', ') : 'order'} – ${lang === 'bi' ? 'EN / VI' : 'EN'} – ` + (noPo ? 'P.O. / P.I. not yet available – P.O. fields left blank; run the P.O. cross-check when received' : etdPerPo.join(' · '));
+  const titleVi = `${ally} – Trạng thái TCF và Kế hoạch hành động – ${sup} – ${noPo ? 'Chưa có P.O. / P.I. – để trống các trường P.O.' : etdPerPo.join(' · ')} – lập ${tcsFmt(today)}`;
+  tcsSet(S1, 1, 0, BI(title, titleVi), S_T); tcsMerge(S1, 1, 0, 1, LAST, S_T); S1.ht[1] = tcsHt(tcsLines(BI(title, titleVi), 300));
+  const H = [['No.','STT'],['Item name','Tên mặt hàng'],['Picture','Hình ảnh'],['Supplier item no.','Mã hàng NCC'],[`${ally} ref (P.O. no.)`,`Tham chiếu ${ally} (số P.O.)`],[`${ally} no.`,`Mã ${ally}`],['TCF requirement (test / document)','Yêu cầu TCF (thử nghiệm / tài liệu)'],['Evidence type','Loại bằng chứng'],['Testing by (acceptable)','Đơn vị thử nghiệm được chấp nhận'],['Evidence submitted','Bằng chứng đã nộp'],['TCF assessment accumulated status','Trạng thái đánh giá TCF lũy kế'],['Q.S remark (item)','Nhận xét Q.S (mặt hàng)'],['Item verdict (test evidence)','Kết luận mặt hàng (bằng chứng thử nghiệm)']];
+  H.forEach((h, c) => { tcsSet(S1, 2, c, BI(h[0], h[1]), S_H); tcsMerge(S1, 2, c, 3, c, S_H); });
+  tcsSet(S1, 2, 13, BI('Action plan', 'Kế hoạch hành động'), S_H); tcsMerge(S1, 2, 13, 2, 16, S_H);
+  [['Action required','Hành động cần thực hiện'],['PIC','Người phụ trách'],['Due date','Hạn hoàn thành'],['Status','Tình trạng']].forEach((h, i) => tcsSet(S1, 3, 13 + i, BI(h[0], h[1]), S_H));
+  S1.ht[2] = tcsHt(lang === 'bi' ? 2 : 1); S1.ht[3] = tcsHt(lang === 'bi' ? 3 : 2);
+  S1.freeze = { r: 3, c: 2 }; S1.titles = '$2:$3';
+  let r = 4; const blocks = [];
+  const tag = TCS.reports.length ? ` [Val. #1, ${tcsFmt(today)}]` : '';
+  items.forEach((it, ii) => {
+    const band = TCS_BANDS[ii % TCS_BANDS.length], base = { fill: band }, r0 = r, nT = it.reqs.filter(q => q.type !== 'doc').length;
+    const dTxt = [it.sref, it.ean ? 'GTIN ' + it.ean : '', it.offer && it.offer.sref && it.offer.sref !== it.sref ? 'offer ' + it.offer.sref : ''].filter(Boolean).join('\n');
+    const eTxt = noPo ? '' : it.lines.slice().sort((a, b) => String(a.po).localeCompare(String(b.po)) || String(a.etd).localeCompare(String(b.etd))).map(l => `${l.po} L${l.line} · ${l.qty} pcs · FRI ${l.fri ? tcsFmt(l.fri) : 'n/a'} · ETD ${l.etd ? tcsFmt(l.etd) : 'n/a'}`).join('\n');
+    const fTxt = noPo ? '' : [it.ally, it.hage, it.poDesc ? `'${it.poDesc}'` : ''].filter(Boolean).join('\n');
+    const rem = [];
+    if (it.pic) rem.push(BI('Picture: offer reference (marketing) photo – not evidence of the actual product.', 'Hình: ảnh tham khảo trong offer (marketing) – không phải bằng chứng sản phẩm thực tế.') + (it.offer.picAlt ? ' ' + BI(`(${it.offer.picAlt} alternate view(s) in the offer row)`, `(${it.offer.picAlt} hình góc khác trong dòng offer)`) : ''));
+    rem.push(BI(`Legal stream: ${TCS_STREAM[it.stream]}.`, `Luồng pháp lý: ${{ toy: 'Đồ chơi – TSD 2009/48/EC (CE)', ce: 'Văn bản CE khác (CE)', gpsr: 'GPSR (EU) 2023/988 – không CE' }[it.stream]}.`));
+    if (it.f.wpc) rem.push(BI(`WPC: ${it.f.coex ? 'co-extruded – core and cap layer tested as separate materials; grouping only with the same core compound and cap-layer colour' : it.f.single ? 'single-extruded – grouping only with the same compound and colour' : 'extrusion type not stated – material declaration must state it'}.`, `WPC: ${it.f.coex ? 'đồng đùn – thử riêng lõi và lớp phủ; chỉ gộp khi cùng hỗn hợp lõi và màu lớp phủ' : it.f.single ? 'đùn đơn lớp – chỉ gộp khi cùng hỗn hợp và màu' : 'chưa nêu kiểu đùn – khai báo vật liệu phải nêu'}.`));
+    if (!noPo && it.fri && it.fri <= tcsAddDays(today, 14) && it.reqs.some(q => q.st !== 'ACCEPTED')) rem.push(BI(`URGENT: FRI ${tcsFmt(it.fri)} within 14 days with open evidence.`, `KHẨN: FRI ${tcsFmt(it.fri)} trong vòng 14 ngày, còn bằng chứng mở.`));
+    rem.push(BI('The full item TCF verdict also needs the document deliverables.', 'Kết luận TCF đầy đủ của mặt hàng còn cần các tài liệu.'));
+    const remTxt = `IQA ${tcsFmt(today)}: ` + rem.join('\n');
+    it.reqs.forEach((q, qi) => {
+      const rr = r + qi, stFill = q.st === 'ACCEPTED' ? 'C6EFCE' : q.st === 'CONDITIONAL' ? 'FFEB9C' : q.st === 'N/A' ? 'EDEDED' : 'FFC7CE';
+      const vals = [null, null, null, null, null, null, BI(q.en, q.vi), BI(TCS_TYPE[q.type][0], TCS_TYPE[q.type][1]), BI(TCS_BY[q.by][0], TCS_BY[q.by][1]), BI(q.evText.en + (q.ev ? tag : ''), q.evText.vi + (q.ev ? tag : '')), BI(q.status.en, q.status.vi)];
+      vals.forEach((v, c) => { if (c >= 6) tcsSet(S1, rr, c, v, c === 10 ? { fill: stFill } : base); });
+      tcsSet(S1, rr, 13, BI(q.action.en, q.action.vi), base); tcsSet(S1, rr, 14, q.pic, base);
+      if (q.due) tcsSet(S1, rr, 15, tcsSerial(q.due), Object.assign({ date: true, h: 'center' }, base)); else tcsSet(S1, rr, 15, '', base);
+      tcsSet(S1, rr, 16, q.done ? BI('Done', 'Hoàn thành') : BI('Open', 'Mở'), base);
+      S1.ht[rr] = tcsHt(Math.max(...[6, 7, 8, 9, 10, 13].map(c => tcsLines(vals[c] ?? (c === 13 ? BI(q.action.en, q.action.vi) : ''), W[c]))));
+    });
+    const r1 = r + it.reqs.length - 1;
+    tcsSet(S1, r0, 0, it.n, Object.assign({ h: 'center' }, base)); tcsSet(S1, r0, 1, it.name, Object.assign({ b: true }, base));
+    tcsSet(S1, r0, 2, it.pic ? '' : (TCS.offer ? BI('No picture in offer sheet', 'Không có hình trong offer sheet') : ''), Object.assign({ h: 'center' }, base));
+    tcsSet(S1, r0, 3, dTxt, base); tcsSet(S1, r0, 4, eTxt, base); tcsSet(S1, r0, 5, fTxt, base); tcsSet(S1, r0, 11, remTxt, base);
+    const KR = `K${r0}:K${r0 + Math.max(nT, 1) - 1}`, bi = lang === 'bi';
+    const vf = `IF(COUNTIF(${KR},"OPEN (CRI)*")>0,"NOT MET"${bi ? '&CHAR(10)&"CHƯA ĐẠT"' : ''},IF(COUNTIF(${KR},"ACCEPTED*")+COUNTIF(${KR},"CONDITIONAL*")=0,"NOT MET – no evidence"${bi ? '&CHAR(10)&"CHƯA ĐẠT – chưa có bằng chứng"' : ''},IF(COUNTIF(${KR},"OPEN*")+COUNTIF(${KR},"CONDITIONAL*")>0,"CONDITIONAL"${bi ? '&CHAR(10)&"CÓ ĐIỀU KIỆN"' : ''},"MET"${bi ? '&CHAR(10)&"ĐẠT"' : ''})))`;
+    const vv = { 'NOT MET': ['NOT MET', 'CHƯA ĐẠT'], 'NOT MET – no evidence': ['NOT MET – no evidence', 'CHƯA ĐẠT – chưa có bằng chứng'], CONDITIONAL: ['CONDITIONAL', 'CÓ ĐIỀU KIỆN'], MET: ['MET', 'ĐẠT'] }[it.verdict];
+    tcsSet(S1, r0, 12, BI(vv[0], vv[1]), Object.assign({ b: true, h: 'center', v: 'center' }, base), vf);
+    [0, 1, 2, 3, 4, 5, 11, 12].forEach(c => tcsMerge(S1, r0, c, r1, c, (S1.cells[r0 + ',' + c] || {}).s));
+    // block height: merged texts and the picture must fit
+    let blockHt = 0; for (let x = r0; x <= r1; x++) blockHt += S1.ht[x];
+    const need = Math.max(...[[1, it.name], [3, dTxt], [4, eTxt], [5, fTxt], [11, remTxt]].map(([c, t]) => tcsHt(tcsLines(t, W[c]))), it.pic ? 92 : 0);
+    if (need > blockHt) S1.ht[r1] += need - blockHt;
+    if (it.pic && it.pic.w) { const sc = Math.min(140 / it.pic.w, 105 / it.pic.h), w = it.pic.w * sc, h = it.pic.h * sc, colPx = W[2] * 7 + 5;
+      S1.images.push({ r: r0, c: 2, bytes: it.pic.bytes, ext: it.pic.ext, cx: w * 9525, cy: h * 9525, colOff: Math.max(0, (colPx - w) / 2) * 9525, rowOff: 4 * 9525 }); }
+    blocks.push({ it, r0, r1, nT }); r = r1 + 1;
+  });
+  const D1 = 4, DL = Math.max(r - 1, 4), rng = c => `${tcsCol(c)}${D1}:${tcsCol(c)}${DL}`;
+  // colours that follow edits (begins-with rules, NOT MET before MET)
+  S1.cf.push({ sqref: rng(10), formula: `LEFT($K${D1},4)="OPEN"`, fill: 'FFC7CE', color: '9C0006', stop: true }, { sqref: rng(10), formula: `LEFT($K${D1},4)="COND"`, fill: 'FFEB9C', color: '9C5700', stop: true }, { sqref: rng(10), formula: `LEFT($K${D1},3)="ACC"`, fill: 'C6EFCE', color: '006100', stop: true },
+    { sqref: rng(12), formula: `LEFT($M${D1},7)="NOT MET"`, fill: 'FFC7CE', color: '9C0006', b: true, stop: true }, { sqref: rng(12), formula: `LEFT($M${D1},4)="COND"`, fill: 'FFEB9C', color: '9C5700', b: true, stop: true }, { sqref: rng(12), formula: `LEFT($M${D1},3)="MET"`, fill: 'C6EFCE', color: '006100', b: true, stop: true },
+    { sqref: rng(15), formula: `AND($P${D1}<>"",$P${D1}<TODAY(),LEFT($Q${D1},4)<>"Done",LEFT($Q${D1},3)<>"N/A",LEFT($Q${D1},9)<>"Cancelled")`, color: 'C00000', b: true });
+  // key requirements, summary, notes
+  r = tcsKeyBlock(S1, DL + 2, LAST) + 1;
+  const all = items.flatMap(i => i.reqs), cnt = p => all.filter(p).length;
+  const sum = [
+    [['Summary','Tổng hợp'], null, null, true],
+    [['Lines OPEN (CRI)','Dòng MỞ (CRI)'], `COUNTIF(${rng(10)},"OPEN (CRI)*")`, cnt(q => q.st === 'OPEN' && q.sev === 'CRI')],
+    [['Lines OPEN (MAJ)','Dòng MỞ (MAJ)'], `COUNTIF(${rng(10)},"OPEN (MAJ)*")`, cnt(q => q.st === 'OPEN' && q.sev === 'MAJ')],
+    [['Lines CONDITIONAL','Dòng CÓ ĐIỀU KIỆN'], `COUNTIF(${rng(10)},"CONDITIONAL*")`, cnt(q => q.st === 'CONDITIONAL')],
+    [['Lines ACCEPTED','Dòng CHẤP NHẬN'], `COUNTIF(${rng(10)},"ACCEPTED*")`, cnt(q => q.st === 'ACCEPTED')],
+    [['Lines N/A','Dòng KHÔNG ÁP DỤNG'], `COUNTIF(${rng(10)},"N/A*")`, 0],
+    [['Lines – Lab only (ISO/IEC 17025)','Dòng – Chỉ PTN (ISO/IEC 17025)'], `COUNTIF(${rng(8)},"Lab only*")`, cnt(q => q.by === 'lab')],
+    [['Lines – Lab or internal – witnessed','Dòng – PTN hoặc nội bộ – có QC chứng kiến'], `COUNTIF(${rng(8)},"Lab or internal – witnessed*")`, cnt(q => q.by === 'wit')],
+    [['Lines – Lab or internal','Dòng – PTN hoặc nội bộ'], `COUNTIF(${rng(8)},"Lab or internal*")-COUNTIF(${rng(8)},"Lab or internal – witnessed*")`, cnt(q => q.by === 'li')],
+    [['Lines – Internal A.R.E.N.A. QC','Dòng – Nội bộ QC A.R.E.N.A.'], `COUNTIF(${rng(8)},"Internal*")`, cnt(q => q.by === 'qc')],
+    [['Lines – Document','Dòng – Tài liệu'], `COUNTIF(${rng(8)},"Document*")`, cnt(q => q.by === 'doc')],
+    [['Items NOT MET','Mặt hàng CHƯA ĐẠT'], `COUNTIF(${rng(12)},"NOT MET*")`, items.filter(i => i.verdict.startsWith('NOT MET')).length],
+    [['Items CONDITIONAL','Mặt hàng CÓ ĐIỀU KIỆN'], `COUNTIF(${rng(12)},"CONDITIONAL*")`, items.filter(i => i.verdict === 'CONDITIONAL').length],
+    [['Items MET','Mặt hàng ĐẠT'], `COUNTIF(${rng(12)},"MET*")`, items.filter(i => i.verdict === 'MET').length],
+    [['Actions open','Hành động đang mở'], `COUNTIF(${rng(16)},"Open*")`, cnt(q => !q.done)],
+    [['Actions done','Hành động hoàn thành'], `COUNTIF(${rng(16)},"Done*")`, cnt(q => q.done)],
+    [['Actions overdue (due date < today, not Done / N/A / Cancelled)','Hành động quá hạn (hạn < hôm nay, chưa Hoàn thành / Không áp dụng / Hủy)'], `SUMPRODUCT((${rng(15)}<>"")*(${rng(15)}<TODAY())*(LEFT(${rng(16)},4)<>"Done")*(LEFT(${rng(16)},3)<>"N/A")*(LEFT(${rng(16)},9)<>"Cancelled"))`, cnt(q => q.due && q.due < today && !q.done)],
+  ];
+  sum.forEach(([l, f, v, head]) => { const s = head ? { b: true, fill: 'D9E1F2' } : {}; tcsSet(S1, r, 1, BI(l[0], l[1]), s); tcsMerge(S1, r, 1, r, 5, s); tcsSet(S1, r, 6, head ? '' : v, Object.assign({ h: 'center' }, s), f); S1.ht[r] = tcsHt(lang === 'bi' ? 2 : 1); r++; });
+  r++;
+  const legal = [...new Set(items.map(i => i.stream))].map(s => TCS_STREAM[s]).join(' · ');
+  const notes = [
+    [['Notes','Ghi chú'], null],
+    [[`Assessment basis: ${noPo ? 'P.O. / P.I. not yet available – P.O. fields left blank; K-1 validity checked provisionally at today; re-check at P.O.' : etdPerPo.join(' · ')}. Sources: ${[...B.pis.map(p => p.src === 'master' ? `master file (${p.po})` : p.name), TCS.offer ? TCS.offer.name : ''].filter(Boolean).join('; ')}.${B.notOnPo.length ? ' Offer items not on any P.O. (not in this TCF): ' + B.notOnPo.map(o => o.sref || o.name).join(', ') + '.' : ''}${TCS.reports.length ? '' : ' No test report, certificate or declaration received – all lines OPEN.'}`,
+      `Cơ sở đánh giá: ${noPo ? 'Chưa có P.O. / P.I. – để trống các trường P.O.; hiệu lực K-1 kiểm tra tạm theo ngày hôm nay; kiểm tra lại khi có P.O.' : etdPerPo.join(' · ')}.${B.notOnPo.length ? ' Mặt hàng offer không có trên P.O. (không đưa vào TCF): ' + B.notOnPo.map(o => o.sref || o.name).join(', ') + '.' : ''}${TCS.reports.length ? '' : ' Chưa nhận báo cáo, chứng chỉ hay tuyên bố nào – mọi dòng MỞ.'}`]],
+    [[`Legal streams: ${legal}. A.R.E.N.A. is a sourcing office: never manufacturer, importer, operator or DoC signatory. CE is prohibited on GPSR products (Reg. (EC) 765/2008 Art. 30).`, `Luồng pháp lý: ${legal}. A.R.E.N.A. là văn phòng tìm nguồn: không bao giờ là nhà sản xuất, nhà nhập khẩu, nhà vận hành hay người ký DoC. Cấm dấu CE trên sản phẩm GPSR (Quy định (EC) 765/2008 Điều 30).`]],
+    [['Status legend: OPEN (CRI / MAJ) red · CONDITIONAL amber · ACCEPTED green · N/A grey. Item verdict (test evidence): any OPEN (CRI) → NOT MET; no ACCEPTED or CONDITIONAL line → NOT MET – no evidence; any OPEN or CONDITIONAL → CONDITIONAL; else MET.', 'Chú thích: MỞ (CRI / MAJ) đỏ · CÓ ĐIỀU KIỆN vàng · CHẤP NHẬN xanh · KHÔNG ÁP DỤNG xám. Kết luận mặt hàng: có MỞ (CRI) → CHƯA ĐẠT; không có dòng CHẤP NHẬN hoặc CÓ ĐIỀU KIỆN → CHƯA ĐẠT – chưa có bằng chứng; có MỞ hoặc CÓ ĐIỀU KIỆN → CÓ ĐIỀU KIỆN; còn lại ĐẠT.']],
+    [['How to close a line: file the evidence (report / document stating the supplier ref), QS validates it on sheet Report validation, then set the accumulated status to ACCEPTED and the action status to Done.', 'Cách đóng một dòng: lưu bằng chứng (báo cáo / tài liệu có mã NCC), QS thẩm định trên sheet Report validation, rồi đổi trạng thái lũy kế thành CHẤP NHẬN và tình trạng hành động thành Hoàn thành.']],
+    [['Due dates: reports, declarations and technical file due ETD − 45 days (earliest ETD of the items covered); SRC issued at least the SRC buffer (default 7 days) before ETD. Blank due date = no ETD yet.', 'Hạn: báo cáo, tuyên bố và hồ sơ kỹ thuật đến hạn ETD − 45 ngày (ETD sớm nhất của các mặt hàng liên quan); SRC cấp trước ETD ít nhất khoảng đệm SRC (mặc định 7 ngày). Hạn trống = chưa có ETD.']],
+    [['P-6: a MATERIAL test is accepted for any item of the same material (same grade; plastics / WPC same polymer, colour / compound and extrusion process); a PRODUCT test must be on the item itself or an identical part.', 'P-6: thử VẬT LIỆU được chấp nhận cho mọi mặt hàng cùng vật liệu (cùng mác; nhựa / WPC cùng polymer, màu / hỗn hợp và kiểu đùn); thử SẢN PHẨM phải trên chính mặt hàng hoặc chi tiết giống hệt.']],
+    [['Automatic first pass by the A.R.E.N.A. IQS: reports are read by text (issue date, report no., supplier ref, tests); QS confirms every verdict against the full report (sheet Report validation, checks marked ~).', 'Lần đánh giá tự động đầu tiên bởi A.R.E.N.A. IQS: báo cáo được đọc theo văn bản (ngày phát hành, số báo cáo, mã NCC, phép thử); QS xác nhận mọi kết luận với báo cáo đầy đủ (sheet Report validation, các mục đánh dấu ~).']],
+  ];
+  notes.forEach(([t], i) => { const s = i ? {} : { b: true, fill: 'D9E1F2' }; const v = BI(t[0], t[1]); tcsSet(S1, r, 0, v, s); tcsMerge(S1, r, 0, r, LAST, s); S1.ht[r] = tcsHt(tcsLines(v, 300)); r++; });
+
+  // ── CE & DoC guideline + EC DoC template (only with CE items) ──
+  const ceItems = items.filter(i => i.stream !== 'gpsr');
+  if (ceItems.length) tcsCeSheets(sheets, items, ceItems, ally);
+  // ── Validation log ──
+  if (TCS.reports.length) tcsLogSheet(sheets, blocks, S1, ally);
+  // ── Report validation ──
+  tcsRepSheet(sheets, items, etdPerPo, noPo);
+  // ── Test plan ──
+  tcsPlanSheet(sheets, items);
+  // ── Testing body rules ──
+  tcsRulesSheet(sheets, items);
+  const fname = `${ally}_TCF_Status_Action_Plan_${sup}_${pos.length ? pos.join('-') : 'no-PO'}${lang === 'bi' ? '_EN-VI' : '_EN'}.xlsx`.replace(/[^\w.\-]+/g, '_');
+  return { blob: tcsXlsx(sheets), name: fname };
+}
+function tcsRepSheet(sheets, items, etdPerPo, noPo){
+  const W = [6, 24, 12, 20, 14, 26, 34, 11, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 24, 18, 30, 12, 12, 16, 26];
+  const S = tcsSheet('Report validation', W); sheets.push(S); const L = W.length - 1;
+  tcsSet(S, 1, 0, BI('Report validation – 10-point check per document (automatic first pass; QS confirms checks marked ~)', 'Thẩm định báo cáo thử nghiệm – kiểm tra 10 điểm cho mỗi tài liệu (đánh giá tự động; QS xác nhận các mục ~)'), S_T); tcsMerge(S, 1, 0, 1, L, S_T); S.ht[1] = tcsHt(TCS.lang === 'bi' ? 2 : 1);
+  const y = { fill: 'FFFF99' };
+  tcsSet(S, 2, 0, BI('ETD per P.O.:', 'ETD theo P.O.:'), { b: true, border: false }); tcsMerge(S, 2, 0, 2, 1, { b: true, border: false });
+  tcsSet(S, 2, 2, noPo ? '' : etdPerPo.join(' · '), y); tcsMerge(S, 2, 2, 2, 7, y);
+  const fris = [...new Set(items.map(i => i.fri).filter(Boolean))].map(tcsFmt).join(' · ');
+  tcsSet(S, 2, 8, BI('FRI:', 'FRI:'), { b: true, border: false }); tcsSet(S, 2, 9, fris, y); tcsMerge(S, 2, 9, 2, 13, y); S.ht[2] = 20;
+  const H = [['Ref','Ref'],['Report no. / lab','Số báo cáo / PTN'],['Issued / tested','Ngày phát hành'],['Applicant','Người yêu cầu'],['Supplier ref stated?','Có mã NCC?'],['Specimen as tested','Mẫu thử'],['Tests and result','Phép thử và kết quả'],['Type','Loại'],
+    ['1 Lab competence','1 Năng lực PTN'],['2 Report integrity','2 Tính toàn vẹn'],['3 Specimen ↔ item (P-6)','3 Mẫu ↔ mặt hàng (P-6)'],['4 Applicant / supplier ref (K-3)','4 Người yêu cầu / mã NCC (K-3)'],['5 Standard edition','5 Phiên bản tiêu chuẩn'],['6 Scope (K-2)','6 Phạm vi (K-2)'],['7 Results vs limits','7 Kết quả so với giới hạn'],['8 Validity (K-1)','8 Hiệu lực (K-1)'],['9 Remarks','9 Ghi chú'],['10 Usable for the TCF','10 Dùng được cho TCF'],
+    ['Verdict','Kết luận'],['Accepted for (item / component)','Chấp nhận cho (mặt hàng / chi tiết)'],['Conditions to close','Điều kiện để đóng'],['Valid until (issue + 2 years)','Hiệu lực đến (phát hành + 2 năm)'],['ETD (items covered)','ETD (mặt hàng liên quan)'],['Valid at ETD?','Còn hiệu lực tại ETD?'],['Report file','Tệp báo cáo']];
+  H.forEach((h, c) => tcsSet(S, 4, c, BI(h[0], h[1]), S_H)); S.ht[4] = tcsHt(TCS.lang === 'bi' ? 4 : 2); S.freeze = { r: 4, c: 2 }; S.titles = '$4:$4';
+  let r = 5;
+  if (!TCS.reports.length) {
+    const t = BI('No test report, certificate or declaration received – register each document here when received (one row per unique document R1…Rn).', 'Chưa nhận báo cáo thử nghiệm, chứng chỉ hay tuyên bố nào – đăng ký từng tài liệu tại đây khi nhận (mỗi tài liệu một dòng R1…Rn).');
+    tcsSet(S, r, 0, t, {}); tcsMerge(S, r, 0, r, L, {}); S.ht[r] = tcsHt(2); r++;
+  }
+  const sym = s => ({ fill: s[0] === '✓' ? 'C6EFCE' : s[0] === '~' ? 'FFEB9C' : s[0] === '✗' ? 'FFC7CE' : 'EDEDED' });
+  TCS.reports.forEach(rep => {
+    const covers = rep.cover, tests = [...new Set(items.flatMap(i => i.reqs.filter(q => q.kw && q.kw.test(rep.text)).map(q => q.en.split(/[(:–]/)[0].trim())))];
+    const refs = covers.map(c => `item ${c.it.n} ${c.it.sref || ''}: ${c.refOk ? '✓' : '✗'}`).join('\n') || '✗ item not identified';
+    const verdOk = rep.verdict.startsWith('ACCEPTED'), exp = rep.valid && rep.etd && rep.valid < rep.etd;
+    const checks = [
+      rep.kind === 'accr' ? '✓ accreditation certificate' : rep.accredited ? '✓ accreditation stated – scope schedule to verify' : '~ accreditation not stated – verify the lab scope',
+      '~ QS to read the full report (conclusion vs body, sums vs components)',
+      covers.length ? `✓ item ${covers.map(c => c.it.n).join(', ')}` : '✗ item not identified',
+      covers.length && covers.every(c => c.refOk) ? '✓ supplier ref stated' : '✗ supplier ref missing (K-3)',
+      '~ verify the edition cited',
+      tests.length ? '✓ ' + tests.join('; ') : '~ scope to confirm',
+      rep.fail ? '✗ failed result' : '~ QS to confirm results vs limits',
+      !rep.valid ? '~ issue date not readable' : exp ? `✗ expires ${tcsFmt(rep.valid)} before ETD ${tcsFmt(rep.etd)}` : `✓ valid to ${tcsFmt(rep.valid)}`,
+      '~ check remarks / limitations',
+      verdOk ? '✓' : rep.verdict.startsWith('CONDITIONAL') ? '~' : '✗',
+    ];
+    const cond = rep.verdict.startsWith('NOT ACCEPTED – supplier') ? 'Lab / issuer to amend with the supplier ref (K-3)' : rep.verdict.includes('expires') ? 'Retest ASAP (K-2) – report expires before ETD (K-1)' : rep.verdict.includes('failed') ? 'Root cause, correction and retest' : rep.verdict.startsWith('CONDITIONAL') ? 'QS check: signature, stamp, signed PDF, components, issue date' : rep.verdict.includes('not identified') ? 'Supplier to state which item (supplier ref) the document covers' : '';
+    const row = [rep.R, `${rep.no || '—'}\n${rep.lab || ''}`.trim(), rep.issue ? tcsSerial(rep.issue) : '', rep.applicant, refs, covers.map(c => `item ${c.it.n} ${c.it.name}`).join('\n'), tests.join('; ') + (rep.fail ? '\nFAIL found in the text' : ''), rep.kind === 'test' ? 'Test report' : rep.kind === 'doc' ? 'Document' : 'Supporting', ...checks, rep.verdict, verdOk ? covers.map(c => 'item ' + c.it.n).join(', ') : '', cond];
+    row.forEach((v, c) => tcsSet(S, r, c, v, c >= 8 && c <= 17 ? sym(String(v)) : c === 2 ? { date: true } : c === 18 ? { b: true, fill: verdOk ? 'C6EFCE' : rep.verdict.startsWith('CONDITIONAL') ? 'FFEB9C' : 'FFC7CE' } : {}));
+    tcsSet(S, r, 21, rep.valid ? tcsSerial(rep.valid) : '', { date: true }, `IF(C${r}="","",DATE(YEAR(C${r})+2,MONTH(C${r}),DAY(C${r})))`);
+    tcsSet(S, r, 22, rep.etd ? tcsSerial(rep.etd) : '', { date: true });
+    tcsSet(S, r, 23, !rep.etd ? 'ETD not yet available' : rep.valid ? (rep.valid >= rep.etd ? 'Yes' : 'No') : '', { h: 'center' }, `IF(W${r}="","ETD not yet available",IF(V${r}="","",IF(V${r}>=W${r},"Yes","No")))`);
+    tcsSet(S, r, 24, rep.name, {});
+    S.ht[r] = tcsHt(Math.max(...row.map((v, c) => tcsLines(typeof v === 'number' ? '' : v, W[c])))); r++;
+  });
+  if (TCS.reports.length) { r++; const vs = {}; TCS.reports.forEach(x => { const k = x.verdict.split(' – ')[0]; vs[k] = (vs[k] || 0) + 1; });
+    const t = 'Overall: ' + Object.entries(vs).map(([k, n]) => `${n} ${k}`).join(' · ') + '. Product tests need evidence on the item itself or an identical part (C-5).'; tcsSet(S, r, 0, t, { b: true }); tcsMerge(S, r, 0, r, L, { b: true }); S.ht[r] = 20; r++; }
+  r++; tcsKeyBlock(S, r, L);
+}
+function tcsPlanSheet(sheets, items){
+  const W = [7, 40, 22, 40, 13, 18, 16, 16, 13, 13, 14, 40];
+  const S = tcsSheet('Test plan', W); sheets.push(S); const L = W.length - 1;
+  tcsSet(S, 1, 0, BI('Test plan – open test and document jobs (existing valid reports used first, K-2)', 'Kế hoạch thử nghiệm – các việc thử nghiệm và tài liệu còn mở (ưu tiên báo cáo còn hiệu lực, K-2)'), S_T); tcsMerge(S, 1, 0, 1, L, S_T); S.ht[1] = tcsHt(TCS.lang === 'bi' ? 2 : 1);
+  const H = [['Job','Việc'],['Test','Phép thử'],['Sample (item)','Mẫu (mặt hàng)'],['Items covered – pictures and supplier refs on the report','Mặt hàng liên quan – hình và mã NCC trên báo cáo'],['Evidence type','Loại bằng chứng'],['Testing by (acceptable)','Đơn vị thử nghiệm được chấp nhận'],['PIC','Người phụ trách'],['Sample / test start by','Gửi mẫu / bắt đầu thử trước'],['Report due (ETD − 45 d)','Hạn báo cáo (ETD − 45 ngày)'],['Status','Tình trạng'],['Earliest ETD (items covered)','ETD sớm nhất (mặt hàng liên quan)'],['Due per item (ETD − 45 d)','Hạn theo mặt hàng (ETD − 45 ngày)']];
+  H.forEach((h, c) => tcsSet(S, 2, c, BI(h[0], h[1]), S_H)); S.ht[2] = tcsHt(TCS.lang === 'bi' ? 4 : 2); S.freeze = { r: 2, c: 1 }; S.titles = '$2:$2';
+  // material tests grouped by the same material text (P-6); product tests per item; J7 per item
+  const groups = [];
+  items.forEach(it => it.reqs.filter(q => q.st !== 'ACCEPTED' && (q.type !== 'doc' || q.id === 'ai') && q.job).forEach(q => {
+    const mat = tcsNorm((it.offer && it.offer.mat) || '') + (it.f.coex ? 'coex' : it.f.single ? 'single' : '');
+    const gk = q.id === 'pack' && q.rv !== 'exp' ? `pack|${it.f.pack}` : q.type === 'mat' && mat && q.rv !== 'exp' ? `${q.id}|${mat}` : `${q.id}|item${it.n}`;   // one packaging sample per packaging type
+    let g0 = groups.find(x => x.k === gk); if (!g0) groups.push(g0 = { k: gk, q, items: [] }); g0.items.push({ it, q });
+  }));
+  groups.sort((a, b) => a.q.job.localeCompare(b.q.job) || a.items[0].it.n - b.items[0].it.n);
+  let r = 3;
+  groups.forEach(gp => {
+    const its = gp.items.map(x => x.it), etds = its.map(i => i.etd).filter(Boolean).sort(), e0 = etds[0] || '', sample = its.slice().sort((a, b) => String(a.etd || '9').localeCompare(String(b.etd || '9')))[0];
+    const q = gp.q, retest = gp.items.find(x => x.q.rv === 'exp');
+    const testTxt = (retest ? BI(`Retest ASAP – ${retest.q.ev.r.R} expires ${tcsFmt(retest.q.ev.r.valid)}${retest.it.etd ? ' before ETD ' + tcsFmt(retest.it.etd) : ''}: `, `Thử nghiệm lại ngay – ${retest.q.ev.r.R} hết hiệu lực ${tcsFmt(retest.q.ev.r.valid)}${retest.it.etd ? ' trước ETD ' + tcsFmt(retest.it.etd) : ''}: `) : '') + BI(q.en, q.vi);
+    const covered = its.map(i => `item ${i.n} ${i.sref || ''}${i.ean ? ' / GTIN ' + i.ean : ''}`).join('\n') + (its.length > 1 ? '\n' + BI('(same material – identity statement C-2 or lab extension letter C-1 listing all supplier refs)', '(cùng vật liệu – cam kết đồng nhất C-2 hoặc thư mở rộng của PTN C-1 liệt kê mọi mã NCC)') : '');
+    const byGroup = {}; its.forEach(i => { const d = i.etd ? tcsFmt(tcsAddDays(i.etd, -45)) : ''; if (d) (byGroup[d] = byGroup[d] || []).push(i.n); });
+    const due = Object.entries(byGroup).map(([d, ns]) => `${ns.length > 1 ? 'items' : 'item'} ${ns.join(', ')}: ${d}`).join(' · ');
+    const vals = [q.job, testTxt, `item ${sample.n} ${sample.sref || ''}\n${sample.name}`, covered, BI(TCS_TYPE[q.type][0], TCS_TYPE[q.type][1]), BI(TCS_BY[q.by][0], TCS_BY[q.by][1]), q.pic, retest ? 'ASAP' : '', null, BI('Open', 'Mở'), e0 ? tcsSerial(e0) : '', due];
+    vals.forEach((v, c) => { if (c !== 8) tcsSet(S, r, c, v, c === 10 ? { date: true } : {}); });
+    tcsSet(S, r, 8, e0 ? tcsSerial(tcsAddDays(e0, -45)) : '', { date: true }, `IF(K${r}="","",K${r}-45)`);
+    S.ht[r] = tcsHt(Math.max(...vals.map((v, c) => tcsLines(typeof v === 'number' ? '' : v, W[c])))); r++;
+  });
+  if (!groups.length) { const t = BI('No open test job – every test line is covered by an existing valid report.', 'Không còn việc thử nghiệm mở – mọi dòng thử nghiệm đã có báo cáo còn hiệu lực.'); tcsSet(S, r, 0, t, {}); tcsMerge(S, r, 0, r, L, {}); S.ht[r] = 30; r++; }
+  S.cf.push({ sqref: `I3:I${Math.max(r - 1, 3)}`, formula: 'AND($I3<>"",$I3<TODAY(),LEFT($J3,4)<>"Done",LEFT($J3,3)<>"N/A",LEFT($J3,9)<>"Cancelled")', color: 'C00000', b: true });
+  r++; tcsKeyBlock(S, r, L);
+}
+function tcsRulesSheet(sheets, items){
+  const W = [30, 70, 70]; const S = tcsSheet('Testing body rules', W); sheets.push(S); S.landscape = false;
+  tcsSet(S, 1, 0, BI('Testing body rules (lab and / or internal)', 'Quy tắc đơn vị thử nghiệm (PTN và / hoặc nội bộ)'), S_T); tcsMerge(S, 1, 0, 1, 2, S_T); S.ht[1] = tcsHt(TCS.lang === 'bi' ? 2 : 1);
+  [['Category','Phân loại'],['Applies to (this order)','Áp dụng cho (đơn hàng này)'],['Accepted evidence','Bằng chứng được chấp nhận']].forEach((h, c) => tcsSet(S, 2, c, BI(h[0], h[1]), S_H)); S.ht[2] = tcsHt(2);
+  const used = by => [...new Set(items.flatMap(i => i.reqs.filter(q => q.by === by).map(q => q.en.split(/[(:–]/)[0].trim())))].join('; ') || '—';
+  const rows = [
+    ['lab', ['Report of a lab whose ISO/IEC 17025 accreditation scope covers the method.', 'Báo cáo của PTN có phạm vi công nhận ISO/IEC 17025 bao gồm phương pháp.']],
+    ['wit', ['Lab report, or in-house report meeting IT-1…IT-5 witnessed and countersigned by A.R.E.N.A. QC (IT-6).', 'Báo cáo PTN, hoặc báo cáo nội bộ đạt IT-1…IT-5 có QC A.R.E.N.A. chứng kiến và ký xác nhận (IT-6).']],
+    ['li', ['Lab report, or in-house report meeting IT-1…IT-5.', 'Báo cáo PTN, hoặc báo cáo nội bộ đạt IT-1…IT-5.']],
+    ['qc', ['QC record: device ID, daily reference check, readings, photos; lab OES / XRF or mill cert 3.1 also accepted; supplier in-house OES = supporting only.', 'Hồ sơ QC: mã thiết bị, kiểm tra chuẩn hằng ngày, kết quả, hình ảnh; chấp nhận cả OES / XRF của PTN hoặc chứng chỉ vật liệu 3.1; OES nội bộ của NCC chỉ là hỗ trợ.']],
+    ['doc', ['Signed document reviewed by QS, stating the supplier ref (K-3).', 'Tài liệu có ký được QS xem xét, có ghi mã NCC (K-3).']],
+  ];
+  let r = 3;
+  rows.forEach(([k, ev]) => { const v = [BI(TCS_BY[k][0], TCS_BY[k][1]), used(k), BI(ev[0], ev[1])]; v.forEach((x, c) => tcsSet(S, r, c, x, c ? {} : { b: true })); S.ht[r] = tcsHt(Math.max(...v.map((x, c) => tcsLines(x, W[c])))); r++; });
+  r++;
+  const IT = [['IT-1 Written method = standard clause and criteria.', 'IT-1 Phương pháp bằng văn bản = điều khoản và tiêu chí của tiêu chuẩn.'], ['IT-2 Calibrated equipment, traceable certificate.', 'IT-2 Thiết bị đã hiệu chuẩn, có chứng nhận truy xuất.'], ['IT-3 Trained tester.', 'IT-3 Người thử được đào tạo.'], ['IT-4 Sample ID (supplier ref, Ally article no. / GTIN, batch) + photos before / after.', 'IT-4 Nhận diện mẫu (mã NCC, mã Ally / GTIN, lô) + hình trước / sau.'], ['IT-5 Raw data, pass / fail, signed by the factory QA manager.', 'IT-5 Dữ liệu gốc, đạt / không đạt, có chữ ký trưởng QA nhà máy.'], ['IT-6 A.R.E.N.A. QC witness (on site or live video) + countersign.', 'IT-6 QC A.R.E.N.A. chứng kiến (tại chỗ hoặc video trực tiếp) + ký xác nhận.'], ['IT-7 Failure, doubt or Ally request → ISO/IEC 17025 retest; the lab result prevails. Unless the Ally nominates a lab.', 'IT-7 Không đạt, nghi ngờ hoặc Ally yêu cầu → thử lại tại PTN ISO/IEC 17025; kết quả PTN được ưu tiên. Trừ khi Ally chỉ định PTN.']];
+  tcsSet(S, r, 0, BI('In-house test conditions', 'Điều kiện thử nghiệm nội bộ'), S_H); tcsMerge(S, r, 0, r, 2, S_H); S.ht[r] = tcsHt(2); r++;
+  IT.forEach(t => { const v = BI(t[0], t[1]); tcsSet(S, r, 0, v, {}); tcsMerge(S, r, 0, r, 2, {}); S.ht[r] = tcsHt(tcsLines(v, 170)); r++; });
+}
+function tcsLogSheet(sheets, blocks, S1, ally){
+  const W = [7, 12, 12, 30, 22, 16, 7, 14, 14, 40, 13, 36, 40, 12];
+  const S = tcsSheet('Validation log', W); sheets.push(S); const L = W.length - 1, today = tcsToday();
+  tcsSet(S, 1, 0, BI('Validation log', 'Nhật ký thẩm định'), S_T); tcsMerge(S, 1, 0, 1, L, S_T);
+  const rule = BI('Each supplier submission = one validation round, numbered from 1; new rounds are added below with the next number, never overwriting earlier rounds. An identical resubmission is still a new round, noted "identical to Val. #n – nothing changed".', 'Mỗi lần NCC nộp = một vòng thẩm định, đánh số từ 1; vòng mới được thêm bên dưới với số tiếp theo, không ghi đè vòng trước. Nộp lại giống hệt vẫn là vòng mới, ghi chú "giống Val. #n – không thay đổi".');
+  tcsSet(S, 2, 0, rule, { border: false }); tcsMerge(S, 2, 0, 2, L, { border: false }); S.ht[2] = tcsHt(tcsLines(rule, 230));
+  // rows of the log (document × requirement)
+  const log = [];
+  TCS.reports.forEach(rep => rep.cover.forEach(c => {
+    const it = c.it;
+    it.reqs.forEach(q => {
+      const hit = q.kw && q.kw.test(rep.text);
+      if (!hit && (q.type === 'doc' || rep.kind !== 'test')) return;
+      let res, find, act = '';
+      if (!hit) { res = 'Not covered'; find = 'Requirement not covered by this document'; act = q.action.en; }
+      else if (rep.kind === 'accr') { res = 'Info'; find = 'Accreditation certificate (supporting)'; }
+      else if (!c.refOk) { res = 'Rejected'; find = 'Supplier ref missing (K-3)'; act = `Lab / issuer to amend ${rep.R} with supplier ref ${it.sref}; re-submit.`; }
+      else if (rep.fail) { res = 'Rejected'; find = 'Failed result'; act = 'Root cause, correction and retest ASAP.'; }
+      else if (rep.kind === 'doc') { res = 'Partial'; find = 'Received – QS to check signature, stamp, components'; }
+      else if (!rep.valid) { res = 'Partial'; find = 'Issue date not readable – QS to confirm validity'; }
+      else if (it.etd && rep.valid < it.etd) { res = 'Rejected'; find = `Expires ${tcsFmt(rep.valid)} before ETD ${tcsFmt(it.etd)} (K-1)`; act = `Retest ASAP (K-2).`; }
+      else { res = 'Accepted'; find = `Valid to ${tcsFmt(rep.valid)}${it.etd ? ' ≥ ETD ' + tcsFmt(it.etd) : ''}`; }
+      log.push([1, tcsSerial(today), tcsSerial(today), rep.name, `${rep.no || ''}${rep.issue ? ' / ' + tcsFmt(rep.issue) : ''}`, rep.lab, it.n, it.sref, it.ally, q.en, res, find, act, res === 'Accepted' || res === 'Info' || !it.etd ? '' : tcsSerial(tcsAddDays(it.etd, -45))]);
+    });
+  }));
+  const R1 = 4 + 3 + 3 + blocks.length + 3, LOG0 = R1 + 1, LOGN = 500;
+  // summary by round
+  let r = 4; tcsSet(S, r, 0, BI('Summary by round', 'Tổng hợp theo vòng'), { b: true, fill: 'D9E1F2' }); tcsMerge(S, r, 0, r, 7, { b: true, fill: 'D9E1F2' }); r++;
+  const RES = ['Accepted', 'Partial', 'Rejected', 'Not covered', 'Not submitted', 'Info'];
+  ['Val. #', 'Lines', ...RES].forEach((h, c) => tcsSet(S, r, c, h, S_H)); r++;
+  tcsSet(S, r, 0, 1, { h: 'center' }); tcsSet(S, r, 1, log.length, { h: 'center' }, `COUNTIF($A$${LOG0}:$A$${LOGN},A${r})`);
+  RES.forEach((x, i) => tcsSet(S, r, 2 + i, log.filter(l => l[10] === x).length, { h: 'center' }, `COUNTIFS($A$${LOG0}:$A$${LOGN},$A${r},$K$${LOG0}:$K$${LOGN},"${x}")`)); r += 2;
+  // live status per item (from sheet 1)
+  tcsSet(S, r, 0, BI('Current TCF status per item (live)', 'Trạng thái TCF hiện tại theo mặt hàng (trực tiếp)'), { b: true, fill: 'D9E1F2' }); tcsMerge(S, r, 0, r, 8, { b: true, fill: 'D9E1F2' }); S.ht[r] = tcsHt(TCS.lang === 'bi' ? 2 : 1); r++;
+  ['Item', 'Supplier ref', 'TCF rows', 'Open', 'In progress', 'Done', 'N/A', 'Cancelled'].forEach((h, c) => tcsSet(S, r, c, h, S_H)); r++;
+  const sn = `'${S1.name.replace(/'/g, "''")}'!`;
+  blocks.forEach(b => { const Q = `${sn}$Q$${b.r0}:$Q$${b.r1}`, it = b.it;
+    tcsSet(S, r, 0, it.n, { h: 'center' }, `${sn}A${b.r0}`); tcsSet(S, r, 1, it.sref, {}); tcsSet(S, r, 2, it.reqs.length, { h: 'center' }, `COUNTA(${Q})`);
+    [['Open*', it.reqs.filter(q => !q.done).length], ['In progress*', 0], ['Done*', it.reqs.filter(q => q.done).length], ['N/A*', 0], ['Cancelled*', 0]].forEach(([k, v], i) => tcsSet(S, r, 3 + i, v, { h: 'center' }, `COUNTIF(${Q},"${k}")`)); r++; });
+  r = R1;
+  const LH = ['Val. #', 'Validation date', 'Date received', 'Document (file)', 'Doc. ref / issue date', 'Issued by', 'Item no.', 'Supplier item no.', `${ally} no.`, 'TCF requirement', 'Result', 'Findings', 'Action required (supplier)', 'Due'];
+  LH.forEach((h, c) => tcsSet(S, r, c, h, S_H)); S.ht[r] = tcsHt(2); r++;
+  const col = { Accepted: 'C6EFCE', Partial: 'FFEB9C', 'Not covered': 'FFEB9C', Rejected: 'FFC7CE', 'Not submitted': 'FFC7CE', Info: 'EDEDED' };
+  log.forEach(l => { l.forEach((v, c) => tcsSet(S, r, c, v, c === 1 || c === 2 || c === 13 ? { date: true } : c === 10 ? { fill: col[v], b: true } : {})); S.ht[r] = tcsHt(Math.max(...l.map((v, c) => tcsLines(typeof v === 'number' ? '' : v, W[c])))); r++; });
+  S.cf.push({ sqref: `N${LOG0}:N${LOGN}`, formula: `AND($N${LOG0}<>"",$N${LOG0}<TODAY(),$K${LOG0}<>"Accepted",$K${LOG0}<>"Info")`, color: 'C00000', b: true });
+  S.titles = `$${R1}:$${R1}`;
+}
+function tcsCeSheets(sheets, items, ceItems, ally){
+  const W = [8, 34, 60, 22, 26, 30, 16]; const S = tcsSheet('CE & DoC guideline', W); sheets.splice(1, 0, S); const L = W.length - 1;
+  tcsSet(S, 1, 0, BI('CE marking and EC declaration of conformity – guideline', 'Dấu CE và Tuyên bố hợp quy EC – hướng dẫn'), S_T); tcsMerge(S, 1, 0, 1, L, S_T); S.ht[1] = tcsHt(TCS.lang === 'bi' ? 2 : 1);
+  let r = 2; const sec = (en, vi) => { tcsSet(S, r, 0, BI(en, vi), S_H); tcsMerge(S, r, 0, r, L, S_H); S.ht[r] = tcsHt(TCS.lang === 'bi' ? 2 : 1); r++; };
+  const para = (en, vi) => { const v = BI(en, vi); tcsSet(S, r, 0, v, {}); tcsMerge(S, r, 0, r, L, {}); S.ht[r] = tcsHt(tcsLines(v, 230)); r++; };
+  sec('A. Which items need CE + DoC', 'A. Mặt hàng cần CE + DoC');
+  items.forEach(it => para(`Item ${it.n} ${it.name} (${it.sref}): ${it.stream === 'toy' ? 'CE mandatory – Toy Safety Directive 2009/48/EC' : it.stream === 'ce' ? 'CE mandatory – the applicable CE act (LVD / EMC / RoHS …) to be confirmed' : 'NO CE – GPSR (EU) 2023/988; GPSR Art. 9 marking instead (CE on a non-CE product is misleading, Reg. (EC) 765/2008 Art. 30)'}.`,
+    `Mặt hàng ${it.n} ${it.name} (${it.sref}): ${it.stream === 'toy' ? 'bắt buộc CE – Chỉ thị an toàn đồ chơi 2009/48/EC' : it.stream === 'ce' ? 'bắt buộc CE – văn bản CE áp dụng (LVD / EMC / RoHS …) cần xác nhận' : 'KHÔNG CE – GPSR (EU) 2023/988; ghi nhãn theo GPSR Điều 9 (CE trên sản phẩm không thuộc CE là gây hiểu nhầm, Quy định (EC) 765/2008 Điều 30)'}.`));
+  sec('B. Roles', 'B. Vai trò');
+  para(`${ally} = manufacturer (own brand): signs the DoC, keeps the technical documentation 10 years. Factory = producer: samples, material declaration, SDS, test reports, production control, applies the marking as specified. A.R.E.N.A. = validates, checks the marking at FRI, never signs.`, `${ally} = nhà sản xuất (thương hiệu riêng): ký DoC, lưu hồ sơ kỹ thuật 10 năm. Nhà máy = đơn vị sản xuất: mẫu, khai báo vật liệu, SDS, báo cáo thử nghiệm, kiểm soát sản xuất, in dấu theo quy định. A.R.E.N.A. = thẩm định, kiểm tra dấu tại FRI, không ký.`);
+  sec('C. Steps (toys – TSD 2009/48/EC; adapt module / DoC model for other CE acts)', 'C. Các bước (đồ chơi – TSD 2009/48/EC; điều chỉnh mô-đun / mẫu DoC cho văn bản CE khác)');
+  ['Step','Task','What to do / criterion','Who','Output (TCF)','Reference','Target'].forEach((h, c) => tcsSet(S, r, c, h, S_H)); S.ht[r] = 18; r++;
+  const steps = [
+    ['Classification', 'Toy = designed or intended for play by children under 14 (not public playground equipment, EN 1176).', ally, 'Classification note', 'TSD Art. 2'],
+    ['Safety assessment', 'Physical / mechanical, flammability, chemical (CMR, element migration, PAH, phthalates, POPs), hygiene, electrical, radioactivity; decides warnings and age grading.', `${ally} (supplier input)`, 'Safety assessment', 'TSD Art. 18'],
+    ['Conformity route', 'Internal production control only when harmonised standards cover ALL hazards and are applied in full; otherwise EC-type examination by a notified body.', ally, 'Route decision', 'TSD Art. 19(2) / 19(3)'],
+    ['Tests', 'Cited EN 71 parts on samples from the approved / new tooling; existing valid reports first (K-2), supplier ref on every report (K-3).', 'Supplier / lab', 'Test reports', 'EN 71-1, -2, -3'],
+    ['Technical documentation', 'Annex IV a–g: design and manufacture, safety assessment, conformity route, test reports, copy of the DoC, addresses.', ally, 'Technical file', 'TSD Annex IV'],
+    ['EC DoC', 'Annex III model, colour image of the toy, language of each Member State of sale; see sheet EC DoC template.', ally, 'Signed DoC', 'TSD Art. 15, Annex III'],
+    ['CE marking', 'Visible, legible, ≥ 5 mm, on the toy / label / packaging; also on the packaging if not visible through it.', 'Supplier (prints) / ' + ally, 'Approved artwork', 'TSD Art. 16–17; Reg. (EC) 765/2008 Annex II'],
+    ['Traceability and manufacturer marking', 'Type / batch, manufacturer name, trade mark, postal address, electronic contact, GTIN.', 'Supplier / ' + ally, 'Approved artwork', 'TSD Art. 4(5), 4(6)'],
+    ['Warnings and instructions', '"Warning" / "Achtung"; decided in the safety assessment, no copied generic age warnings; instructions and assembly instruction.', ally, 'Approved artwork', 'TSD Art. 11, Annex V'],
+    ['Series conformity and FRI', 'Retest on material / mould / supplier change; A.R.E.N.A. QC checks marking and warnings at FRI.', 'Supplier / A.R.E.N.A. QC', 'FRI report', 'TSD Art. 4(1)'],
+    ['Retention', 'Technical documentation and DoC kept 10 years after placing on the market.', ally, 'Archive', 'TSD Art. 4(3)'],
+    ['Outlook', 'Toy Safety Regulation (EU) 2025/2509 applies from 1 Aug 2030: digital product passport replaces the DoC; TSD toys placed earlier stay available.', ally, 'Plan', 'Reg. (EU) 2025/2509'],
+  ];
+  const tgt = ceItems.map(i => i.etd).filter(Boolean).sort()[0];
+  steps.forEach((s, i) => { const v = [i + 1, s[0], s[1], s[2], s[3], s[4], tgt ? tcsSerial(tcsAddDays(tgt, -45)) : '']; v.forEach((x, c) => tcsSet(S, r, c, x, c === 6 ? { date: true } : c === 0 ? { h: 'center' } : {})); S.ht[r] = tcsHt(Math.max(...v.map((x, c) => tcsLines(typeof x === 'number' ? '' : x, W[c])))); r++; });
+  sec('D. CE artwork specification', 'D. Quy cách artwork dấu CE');
+  para('CE logo per Reg. (EC) 765/2008 Annex II, proportions kept, height ≥ 5 mm; notified-body number only if a notified body is involved; on the product label and the packaging, next to the traceability data; A.R.E.N.A. QC checks presence and legibility at FRI. GPSR items: no CE anywhere.', 'Logo CE theo Quy định (EC) 765/2008 Phụ lục II, giữ tỷ lệ, cao ≥ 5 mm; số tổ chức thông báo chỉ khi có tổ chức thông báo; trên nhãn sản phẩm và bao bì, cạnh thông tin truy xuất; QC A.R.E.N.A. kiểm tra tại FRI. Mặt hàng GPSR: không có CE ở bất kỳ đâu.');
+  para('Standards to cite – verify every edition and transition date against the Official Journal before use (EUR-Lex): EN 71-1:2014+A1:2018, EN 71-2:2020, EN 71-3:2019+A2:2024 (Impl. Dec. (EU) 2023/740 as amended by (EU) 2025/2519; EN 71-3:2019+A1:2021 listed until 16 Jun 2027).', 'Tiêu chuẩn trích dẫn – kiểm tra phiên bản và ngày chuyển tiếp với Công báo EU trước khi dùng (EUR-Lex): EN 71-1:2014+A1:2018, EN 71-2:2020, EN 71-3:2019+A2:2024 (Quyết định thực thi (EU) 2023/740 sửa đổi bởi (EU) 2025/2519; EN 71-3:2019+A1:2021 còn trong danh mục đến 16/06/2027).');
+  // EC DoC template
+  const T = tcsSheet('EC DoC template', [6, 30, 52, 52, 40]); sheets.splice(2, 0, T); T.landscape = false;
+  tcsSet(T, 1, 0, BI('EC declaration of conformity – template (TSD Annex III); [___] = filled by the manufacturer (Ally), never by A.R.E.N.A.', 'Mẫu Tuyên bố hợp quy EC (TSD Phụ lục III); [___] = nhà sản xuất (Ally) điền, không bao giờ do A.R.E.N.A.'), S_T); tcsMerge(T, 1, 0, 1, 4, S_T); T.ht[1] = tcsHt(TCS.lang === 'bi' ? 3 : 2);
+  ['No.', 'Element', 'English text', 'Deutsch (market language – confirm)', BI('Fill-in source / QS check', 'Nguồn điền / QS kiểm tra')].forEach((h, c) => tcsSet(T, 2, c, h, S_H)); T.ht[2] = tcsHt(2);
+  const doc = [
+    ['', 'Title', 'EC declaration of conformity', 'EG-Konformitätserklärung', ['Fixed text', 'Văn bản cố định']],
+    ['1', 'Unique identification of the toy', 'Product / type / batch: [___]; GTIN [___]', 'Produkt / Typ / Charge: [___]; GTIN [___]', ['Ally: product number, batch; supplier ref in the technical file', 'Ally: mã sản phẩm, lô; mã NCC trong hồ sơ kỹ thuật']],
+    ['2', 'Manufacturer', 'Name and address of the manufacturer: [___]', 'Name und Anschrift des Herstellers: [___]', ['Ally (own brand) – never the supplier or A.R.E.N.A.', 'Ally (thương hiệu riêng) – không phải NCC hay A.R.E.N.A.']],
+    ['3', 'Sole responsibility', 'This declaration of conformity is issued under the sole responsibility of the manufacturer.', 'Die alleinige Verantwortung für die Ausstellung dieser Konformitätserklärung trägt der Hersteller.', ['Fixed text', 'Văn bản cố định']],
+    ['4', 'Object of the declaration', 'Toy identification allowing traceability, incl. a colour image: [___]', 'Gegenstand der Erklärung (Identifizierung zur Rückverfolgbarkeit, mit Farbabbildung): [___]', ['Colour image mandatory', 'Bắt buộc hình màu']],
+    ['5', 'Union legislation', 'The object described above is in conformity with Directive 2009/48/EC.', 'Der oben beschriebene Gegenstand erfüllt die Richtlinie 2009/48/EG.', ['CE legislation only (REACH / GPSR are not CE acts)', 'Chỉ văn bản CE (REACH / GPSR không phải văn bản CE)']],
+    ['6', 'Harmonised standards', 'EN 71-1:2014+A1:2018; EN 71-2:2020; EN 71-3:2019+A2:2024 [verify against the OJ]', 'EN 71-1:2014+A1:2018; EN 71-2:2020; EN 71-3:2019+A2:2024 [mit dem ABl. abgleichen]', ['Editions and dates as cited in the OJ', 'Phiên bản và ngày theo Công báo EU']],
+    ['7', 'Notified body', 'Not applicable – internal production control (Art. 19(2)) [or: notified body name, number, EC-type examination certificate]', 'Nicht zutreffend – interne Fertigungskontrolle (Art. 19(2)) [oder: benannte Stelle, Nummer, EG-Baumusterprüfbescheinigung]', ['From the conformity route decision', 'Theo quyết định quy trình đánh giá']],
+    ['8', 'Additional information', 'Test reports: [report numbers, labs, dates]', 'Prüfberichte: [Nummern, Labore, Daten]', ['From sheet Report validation (ACCEPTED reports)', 'Từ sheet Report validation (báo cáo CHẤP NHẬN)']],
+    ['', 'Signature', 'Signed for and on behalf of: [___]; place and date: [___]; name, function: [___]; signature: [___]', 'Unterzeichnet für und im Namen von: [___]; Ort und Datum: [___]; Name, Funktion: [___]; Unterschrift: [___]', ['Ally signatory', 'Người ký của Ally']],
+  ];
+  doc.forEach((d, i) => { const v = [d[0], d[1], d[2], d[3], BI(d[4][0], d[4][1])]; v.forEach((x, c) => tcsSet(T, 3 + i, c, x, c === 1 ? { b: true } : {})); T.ht[3 + i] = tcsHt(Math.max(...v.map((x, c) => tcsLines(x, T.cols[c])))); });
+}
+
+// ═════════════ TCF page: live preview of the evaluation + workbook download ═════════════
+function tcsPill(st){ const c = st === 'ACCEPTED' || st === 'MET' ? 'p-acc' : st === 'CONDITIONAL' ? 'p-cond' : st === 'N/A' ? 'p-na' : 'p-open'; return `<span class="tcs-pill ${c}">${tcsE(st)}</span>`; }
+function tcsRender(){
+  if (!g('page-tcf')) return;
+  tcsPoOptions();
+  const chips = g('tcs-po-chips');
+  if (chips) chips.innerHTML = TCS.pis.map((p, i) => `<span class="tcs-chip" title="${tcsE(p.name)}">📄 P.O. ${tcsE(p.po)} · ${p.lines.length} line(s)<button aria-label="Remove" onclick="tcsDelPo('pi',${i})">×</button></span>`).join('') +
+    TCS.masterPos.map((p, i) => `<span class="tcs-chip" title="from the master file">🗂 ${tcsE(p.po)} · ${tcsE(p.lot)}${TCS.pis.some(x => x.po === p.po) ? ' (P.I. file used)' : ''}<button aria-label="Remove" onclick="tcsDelPo('m',${i})">×</button></span>`).join('') +
+    (TCS.offer ? `<span class="tcs-chip">📋 ${tcsE(TCS.offer.name)} · ${TCS.offer.items.length} item(s)<button aria-label="Remove" onclick="TCS.offer=null;tcsRender()">×</button></span>` : '') +
+    (TCS.reports.length ? `<span class="tcs-chip">📎 ${TCS.reports.length} document(s)<button aria-label="Remove all" onclick="TCS.reports=[];tcsRender()">×</button></span>` : '');
+  const out = g('tcs-out'), itl = g('tcs-items'), rpl = g('tcs-reps');
+  const B = tcsEvaluate(), items = B.items;
+  if (!items.length) {
+    out.innerHTML = `<div class="card"><div class="tcs-note">Add the P.O. / P.I. files (or pick P.O.s from the master file) and / or the Ally offer sheet to list the items. Then add the supplier's reports and declarations. · Thêm file P.O. / P.I. (hoặc chọn P.O. từ master file) và / hoặc offer sheet, sau đó thêm báo cáo và tuyên bố của NCC.</div></div>`;
+    itl.innerHTML = ''; rpl.innerHTML = ''; return;
+  }
+  const all = items.flatMap(i => i.reqs), n = f => all.filter(f).length, noPo = !B.pis.length;
+  const urgent = items.filter(i => i.fri && i.fri <= tcsAddDays(tcsToday(), 14) && i.reqs.some(q => q.st !== 'ACCEPTED'));
+  const pastDue = all.filter(q => q.due && q.due < tcsToday() && !q.done).length;
+  out.innerHTML = `<div class="card"><div class="tcs-out">
+    <button type="button" class="bk-nc nc-soon fri-out" onclick="tcsDownload()" style="flex:1 1 320px">
+      <div style="font-size:26px;flex-shrink:0">📊</div>
+      <div style="min-width:0;text-align:left"><div class="fri-out-t">TCF Status &amp; Action Plan (.xlsx)</div><div class="fri-out-vn">Trạng thái TCF và Kế hoạch hành động</div>
+      <div class="bk-nc-sub">${items.length} item(s) · ${all.length} requirement line(s) · ${TCS.lang === 'bi' ? 'EN / VI' : 'EN'} · sheets: TCF status, ${items.some(i => i.stream !== 'gpsr') ? 'CE &amp; DoC guideline, EC DoC template, ' : ''}${TCS.reports.length ? 'Validation log, ' : ''}Report validation, Test plan, Testing body rules</div></div>
+      <div class="fri-out-go">⬇</div></button>
+    <div class="tcs-row" style="flex:1 1 300px">${tcsPill('OPEN')} ${n(q => q.st === 'OPEN' && q.sev === 'CRI')} CRI · ${n(q => q.st === 'OPEN' && q.sev === 'MAJ')} MAJ &nbsp; ${tcsPill('CONDITIONAL')} ${n(q => q.st === 'CONDITIONAL')} &nbsp; ${tcsPill('ACCEPTED')} ${n(q => q.st === 'ACCEPTED')}</div></div>
+    <div class="tcs-note" style="margin-top:8px">${noPo ? '⚠ No P.O. / P.I. yet – P.O. fields stay blank and validity (K-1) is checked at today; add the P.O. / P.I. files when available.' : 'ETD per P.O.: ' + tcsE(B.pis.map(p => `${p.po}: ${tcsFmt(p.lines.map(l => l.etd).filter(Boolean).sort()[0]) || 'n/a'}`).join(' · '))}
+    ${B.notOnPo.length ? `<br>⚠ Offer item(s) not on any P.O. – left out of the TCF: ${tcsE(B.notOnPo.map(o => o.sref || o.name).join(', '))}` : ''}
+    ${urgent.length ? `<br>⚠ FRI within 14 days with open evidence: ${tcsE(urgent.map(i => `item ${i.n} (${tcsFmt(i.fri)})`).join(', '))}` : ''}
+    ${pastDue ? `<br>⚠ ${pastDue} action(s) already past the ETD − 45 days due date – next hard deadline is the first FRI; options: Ally accepts a short ETD delay, or a documented first-shipment exception (Ally + SRC owner QS).` : ''}</div></div>`;
+  itl.innerHTML = `<div class="card"><div class="ch2"><div class="ct">Items · Mặt hàng</div><div class="tcs-note">Legal stream is suggested from the description – change it where needed (stricter stream recommended).</div></div><div class="tw"><table class="tbl"><thead><tr><th>#</th><th>Picture</th><th>Item</th><th>Supplier ref · GTIN</th><th>P.O. lines</th><th>FRI · ETD</th><th>Legal stream</th><th>Lines</th><th>Verdict (tests)</th></tr></thead><tbody>${items.map(it => {
+    const o = it.reqs.filter(q => q.st === 'OPEN').length, c = it.reqs.filter(q => q.st === 'CONDITIONAL').length, a = it.reqs.filter(q => q.st === 'ACCEPTED').length;
+    return `<tr><td>${it.n}</td><td>${it.pic ? `<img class="tcs-thumb" src="${it.pic.url}" alt="item ${it.n}">` : '<span class="tcs-note">—</span>'}</td><td><b>${tcsE(it.name)}</b>${it.issues.length ? `<div class="fri-warn">⚠ ${tcsE(it.issues.map(x => x.en).join('; '))}</div>` : ''}</td>
+      <td>${tcsE(it.sref || '—')}<div class="tcs-note">${tcsE(it.ean || '')}${it.ally ? ' · ' + tcsE(it.ally) : ''}</div></td><td class="tcs-note">${it.lines.map(l => `${tcsE(l.po)} L${l.line} · ${l.qty} pcs`).join('<br>') || '—'}</td>
+      <td class="tcs-note" style="white-space:nowrap">${it.fri ? 'FRI ' + tcsFmt(it.fri) : ''}${it.etd ? '<br>ETD ' + tcsFmt(it.etd) : (it.fri ? '' : '—')}</td>
+      <td><select class="fsel tcs-sel" onchange="TCS.streams['${tcsE(it.key)}']=this.value;tcsRender()">${Object.entries(TCS_STREAM).map(([k, v]) => `<option value="${k}"${k === it.stream ? ' selected' : ''}>${tcsE(v)}</option>`).join('')}</select></td>
+      <td style="white-space:nowrap">${o ? tcsPill('OPEN') + ' ' + o : ''} ${c ? tcsPill('CONDITIONAL') + ' ' + c : ''} ${a ? tcsPill('ACCEPTED') + ' ' + a : ''}</td><td>${tcsPill(it.verdict)}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+  rpl.innerHTML = TCS.reports.length ? `<div class="card"><div class="ch2"><div class="ct">Reports &amp; declarations · Báo cáo &amp; tuyên bố</div><div class="tcs-note">Automatic first pass — QS confirms each verdict in the workbook (sheet Report validation).</div></div><div class="tw"><table class="tbl"><thead><tr><th>Ref</th><th>File</th><th>Report no. · lab</th><th>Issued</th><th>Valid until</th><th>Items (supplier ref)</th><th>Verdict</th></tr></thead><tbody>${TCS.reports.map(r => `<tr><td>${r.R}</td><td class="tcs-note">${tcsE(r.name)}</td><td>${tcsE(r.no || '—')}<div class="tcs-note">${tcsE(r.lab)}</div></td><td>${tcsFmt(r.issue) || '—'}</td><td>${tcsFmt(r.valid) || '—'}</td>
+    <td class="tcs-note">${r.cover.map(c => `item ${c.it.n} ${c.refOk ? '✓' : '✗ ref'}`).join(', ') || '—'}</td><td>${tcsPill(r.verdict.split(' – ')[0]) } <span class="tcs-note">${tcsE(r.verdict.split(' – ').slice(1).join(' – '))}</span></td></tr>`).join('')}</tbody></table></div></div>` : '';
+}
+async function tcsDownload(){
+  try { const B = tcsEvaluate(); if (!B.items.length) { alert('Add the P.O. / P.I. files or the offer sheet first.'); return; }
+    const { blob, name } = tcsBuildBook(B); friDownload(blob, name); tcsMsg(`Workbook ready: ${tcsE(name)}`);
+  } catch(e) { console.error(e); alert('The workbook could not be built: ' + e.message); }
+}
+
 </script>
+<!-- TCF-JS:END -->
+
 
 <script id="iqs-mobile-js">
 (function(){
