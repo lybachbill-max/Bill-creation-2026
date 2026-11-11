@@ -2825,6 +2825,12 @@ function friDate(s){
 }
 // Where a master-file P.O. number really appears in the report text: whole token only (not inside a longer
 // number / code); a short all-digit P.O. (≤ 6 digits, e.g. 10700) only next to a P.O. label on the same line.
+// Whole-token match (case-insensitive): the key must not sit inside a longer word, number or code.
+function friHasTok(text, key){
+  if (key == null || String(key).trim() === '') return false;
+  const esc = String(key).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+');
+  return new RegExp('(?<![\\p{L}\\p{N}])' + esc + '(?![\\p{L}\\p{N}])', 'iu').test(String(text || ''));
+}
 function friPoHit(text, po){
   const esc = String(po).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const tok = new RegExp('(?<![\\w./-])' + esc + '(?![\\w/-]|\\.\\d)', 'i');
@@ -2840,6 +2846,8 @@ function friParseReport(text){
   const flat = T.replace(/\s*\|[ \t]*/g, ' | ').replace(/( \| )+/g, ' | ').replace(/^ \| /gm, '').replace(/["“”]/g, '');
   const found = [];
   const pick = (key, label, res, value, apply) => { if (res && value !== '' && value != null) found.push({ key, label, value, snippet: res[0].replace(/\s+/g, ' ').slice(0, 90), apply }); };
+  const alts = (key, re, conv) => { const f = found.find(x => x.key === key); if (!f) return; const g = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
+    const vals = [...new Set([...flat.matchAll(g)].map(m => conv(m[1])).filter(x => x !== '' && x != null).map(String))]; if (vals.length > 1) f.alts = vals; };
   const SEP = '\\s*(?:[:：#]|\\|)?\\s*(?:\\|\\s*)?';
   const rx = (lbl, val) => new RegExp(lbl + SEP + val, 'i');
   // P.O.: prefer a P.O. number that exists in the master file
@@ -2856,10 +2864,14 @@ function friParseReport(text){
   m = flat.match(/\b(DEKRA|SGS|Intertek|Bureau Veritas|TÜV\s*\w*|TUV\s*\w*|QIMA|V-Trust|HQTS|Asia Inspection)\b/i); pick('inspBody', 'Inspection body', m, m && m[1]);
   m = flat.match(/\b(Final\s*Random\s*Inspection|Pre[-\s]?shipment\s*Inspection|During\s*Production\s*Inspection|In[-\s]?line\s*Inspection|\bFRI\b|\bPSI\b|\bDPI\b|\bDUPRO\b)/i);
   pick('inspType', 'Inspection type', m, m && (/final|FRI/i.test(m[1]) ? 'FRI' : /pre|PSI/i.test(m[1]) ? 'PSI' : /during|DPI|DUPRO/i.test(m[1]) ? 'DPI' : 'Inline'));
-  m = flat.match(rx('(?:P\\.?\\s?O\\.?|Order|Shipment)\\s*(?:qty|quantity)(?:\\s*\\(?\\s*pcs\\s*\\)?)?', '([\\d][\\d.,\\s]{0,12}\\d|\\d)')); pick('aql.poQty', 'P.O. / shipment qty', m, m && friNum(m[1]));
-  m = flat.match(rx('Packed\\s*(?:qty|quantity)(?:\\s*\\(?\\s*pcs\\s*\\)?)?', '([\\d][\\d.,\\s]{0,12}\\d|\\d)')); pick('aql.packed', 'Packed qty', m, m && friNum(m[1]));
-  m = flat.match(rx('Lot\\s*size', '([\\d][\\d.,\\s]{0,12}\\d|\\d)')); pick('aql.lotUsed', 'Lot size used for AQL', m, m && friNum(m[1]));
-  m = flat.match(rx('Sample\\s*size(?:\\s*\\(?\\s*(?:workmanship|visual|general)\\s*\\)?)?', '(\\d{1,4})\\b')); pick('aql.nInsp', 'Sample size inspected', m, m && m[1]);
+  m = flat.match(rx('(?:P\\.?\\s?O\\.?|Order|Shipment)\\s*(?:qty|quantity)(?:\\s*\\(?\\s*pcs\\s*\\)?)?', '(\\d{1,3}(?:[,.\\u00a0 ]\\d{3})+(?![\\d.,%])|\\d+(?![\\d.,%]))')); pick('aql.poQty', 'P.O. / shipment qty', m, m && friNum(m[1]));
+  m = flat.match(rx('Packed\\s*(?:qty|quantity)(?:\\s*\\(?\\s*pcs\\s*\\)?)?', '(\\d{1,3}(?:[,.\\u00a0 ]\\d{3})+(?![\\d.,%])|\\d+(?![\\d.,%]))')); pick('aql.packed', 'Packed qty', m, m && friNum(m[1]));
+  m = flat.match(rx('Lot\\s*size', '(\\d{1,3}(?:[,.\\u00a0 ]\\d{3})+(?![\\d.,%])|\\d+(?![\\d.,%]))')); pick('aql.lotUsed', 'Lot size used for AQL', m, m && friNum(m[1]));
+  [['reportNo', rx('(?:Report|Inspection\\s*report|Booking)\\s*(?:No\\.?|Number|#|Ref\\.?)', '([A-Z0-9][\\w\\-\\/.]{2,})'), x => x],
+   ['inspDate', rx('(?:Inspection\\s*date|Date\\s*of\\s*inspection|Inspection\\s*day)', '([0-9]{1,4}[\\/.\\- ][0-9A-Za-z]{1,9}[\\/.\\-, ]+[0-9]{2,4})'), friDate],
+   ['aql.poQty', rx('(?:P\\.?\\s?O\\.?|Order|Shipment)\\s*(?:qty|quantity)(?:\\s*\\(?\\s*pcs\\s*\\)?)?', '(\\d{1,3}(?:[,.\\u00a0 ]\\d{3})+(?![\\d.,%])|\\d+(?![\\d.,%]))'), friNum],
+   ['aql.packed', rx('Packed\\s*(?:qty|quantity)(?:\\s*\\(?\\s*pcs\\s*\\)?)?', '(\\d{1,3}(?:[,.\\u00a0 ]\\d{3})+(?![\\d.,%])|\\d+(?![\\d.,%]))'), friNum]].forEach(([k, re, conv]) => alts(k, re, conv));
+  m = flat.match(rx('Sample\\s*size(?:\\s*\\(?\\s*(?:workmanship|visual|general)\\s*\\)?)?', '(\\d{1,4})(?![\\d.,%])')); pick('aql.nInsp', 'Sample size inspected', m, m && m[1]);
   m = flat.match(/(?:General\s*(?:inspection)?\s*(?:level)?|Level)\s*[:：]?\s*(III|II|I)\b/i); pick('aql.gen', 'General level', m, m && m[1].toUpperCase());
   m = flat.match(/\bS\s*-?\s*([1-4])\b/); pick('aql.spec', 'Special level', m, m && 'S' + m[1]);
   m = flat.match(/Ma(?:jor)?\s*(?:defects?)?\s*(?:AQL)?\s*[:：]?\s*(1\.0|1\.5|2\.5|4\.0)\b/i) || flat.match(/AQL[^\n]{0,40}?Ma(?:jor)?\s*[:：]?\s*(1\.0|1\.5|2\.5|4\.0)/i); pick('aql.aqlMa', 'AQL Major', m, m && m[1]);
@@ -2922,7 +2934,7 @@ function friStartFromReport(name, kind, size, text, photos, imgs){
   friCur.aql.foundBlank = found.some(f => f.key === '_foundBlank');
   if (photos !== null) friCur.photos = photos > 0 ? 'Original report with photos' : 'Text / PDF export without photos';
   const ov = get('overall');
-  friCur.source = { name, kind, size, photos, imgs: imgs || [], read: found.map(f => ({ label:f.label, value:f.value, snippet:f.snippet })), text: text.slice(0, 20000), at: new Date().toISOString().slice(0,16).replace('T',' ') };
+  friCur.source = { name, kind, size, photos, imgs: imgs || [], read: found.map(f => ({ label:f.label, value:f.value, snippet:f.snippet, alts:f.alts })), text: text.slice(0, 20000), at: new Date().toISOString().slice(0,16).replace('T',' ') };
   friCur.notes = `Imported from ${name} (${kind}${photos!==null?`, ${photos} embedded image(s)`:''}) on ${friCur.source.at}.${ov ? ` Report overall result: ${ov.value}.` : ''} Check every pre-filled field against the report.`;
   friTab('wb'); friApplyPre(true);
   const nAuto = friCur.findings.filter(f => f.auto).length;
@@ -2937,7 +2949,7 @@ function friSourcePanel(){
     <div class="ch2"><div class="ct">📥 Imported from ${friE(s.name)} <span class="tag t-gray">${friE(s.kind)}</span>${s.photos!==null&&s.photos!==undefined?` <span class="tag ${s.photos?'t-g':'t-o'}">${s.photos} embedded image(s)</span>`:''}</div><span class="fri-note">${friE(s.at)}</span></div>
     <div class="fri-note" style="margin-bottom:8px">${s.read.length} field(s) read from the report and pre-filled below — check each against the report before saving. Values the reader could not find stay blank.</div>
     <div class="tw"><table class="tbl" style="font-size:12px"><thead><tr><th>FIELD</th><th>VALUE READ</th><th>TEXT IN THE REPORT</th></tr></thead><tbody>
-      ${s.read.map(r => `<tr><td>${friE(r.label)}</td><td><b>${friE(r.value)}</b></td><td class="fri-note">${friE(r.snippet)}</td></tr>`).join('')}</tbody></table></div>
+      ${s.read.map(r => `<tr><td>${friE(r.label)}</td><td><b>${friE(r.value)}</b>${r.alts ? `<div class="fri-warn">⚠ the report states ${r.alts.length} different values: ${friE(r.alts.join(' / '))} — first one used, confirm</div>` : ''}</td><td class="fri-note">${friE(r.snippet)}</td></tr>`).join('')}</tbody></table></div>
     ${miss.length ? `<div class="fri-warn">Not found in the report: ${friE(miss.join(', '))}.</div>` : ''}
     ${s.kind!=='Word' && !s.photos ? '<div class="fri-warn">⚠ No embedded photos detected — ask for the original .docx with photos; photo-dependent findings stay PROVISIONAL (Step 2a).</div>' : ''}
     <details style="margin-top:8px"><summary class="fri-note" style="cursor:pointer">Show the text read from the file</summary><pre style="white-space:pre-wrap;font-size:11px;max-height:320px;overflow:auto;background:#FAFAFA;padding:8px;border-radius:6px">${friE(s.text)}</pre></details>
@@ -3363,7 +3375,7 @@ function friReconcile(v){
   const rep = (v.source && v.source.text) || '', repN = rep.toLowerCase(), repPhotoG = [...new Set(((v.source && v.source.imgs) || []).flatMap(im => im.codes || []))], repG = [...new Set([...friGtins(rep), ...repPhotoG])];
   const docs = v.docs || [], artDocs = docs.filter(d => d.type === 'art'), artG = [...new Set(artDocs.flatMap(d => d.gtins))];
   const poDocs = docs.filter(d => d.type === 'po'), poG = [...new Set(poDocs.flatMap(d => d.gtins))];
-  const has = (t, s) => !!s && t.includes(String(s).toLowerCase().trim());
+  const has = (t, s) => !!s && friHasTok(t, s);   // whole word / whole code only
   const row = (check, master, report, doc, res, note) => out.rows.push({ check, master: master ?? '—', report: report ?? '—', doc: doc ?? '—', res, note: note || '' });
   const issue = x => out.issues.push(Object.assign({ type:'F', status:'Open', resp:'QC' }, x));
   const mref = t => ({ kind:'master', src:'master', label:'Master file', excerpt: t });
@@ -3409,14 +3421,14 @@ function friReconcile(v){
     if (pk && ap && pk.inner && ap.inner && pk.inner !== ap.inner) issue({ type:'RG', sev:'—', resp:'QS + Compliance Director', cp:'CP2', title:`Packaging of ${nm}: P.O./P.I. ${pk.inner} pcs/inner ≠ artwork "${ap.doc}" ${ap.inner} pcs/inner — approved documents conflict.`, action:'Confirm the inner packing with the Ally.' });
     const want = (pk && pk.outer) || (ap && ap.outer);
     if (rep && want) { const keys = [it.allyRef, it.supRef, digitsOf(it.ean)].filter(Boolean).map(String);
-      const rl = rep.split('\n').filter(l => keys.some(k => l.includes(k))).map(l => friPackOf(l).outer).filter(Boolean);
+      const rl = rep.split('\n').filter(l => keys.some(k => friHasTok(l, k))).map(l => friPackOf(l).outer).filter(Boolean);
       const bad = rl.find(o => o !== want);
       if (bad) issue({ cp:'CP2', sev:'Major', title:`Packing of ${nm} in the report: ${bad} pcs/carton ≠ ${pk && pk.outer ? 'P.O./P.I.' : 'artwork'} ${want} pcs/carton.`, action:'Check the packed cartons against the P.O./P.I.; correct the report or raise an NC- if the goods are packed differently.' }); }
   });
   // item lines
   items.forEach(it => {
     const code = it.allyRef || it.supRef || '', gt = [it.ean, it.logCode].map(x => String(x || '').replace(/\D/g, '')).filter(x => x.length >= 13);
-    const inRep = !!rep && ((code && has(repN, code)) || gt.some(x => repG.includes(x) || rep.includes(x)));
+    const inRep = !!rep && ((code && friHasTok(rep, code)) || gt.some(x => repG.includes(x) || friHasTok(rep, x)));
     const artG13 = artG.map(friGtin13of14);
     const eanArt = !artDocs.length ? null : badEan.includes(it) ? 'badmaster' : !artG.length ? 'unreadable' : (gt.length ? gt.every(x => artG.includes(x) || artG13.includes(friGtin13of14(x))) : null);
     out.items.push({ src: it.src, srcDoc: it.srcDoc, pack: friPackLabel(it.pack), artPack: it.artPack ? friPackLabel(it.artPack) + ' (' + it.artPack.doc + ')' : '', po: it._po, eanBad: badEan.includes(it), code, desc: it.desc, ean: it.ean, itf: it.logCode, brand: it.brand, qty: it.qty, inRep, eanArt, brandRep: it.brand ? has(repN, it.brand) : null });
@@ -3475,7 +3487,7 @@ function friPackSummary(v){
   const dig = x => String(x || '').replace(/\D/g, '');
   return friOrderItems(v).items.map(it => {
     const keys = [it.allyRef, it.supRef, dig(it.ean)].filter(Boolean).map(String);
-    const rl = keys.length ? lines.filter(l => keys.some(k => l.includes(k))) : [];
+    const rl = keys.length ? lines.filter(l => keys.some(k => friHasTok(l, k))) : [];
     const rp = rl.map(l => friPackOf(l)).find(p => p.outer || p.inner || p.words.length) || null;
     const po = it.pack && (it.pack.outer || it.pack.inner || it.pack.ctns || (it.pack.words || []).length || it.pack.text) ? it.pack : null, ap = it.artPack || null;
     const ref = (po && po.outer) || (ap && ap.outer) || null;
@@ -3894,7 +3906,7 @@ function friOrderItems(v){
   const digits = x => String(x || '').replace(/\D/g, '');
   const sameItem = (l, m) => (l.ean && [m.ean, m.logCode].map(digits).includes(l.ean)) || (l.itf && [m.logCode].map(digits).includes(l.itf)) || [l.code, l.sref].filter(Boolean).some(c => [m.allyRef, m.supRef].filter(Boolean).map(String).includes(String(c)));
   const artPack = it => { const g = [it.ean, it.logCode].map(digits).filter(Boolean);
-    const d = (v.docs || []).filter(d => d.type === 'art').find(d => (d.gtins || []).some(x => g.includes(x) || g.includes(friGtin13of14(x))) || [it.allyRef, it.supRef].filter(Boolean).some(c => (d.name + ' ' + (d.text || '')).includes(String(c))));
+    const d = (v.docs || []).filter(d => d.type === 'art').find(d => (d.gtins || []).some(x => g.includes(x) || g.includes(friGtin13of14(x))) || [it.allyRef, it.supRef].filter(Boolean).some(c => friHasTok(d.name.replace(/[_.-]/g, ' ') + ' ' + (d.text || ''), c)));
     if (!d) return null; const p = friPackOf(d.text || ''); return (p.outer || p.inner || p.words.length) ? Object.assign(p, { doc: d.name }) : null; };
   if (!docs.length) return { src:'master', items: master.map(m => Object.assign({}, m, { src:'master', mQty: m.qty, mEan: m.ean, pack: null, artPack: artPack(m) })) };
   const used = new Set(), items = [];
