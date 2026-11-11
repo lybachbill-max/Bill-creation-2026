@@ -2880,6 +2880,25 @@ function friPreValidate(v){
   friDupPhotos(s.imgs).forEach(a => add({ pattern:17, cp:'CP9', sev:'Minor', title:`Same photo file ${a[0].media} used under ${a.length} different captions (${[...new Set(a.map(x => x.cap.slice(0,40)))].join(' / ')}).`, action:'Replace the reused photo with the photo of each check.', refs: a.slice(0,3).map(im => ({ kind:'photo', src:'dup', key: im.key, w: im.w, h: im.h, label:`Report photo ${im.n} — ${im.cap.slice(0,80)}` })) }));
   // ── P.O. reconciliation with the master file and the uploaded documents (Step 3d) ──
   friReconcile(v).issues.forEach(x => { add(Object.assign({}, x)); if (x.cp && out.cps[x.cp] && (x.type === 'F' || x.type === 'NC')) cpIssue(x.cp, x.type === 'NC' ? 'nc' : 'gap'); });
+  // ── Step 3f standards live check: editions cited in the report and in the DoP / DoC / CE documents, judged against the
+  //    shared standards table of the TCF page (TCS_STD, live-checked; rulebook §3 / §4.2) ──
+  if (typeof TCS_STD !== 'undefined' && typeof tcsEditionCheck === 'function') {
+    const fu0 = friLotRow(friPos(v)[0] || {}) || {}, etd = (typeof tcsDate === 'function' ? tcsDate(fu0.etd) : '') || new Date().toISOString().slice(0, 10);
+    const age = tcsStdAge(), chk = `standards table live-checked ${tcsFmt(TCS_STD_CHECKED)}${age > 30 ? ` — ${age} days ago, re-check before relying on it` : ''}`;
+    const srcs = [{ name: 'the FRI report', text: all, doc: false }].concat((v.docs || []).filter(d => d.type === 'ce' || d.type === 'test' || d.type === 'qcp' || d.type === 'std').map(d => ({ name: d.name, text: d.text || '', doc: d.type === 'ce' })));
+    let any = false;
+    Object.keys(TCS_STD).forEach(std => srcs.forEach(src => {
+      if (!tcsEdition(src.text, std)) return;                       // only editions actually written in the document
+      const ec = tcsEditionCheck(std, src.text, etd), U = TCS_STD[std].use; any = true;
+      if (ec.st === 'ok' || ec.st === 'coex' || ec.st === 'ed-missing') return;
+      const where = src.doc ? 'DoP / DoC / CE label' : src.name === 'the FRI report' ? 'the FRI report' : src.name;
+      if (ec.st === 'ed-blocked' && src.name === 'the FRI report') add({ type:'F', sev:'Minor', cp:'CP7', title:`${where} cites ${ec.ed}: ${ec.ended ? 'coexistence ended ' + tcsFmt(ec.ended) + ' before ETD' : 'edition no longer cited (BLOCKED)'} — requirement is ${U} (${chk}).`, action:`Inspector: state the method edition required by the QC Pack / FRI template (${U}); QS to confirm the test evidence edition.` });
+      else if (ec.st === 'ed-blocked') add({ type: src.doc ? 'RG' : 'OB', sev:'—', resp:'QS', cp:'CP9', title:`${where} (${src.name}) cites ${ec.ed}: ${ec.ended ? 'coexistence ended ' + tcsFmt(ec.ended) : 'edition no longer cited (BLOCKED)'}; cited edition is ${U} (${chk}).`, action:`QS + Compliance: update the document / evidence to ${U}.` });
+      else if (ec.st === 'ed-watch') add({ type:'OB', sev:'—', resp:'QS', cp: src.doc ? 'CP9' : 'CP7', title:`${where} cites ${ec.ed} — newer edition, not OJ-cited (WATCH): gap test only; evidence to the cited ${U} is still needed (${chk}).`, action:'QS: keep the cited-edition evidence in the TCF; the newer edition is an additional gap test.' });
+      else if (ec.st === 'ed-soa') add({ type:'OB', sev:'—', resp:'QS', cp: src.doc ? 'CP9' : 'CP7', title:`${where} cites ${ec.ed} — not the current ${U} (state of the art, no OJ citation): accepted only with the Ally's written acceptance (rulebook §3).`, action:`QS: obtain the Ally's written acceptance of ${ec.ed}, or new testing to ${U}.` });
+    }));
+    if (any && age > 30) add({ type:'OB', sev:'—', resp:'QS', cp:'CP9', title:`Standards table last live-checked ${tcsFmt(TCS_STD_CHECKED)} (${age} days) — re-check the editions before relying on these findings (rulebook §4.2).`, action:'IQA: live-check the standards and update the table.' });
+  }
   // ── ARENA FRI Standard checklist (Step 3e): coverage = mandatory IDs found in the report ──
   const std = (v.docs || []).map(d => d.std).filter(Boolean).pop();
   if (std) {

@@ -1,6 +1,6 @@
 ---
 name: "fri-validation"
-description: "Validate a submitted FRI report against the PO, approved artwork, DoP, the released ARENA FRI Standard checklist (requirement IDs) and any project/Ally protocol, review its photos as evidence, and produce Word deliverables: Validation Assessment, Annotated FRI Report and Supplier CAPA Request."
+description: "Validate a submitted FRI report against the PO, approved artwork, DoP, the released ARENA FRI Standard checklist (requirement IDs) and any project/Ally protocol, review its photos as evidence, and produce Word deliverables: Validation Assessment, Annotated FRI Report and Supplier CAPA Request. Every standard and edition cited (report, QC Pack, FRI template, DoP / DoC / CE label, test methods, ISO 2859-1) is live-checked per the ARENA rulebook (register if verified ≤ 30 days, else OJ / CEN-ISO / GB designated lists) and given a status CURRENT / PASS-COEX / WATCH / BLOCKED / SoA / UNVERIFIED; edition findings follow from it."
 ---
 
 # FRI Inspection Report — Validation Assessment Skill
@@ -205,7 +205,7 @@ Before classifying findings, build one row per checkpoint (CP1 through CP10, alw
 | What the report shows | The actual recorded result and the specific data behind it (not just "Passed" — the number/photo/field that supposedly supports it) |
 | Compliance verdict | **Compliant** / **Not Compliant** / **Cannot Confirm** (data missing or ambiguous) / **N/A** (checkpoint genuinely doesn't apply at this inspection stage — e.g. CP2 Packing or CP8 Disposal data on an In-line Inspection where packing isn't complete yet) |
 
-**Order of precedence when sources conflict:** law and the harmonised / designated standard cited for the destination market → Ally protocol / QC Pack → ARENA FRI Standard → inspector practice. The ARENA FRI Standard never relaxes a higher-level requirement; a conflict between them is an `RG-` item for QS + Compliance, not an `F-` against the inspector.
+**Order of precedence when sources conflict:** law and the harmonised / designated standard cited for the destination market (edition and status from the **Step 3f Standards live check**, never from memory) → Ally protocol / QC Pack → ARENA FRI Standard → inspector practice. The ARENA FRI Standard never relaxes a higher-level requirement; a conflict between them is an `RG-` item for QS + Compliance, not an `F-` against the inspector.
 
 Every **Not Compliant** or **Cannot Confirm** row must produce at least one `F-` or `NC-` item in Step 4 — if a row in this matrix doesn't trace to a finding, either the matrix is wrong or a finding is missing. Conversely, do not mark a checkpoint N/A just because the report marked it N/A — confirm that N/A is actually appropriate for the declared inspection type before accepting it (e.g. CP7 On-site tests being N/A is normal for an In-line Inspection but would itself be a Critical gap on a Final Random Inspection).
 
@@ -279,11 +279,50 @@ Approved documents for one PO can disagree with each other, and the report usual
 | Weight chain | Unit spec ↔ carton/shipping-mark net and gross ↔ measured unit weights ↔ measured packed weights ↔ Section 8 packaging totals. Gross ≈ (units × unit weight) + packaging weight | Measured outside tolerance → `NC-`; declared carton/shipping-mark weight understated → part of the same `NC-`; report finding copied from the claim → `F-` (pattern #18) |
 | Declared performance ↔ CP7 | Every class declared in the DoP / CE label (e.g. overflow CL 15, load resistance) needs its test at the FRI | Test N/A while CP7 marked Passed → Critical `F-` (pattern #19) |
 | CE-marking identity | Manufacturer name and address on the product CE label, the carton CE block, the DoP and the IM must be the same legal entity | Conflict **between approved documents** → `RG-` requirement conflict for QS + Compliance (not a supplier NC); in the CAPA, tell the supplier to hold the next print run until confirmed |
-| Standard edition | FRI method text vs DoP vs CE label vs the edition cited in the OJ for the product's hEN | Minor `F-` for the report; `OB-` to QS when the DoP cites a non-cited edition |
+| Standard edition | FRI method text vs QC Pack / FRI template vs DoP / DoC / CE label vs the edition and status from the **Step 3f Standards live check** | See the Step 3f finding table (F- / RG- / OB-) |
 | Artwork revision | Several revisions of the same artwork with conflicting content or implausible file dates | `OB-`: confirm with QS which revision is current before judging conformity |
 | Disposal data (CP8) | Values in the right columns (a strap weight entered as "# sale units per transport unit" is misplaced); weights reconcile with the photos | `F-` (Major if it hides missing data) |
 | EAN / barcode chain | Master-file EAN (valid GTIN, Step 2) ↔ barcode **decoded** from the approved artwork (EAN-13 / UPC-A on product labels, ITF-14 on cartons — read the barcode itself, not only printed digits: artwork digits are often outlined) ↔ barcode scan photo in the report. An ITF-14 matches its item when it packs the item's GTIN-13 (indicator digit + same 12 digits + new check digit) | Invalid / missing master EAN → `RG-` to QS (correct Orders Data), artwork comparison held; artwork GTIN not on the P.O. → `NC-` High, SRC blocked; item GTIN not found in the artwork → `OB-` (upload the item artwork or check visually) |
 | AQL lot basis | ARENA method (Step 3a): lot size = order (shipment) q'ty; one item → General II + S3 on the item; several items → General II on Σ order q'ty allocated per item by order q'ty, S3 per item on its order q'ty; Ac/Re at the combined n; packed q'ty only for the ≥80 % check. When `Quality_matrix_and_inspection_sampling_tool_2.xlsx` is not available, use ISO 2859-1 Tables 1 and 2-A directly and say so | Pattern #5 / #6 for item sample sizes not per the method; pattern #14 if Ac/Re do not match the n inspected |
+
+### Step 3f — Standards Live Check (mandatory, every validation – ARENA rulebook §0, §3, §4.2)
+
+No standard, edition, OJ citation, coexistence date or regulation date is judged or written from memory or from this skill.
+
+1. **List** every standard and edition cited:
+   - in the FRI report: method text, CP7 on-site tests, the sampling standard ISO 2859-1;
+   - in the QC Pack / ARENA FRI Standard / FRI template;
+   - in the DoP / DoC / CE label / IM;
+   - in any test report referenced.
+2. **Look up** each one, highest source first:
+   - **Regulatory Register:** an entry marked **V** and verified ≤ 30 days ago may be used (canonical copy, or the Drive mirror after checking its "synced" date).
+   - **Otherwise, live check:**
+     - EU / EEA / CH / NI: OJ / EUR-Lex hEN list (the CID and its amendments) → Commission hEN summary list → CEN / ISO catalogue for non-hENs (e.g. EN 581-2/-3, ISO 2859-1) → accredited-lab bulletins.
+     - GB: DBT / OPSS Notice of Publication → BSI.
+   - Say plainly when the register could not be read, and update it afterwards.
+3. **Assign a status:**
+   - **CURRENT:** OJ-cited / GB-designated edition.
+   - **PASS-COEX:** older edition still cited until a date. Accept; never block.
+   - **WATCH:** newer edition published, not cited. Gap test only; never inject.
+   - **BLOCKED:** citation withdrawn, cited replacement exists.
+   - **SoA:** no edition cited; the current CEN / ISO edition is state of the art.
+   - **UNVERIFIED:** could not be confirmed. Say so; never block or guess.
+4. **Raise findings from the result:**
+
+| Situation | Finding |
+|---|---|
+| Inspector's method / CP7 test cites an edition other than the requirement (QC Pack / FRI template / cited hEN) | `F-` Minor (report) |
+| QC Pack, ARENA FRI Standard or FRI template cites a BLOCKED edition, an older edition past its coexistence date, or an outdated SoA edition | `RG-` for QS (+ Compliance): requirement document out of date; the inspection result stands only for the parts unaffected by the edition change |
+| DoP / DoC / CE label / IM cites a non-cited edition | `OB-` to QS; BLOCKED edition → `RG-` |
+| Test evidence only to a newer, non-cited edition (WATCH) | `OB-`: gap test only; evidence to the cited edition is still needed |
+| SoA standard tested to an older edition (e.g. EN 581-2/-3) | `OB-`: accepted only with the Ally's written acceptance (rulebook §3, §9); otherwise new testing to the current edition |
+| Status UNVERIFIED | `OB-` "edition status not verified"; never blocks the verdict |
+
+5. **Document the result:**
+   - The Validation Assessment carries a dated **Standards check** table (Standard · Edition cited where · Edition to use · Status · Reference / source URL · date checked) after the CP matrix.
+   - Annotated-report comments name the status.
+   - The reply lists the date checked and the sources.
+   - A check older than 30 days is re-run before reuse.
 
 ### Step 4 — Classify Findings
 
@@ -634,6 +673,7 @@ flowchart TD
 | `qsd-qcp` / `qcp-excel-generator` | Requirement source for Step 5.2; updated at RCA close-out when the non-detection branch points to the inspection matrix |
 | `fri-report-template-generator` | **Upstream** — produces the ARENA FRI Standard (template + guideline, document ID `ARENA-FRI-STD-<CAT>-Vx`) and the requirement checklist `.xlsx` that Step 3e applies; checklist and guideline updated at RCA close-out when the FRI form failed to capture the defect |
 
+> **v3.5 (2026-11-11):** standards live check — new **Step 3f**: every standard / edition cited (report, QC Pack / ARENA FRI Standard / FRI template, DoP / DoC / CE label / IM, test methods, ISO 2859-1) is checked per rulebook §4.2 and given a status CURRENT / PASS-COEX / WATCH / BLOCKED / SoA / UNVERIFIED (never from memory); finding table (F- Minor for the inspector's wrong edition, RG- for out-of-date requirement documents, OB- for DoP / label editions, WATCH-only tests and SoA older editions; UNVERIFIED never blocks); dated Standards check table in the Validation Assessment and the reply; precedence line and Step 3d edition row point to Step 3f. Aligned with the IQS FRI page and the tcf-status-action-plan skill.
 > **v3.4 (2026-11-11):** order of work — the FRI report is read first and its values stay as stated; the provided documents (P.O. / P.I. › master file) are the reference it is compared with; report qty not stated → finding; a "Packaging method per item" table (FRI report × P.O. / P.I. × artwork, status per item) in the Validation Assessment.
 > **v3.3 (2026-11-11):** source priority — P.O. / P.I. and artwork provided first, master file only for what they do not give (per line, source stated; differences → OB- to update the master file); packaging method per item from the P.O. / P.I. and the artwork; packaging conflicts P.O. / P.I. ↔ artwork → RG-, report ↔ P.O. / P.I. → F- Major (CP2).
 > **v3.2 (2026-11-10):** one FRI report can cover several P.O.s — order qty = sum over all P.O. lots in the report (combined lot for General II across P.O.s); each P.O. reconciled against the master file; verdict / shipment status (SRC block) apply to every P.O. listed; the SRC itself is issued separately per P.O. / lot (one certificate each, never grouped).
