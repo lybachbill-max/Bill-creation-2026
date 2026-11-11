@@ -21,7 +21,7 @@ function tcsRender(){
     <button type="button" class="bk-nc nc-soon fri-out" onclick="tcsDownload()" style="flex:1 1 320px">
       <div style="font-size:26px;flex-shrink:0">📊</div>
       <div style="min-width:0;text-align:left"><div class="fri-out-t">TCF Status &amp; Action Plan (.xlsx)</div><div class="fri-out-vn">Trạng thái TCF và Kế hoạch hành động</div>
-      <div class="bk-nc-sub">${items.length} item(s) · ${all.length} requirement line(s) · ${TCS.lang === 'bi' ? 'EN / VI' : 'EN'} · sheets: TCF status, ${items.some(i => i.stream !== 'gpsr') ? 'CE &amp; DoC guideline, EC DoC template, ' : ''}${TCS.reports.length ? 'Validation log, ' : ''}Report validation, Test plan, Testing body rules</div></div>
+      <div class="bk-nc-sub">${items.length} item(s) · ${all.length} requirement line(s) · ${TCS.lang === 'bi' ? 'EN / VI' : 'EN'} · 2 worksheets: TCF status, Test plan</div></div>
       <div class="fri-out-go">⬇</div></button>
     <div class="tcs-row" style="flex:1 1 300px">${tcsPill('OPEN')} ${n(q => q.st === 'OPEN' && q.sev === 'CRI')} CRI · ${n(q => q.st === 'OPEN' && q.sev === 'MAJ')} MAJ &nbsp; ${tcsPill('CONDITIONAL')} ${n(q => q.st === 'CONDITIONAL')} &nbsp; ${tcsPill('ACCEPTED')} ${n(q => q.st === 'ACCEPTED')}</div></div>
     <div class="tcs-note" style="margin-top:8px">${noPo ? '⚠ No P.O. / P.I. yet – P.O. fields stay blank and validity (K-1) is checked at today; add the P.O. / P.I. files when available.' : 'ETD per P.O.: ' + tcsE(B.pis.map(p => `${p.po}: ${tcsFmt(p.lines.map(l => l.etd).filter(Boolean).sort()[0]) || 'n/a'}`).join(' · '))}
