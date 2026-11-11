@@ -1,5 +1,7 @@
 # ARENA IQS — Quality Platform (single file)
 
+**Phone version:** `ARENA_IQS_mobile.html` — same features and data, phone layout on screens up to 820 px (☰ slide-in menu, compact top bar, stacked pages, sideways-scrolling tables, 16 px inputs). Built from `ARENA_IQS.html` by `python3 arena-iqs/make_mobile.py`; run it again after every change to the main file.
+
 **Removed 10 Nov 2026:** Compliance Pathway, Master File Cross-Check, CBAM Communication Console, EUDR – Radix Tree Guideline and PPWR Packaging Forms (sidebar entries, pages and code; the Compliance sidebar section is gone). The PPWR DoC register (opened from the Dashboard alert) stays. Kept: IQA data corrections applied on master-file load, and the EUDR Annex I table used by the EUDR flags.
 
 Open `ARENA_IQS.html` in a browser and load `New_Master_File.xlsx` from the top bar.
