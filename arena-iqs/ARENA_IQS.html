@@ -2282,9 +2282,13 @@ function friAqlCheck(v){
   //  · several items (across P.O. lots) → General II on the COMBINED order total, allocated per item
   //    round(n × item order qty ÷ total order qty); Special S3 per item on its own order qty; Ac/Re at the combined n
   const a = v.aql, num = x => (x===''||x==null) ? null : +x;
-  const items = (a.items || []).filter(it => num(it.ship) > 0);
+  const refOrd = v.po ? friOrderItems(v) : { src:'', items:[] }, refItems = refOrd.items.filter(x => +x.qty > 0);
+  const refTot = refItems.reduce((s, x) => s + +x.qty, 0) || null, refSrc = refOrd.src === 'master' ? 'master file' : 'P.O./P.I.';
+  const repItems = (a.items || []).filter(it => num(it.ship) > 0 && (v.source ? it.src !== 'master' && it.src !== 'P.O./P.I.' : true));
+  const items = repItems.length ? repItems : refItems.map(x => ({ ref: x.allyRef || x.supRef || '', desc: x.desc || '', ship: +x.qty, packed: '', nII: '', nS3: '', src: x.src }));
   const multi = items.length > 1;
-  const totShip = items.length ? items.reduce((s, it) => s + +it.ship, 0) : num(a.poQty);
+  const repTot = repItems.length ? repItems.reduce((s, it) => s + +it.ship, 0) : num(a.poQty);
+  const totShip = refTot || repTot;   // lot size = order qty of the reference (P.O./P.I. first, master file otherwise); the report's own figure when no reference
   const totPacked = items.length && items.every(it => num(it.packed) != null) ? items.reduce((s, it) => s + +it.packed, 0) : num(a.packed);
   const lotUsed = num(a.lotUsed), nInsp = num(a.nInsp);
   const fCr = num(a.fCr), fMa = num(a.fMa), fMi = num(a.fMi), acMa = num(a.acMa), acMi = num(a.acMi);
@@ -2294,7 +2298,8 @@ function friAqlCheck(v){
   const pMa = idx>=0 ? friPlanByIdx(idx, a.aqlMa) : null, pMi = idx>=0 ? friPlanByIdx(idx, a.aqlMi) : null;
   out.rows.push(['Method', multi ? `Combined across ${items.length} items — General ${a.gen} on the total order qty, allocated per item; Special ${a.spec} per item` : `Normal single sampling — General ${a.gen} + Special ${a.spec} on the item order qty`, '']);
   out.rows.push(['AQL levels', `Critical 0 · Major ${a.aqlMa} · Minor ${a.aqlMi}`, '']);
-  out.rows.push(['Lot size (order qty)', `${lot ?? '—'}${code ? ` → General ${a.gen} code ${code}, n = ${FRI_N[idx]}` : ''}`, lotUsed != null && lotUsed !== lot ? `report uses ${lotUsed}` : '']);
+  out.rows.push(['Order qty', `FRI report: ${repTot ?? 'not stated'} · ${refTot ? `${refSrc}: ${refTot}` : 'no P.O./P.I. or master data'}`, repTot != null && refTot && repTot !== refTot ? '⚠ report ≠ reference' : (repTot != null && refTot ? '✓ match' : '')]);
+  out.rows.push(['Lot size (order qty)', `${lot ?? '—'}${refTot ? ` (${refSrc})` : repTot != null ? ' (FRI report — no reference)' : ''}${code ? ` → General ${a.gen} code ${code}, n = ${FRI_N[idx]}` : ''}`, lotUsed != null && lotUsed !== lot ? `report uses ${lotUsed}` : '']);
   if (pMa) out.rows.push(['Table 2-A at n', `Major Ac ${pMa.ac} / Re ${pMa.re} (n ${pMa.n}${pMa.note?', '+pMa.note:''}) · Minor Ac ${pMi.ac} / Re ${pMi.re} (n ${pMi.n}${pMi.note?', '+pMi.note:''}) · Critical Ac 0 / Re 1`, '']);
   // packed ≥ 80 % of order qty (FRI validity)
   if (lot && totPacked != null) {
@@ -2307,9 +2312,11 @@ function friAqlCheck(v){
   if (items.length && pMa) {
     const nG = FRI_N[idx];
     items.forEach(it => {
-      const allocII = multi ? Math.floor(nG * +it.ship / lot + 0.5) : nG;
-      const cS = friCode(+it.ship, a.spec), nS3 = cS ? FRI_N[FRI_CODES.indexOf(cS)] : null;
-      const r = { ref: it.ref, desc: it.desc, ship: +it.ship, packed: num(it.packed), nII: num(it.nII), nS3: num(it.nS3), expII: allocII, expS3: nS3 };
+      const rf = refItems.find(x => [x.allyRef, x.supRef].filter(Boolean).map(String).includes(String(it.ref)) || (it.desc && x.desc && String(x.desc).slice(0, 18) === String(it.desc).slice(0, 18)));
+      const oq = rf ? +rf.qty : +it.ship;   // order qty of the item from the reference; the report's figure if the item is not in it
+      const allocII = multi ? Math.floor(nG * oq / lot + 0.5) : nG;
+      const cS = friCode(oq, a.spec), nS3 = cS ? FRI_N[FRI_CODES.indexOf(cS)] : null;
+      const r = { ref: it.ref, desc: it.desc, ship: +it.ship, order: oq, orderSrc: rf ? rf.src : 'FRI report', packed: num(it.packed), nII: num(it.nII), nS3: num(it.nS3), expII: allocII, expS3: nS3 };
       r.okII = r.nII == null || r.nII === allocII; r.okS3 = r.nS3 == null || r.nS3 === nS3;
       out.items.push(r);
     });
@@ -2469,7 +2476,9 @@ function friIn(path, val, opts){
 function friRenderWorkbench(){
   const el = g('fri-wb'); if (!el || !friCur) return;
   const v = friCur, a = v.aql, c = v.cov;
-  el.innerHTML = friSourcePanel() + `
+  el.innerHTML = (v.source ? '' : `<div class="card" style="border-left:4px solid var(--p);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div><div class="ct">① Import the FRI report first</div><div class="fri-note">The report is read first and its own values stay as stated. Then ② upload the P.O. / P.I., artwork and other documents: each is compared with the report (P.O./P.I. › master file as reference).</div></div>
+      <button class="btn btn-p" onclick="g('fri-import-input').click()">⬆ Import FRI report (Word · Excel · PDF)</button></div>`) + friSourcePanel() + `
   <div class="card">
     <div class="ch2"><div class="ct">${v.ref ? friE(v.ref) + (v.rev?` · Rev.${v.rev}`:'') : 'New FRI validation (not saved)'}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span id="fri-save-msg" class="fri-note"></span>
@@ -2503,6 +2512,7 @@ function friRenderWorkbench(){
   </div>
   ${friDocsPanel()}
   ${friReconPanel()}
+  ${friPackPanel()}
   <div id="fri-banner"></div>
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div class="fri-sec">2 · Checkpoint requirement compliance matrix (CP1–CP10)</div>
@@ -2606,8 +2616,8 @@ function friRefreshDerived(){
     ao.innerHTML = `<table class="tbl" style="font-size:12px"><tbody>${aq.rows.map(r => `<tr><td style="width:150px;color:var(--t2)">${friE(r[0])}</td><td><b>${friE(r[1])}</b>${r[2]?` <span class="fri-note">${friE(r[2])}</span>`:''}</td></tr>`).join('')}</tbody></table>
       ${aq.issues.map((x,j) => `<div style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:12px"><span class="tag ${x.type==='NC'?'t-r':x.sev==='Critical'?'t-r':'t-o'}">${x.type==='NC'?'NC-':x.sev}</span><span style="flex:1">${x.pattern?`#${x.pattern} · `:''}${friE(x.title)}</span>
         ${existing.has(x.title) ? '<span class="fri-note">logged</span>' : `<button class="btn btn-d btn-sm" onclick='friAddFinding(${JSON.stringify(Object.assign({type:'F'},x)).replace(/'/g,"&#39;")})'>+ Add</button>`}</div>`).join('')}
-      ${aq.items.length ? `<div class="fri-note" style="margin:8px 0 3px"><b>Per-item sample sizes — report vs ARENA method</b></div><div class="tw"><table class="tbl" style="font-size:11.5px"><thead><tr><th>ITEM</th><th>ORDER</th><th>PACKED</th><th>${friE(friCur.aql.gen)} REPORT / METHOD</th><th>${friE(friCur.aql.spec)} REPORT / METHOD</th></tr></thead><tbody>
-        ${aq.items.map(r => `<tr><td>${friE(r.ref)} <span class="fri-note">${friE((r.desc||'').slice(0,34))}</span></td><td>${r.ship}</td><td>${r.packed ?? '—'}</td><td>${r.nII ?? '—'} / <b>${r.expII}</b> ${r.nII==null?'':r.okII?'✓':'⚠'}</td><td>${r.nS3 ?? '—'} / <b>${r.expS3 ?? '—'}</b> ${r.nS3==null?'':r.okS3?'✓':'⚠'}</td></tr>`).join('')}</tbody></table></div>` : ''}
+      ${aq.items.length ? `<div class="fri-note" style="margin:8px 0 3px"><b>Per-item sample sizes — report vs ARENA method</b></div><div class="tw"><table class="tbl" style="font-size:11.5px"><thead><tr><th>ITEM</th><th>ORDER (reference)</th><th>SHIPMENT (report)</th><th>PACKED</th><th>${friE(friCur.aql.gen)} REPORT / METHOD</th><th>${friE(friCur.aql.spec)} REPORT / METHOD</th></tr></thead><tbody>
+        ${aq.items.map(r => `<tr><td>${friE(r.ref)} <span class="fri-note">${friE((r.desc||'').slice(0,34))}</span></td><td>${r.order}<div class="fri-note">${friE(r.orderSrc||'')}</div></td><td>${r.ship}</td><td>${r.packed ?? '—'}</td><td>${r.nII ?? '—'} / <b>${r.expII}</b> ${r.nII==null?'':r.okII?'✓':'⚠'}</td><td>${r.nS3 ?? '—'} / <b>${r.expS3 ?? '—'}</b> ${r.nS3==null?'':r.okS3?'✓':'⚠'}</td></tr>`).join('')}</tbody></table></div>` : ''}
       <div class="fri-note" style="margin-top:6px">ARENA method (fri-validation v3.0): lot size = order qty; one item → normal single sampling (General ${friE(friCur.aql.gen)} + ${friE(friCur.aql.spec)}); several items → General ${friE(friCur.aql.gen)} on the combined order total, allocated per item by order qty, ${friE(friCur.aql.spec)} per item. Packed qty only for the ≥80% check. Tables: ISO 2859-1 Tables 1 and 2-A. Critical class: Ac 0.</div>`;
   }
   const co = g('fri-cov-out');
@@ -2641,6 +2651,7 @@ async function friPrint(){
       ${(f.refs||[]).filter(r => r.kind!=='photo').map(r => `<div style="font-size:8.5pt;color:#444">${r.kind==='master'?'Master file':friE(r.label)}: “${friE(r.excerpt)}”</div>`).join('')}
       <div style="display:flex;gap:6pt;flex-wrap:wrap;margin-top:4pt">${(evImgs[f.ref]||[]).map(im => `<div style="width:150pt;font-size:7.5pt"><img src="${im.url}" style="width:150pt;max-height:115pt;object-fit:contain;border:0.5pt solid #ccc"/><div>${friE(im.label)}</div></div>`).join('')}</div>
       ${(f.refs||[]).some(r => r.kind==='photo' && !r.doc) ? '' : '<div style="font-size:8.5pt;font-style:italic">Reference photo: none available in the report.</div>'}</div>`).join('')}` : ''}
+    ${(() => { const pr = friPackSummary(v); return pr.length ? `<h3 style="color:#F4811F">Packaging method per item</h3><table><thead><tr><th>Item</th><th>Order qty</th><th>FRI report</th><th>P.O. / P.I.</th><th>Artwork</th><th>Status</th></tr></thead><tbody>${pr.map(r => `<tr><td>${friE(r.item)}</td><td>${r.qty ?? ''}</td><td>${friE(r.rep || 'not stated')}</td><td>${friE(r.po || 'not stated')}</td><td>${friE(r.art || 'not stated')}</td><td>${friE((r.status === 'ok' ? 'consistent' : r.status === 'conflict' ? 'CONFLICT' : r.status === 'missing' ? 'not stated' : 'not in report') + (r.note ? ' — ' + r.note : ''))}</td></tr>`).join('')}</tbody></table>` : ''; })()}
     <h3 style="color:#F4811F">AQL verification</h3>
     <table><tbody>${aq.rows.map(r => `<tr><td style="width:35%">${friE(r[0])}</td><td>${friE(r[1])} ${friE(r[2])}</td></tr>`).join('')}</tbody></table>
     ${v.notes ? `<h3 style="color:#F4811F">Notes / containment</h3><p style="font-size:9pt;white-space:pre-wrap">${friE(v.notes)}</p>` : ''}
@@ -2863,6 +2874,7 @@ function friStartFromReport(name, kind, size, text, photos, imgs){
   const found = friParseReport(text);
   const keep = (friCur && !friCur.source && (friCur.docs || []).length) ? friCur : null;   // documents uploaded first → attach the report to that validation
   friCur = friBlank(); friDirty = true;
+  friCur.source = { name, pending: true };   // report first: nothing below may overwrite the report's own values
   if (keep) ['id','ref','rev','status','docs','basis','basisStatus','validator','valDate'].forEach(k => { friCur[k] = keep[k]; });
   const get = k => found.find(f => f.key === k);
   if (keep && keep.po && get('po') && get('po').value !== keep.po && !confirm(`The report is for P.O. ${get('po').value}, the open validation is for ${keep.po}. Attach it anyway?`)) { friCur = keep; friRenderWorkbench(); return; }
@@ -2902,7 +2914,7 @@ function friStartFromReport(name, kind, size, text, photos, imgs){
   const m = g('fri-save-msg'); if (m) m.textContent = `Pre-validation: ${nAuto} finding(s) extracted from the report — review each "auto" item, then save.`;
 }
 function friSourcePanel(){
-  const s = friCur && friCur.source; if (!s) return '';
+  const s = friCur && friCur.source; if (!s || s.pending || !s.read) return '';
   const all = ['P.O.','Lot','FRI report no.','Inspection date','Inspector','Reviewer','Inspection body','Inspection type','P.O. / shipment qty','Packed qty','Lot size used for AQL','Sample size inspected','General level','Special level','AQL Major','AQL Minor','Critical defects found','Major defects found','Minor defects found','AQL result in report','Overall result in report'];
   const got = s.read.map(r => r.label.replace(/ \(.*\)$/, ''));
   const miss = all.filter(l => !got.includes(l));
@@ -3021,6 +3033,7 @@ async function friExportDocx(){
       }
       if (v.findings.length) { b += friH('Evidence per finding'); b += ev; }
       v._media = media; }
+    { const pr = friPackSummary(v); if (pr.length) { b += friH('Packaging method per item'); b += friTbl(['Item', 'Order qty', 'FRI report', 'P.O. / P.I.', 'Artwork', 'Status'], pr.map(r => [r.item, String(r.qty ?? ''), r.rep || 'not stated', r.po || 'not stated', r.art || 'not stated', (r.status === 'ok' ? 'consistent' : r.status === 'conflict' ? 'CONFLICT' : r.status === 'missing' ? 'not stated' : 'not in report') + (r.note ? ' — ' + r.note : '')]), [1300, 900, 2000, 2200, 2206, 1600]); } }
     b += friH('5. AQL verification');
     b += friTbl(null, aq.rows.map(r => [r[0], `${r[1]}${r[2] ? '  (' + r[2] + ')' : ''}`]), [3000, W - 3000]);
     b += friP('Source: ISO 2859-1 Tables 1 and 2-A (normal, single sampling).', { sz:15, color:'707070' });
@@ -3285,11 +3298,12 @@ function friDocsPanel(){
   const have = new Set(docs.map(d => d.type));
   const missing = FRI_DOC_TYPES.filter(t => ['po','art','ce','test','qcp'].includes(t[0]) && !have.has(t[0])).map(t => t[1]);
   return `<div class="card">
-    <div class="ch2"><div class="ct" style="color:#F4811F;font-weight:700">0 · Requirement documents for this P.O. (Step 0.3)</div>
+    <div class="ch2"><div class="ct" style="color:#F4811F;font-weight:700">1a · Provided documents — compared with the FRI report (Step 0.3)</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="fri-doc-msg" class="fri-note"></span>
         <select class="fc" id="fri-doc-type" style="height:28px;font-size:12px;width:auto">${FRI_DOC_TYPES.map(t => `<option value="${t[0]}">${friE(t[1])}</option>`).join('')}</select>
         <input type="file" id="fri-doc-input" multiple accept=".pdf,.ai,.docx,.docm,.xlsx,.xlsm,.xls,.csv,.jpg,.jpeg,.png,.gif,.webp,.bmp" style="display:none" onchange="friDocUpload(this)"/>
         <button class="btn btn-p btn-sm" onclick="g('fri-doc-input').click()">📎 Upload</button></div></div>
+    ${v.source ? '' : '<div class="fri-warn" style="margin-bottom:6px">No FRI report imported yet — import the report first; the documents are compared with it.</div>'}
     <div class="fri-note" style="margin-bottom:8px">Choose the document type, then upload (Word, Excel, PDF / AI, images; several at a time). Text, EAN-13 / ITF-14 codes and — for the ARENA FRI Standard checklist — requirement IDs are read and used by the P.O. reconciliation and the pre-validation. Originals stay in this browser.</div>
     ${docs.length ? `<div class="tw"><table class="tbl" style="font-size:12px"><thead><tr><th style="width:56px"></th><th>TYPE</th><th>FILE</th><th>READ</th><th>ADDED</th><th style="width:110px"></th></tr></thead><tbody>
       ${docs.map(d => `<tr><td>${d.thumb ? `<img src="${d.thumb}" style="width:48px;height:48px;object-fit:cover;border-radius:4px;border:1px solid var(--bd)"/>` : `<span class="tag t-gray">${friE(d.kind)}</span>`}</td>
@@ -3312,8 +3326,10 @@ function friLotRow(p){ return friRows().find(r => String(r.po) === p.po && friLo
 function friLotItems(p){ const od = (typeof MASTER_ORDER_DATA !== 'undefined' ? MASTER_ORDER_DATA : []).filter(r => String(r.po) === p.po); const l = od.filter(r => (r.lot || 'Lot 1') === p.lot); return l.length ? l : od; }
 function friSyncMasterItems(){   // item lines + order qty from the master file for every P.O. of the report (unless the report's own items table was read)
   if (!friCur) return; const a = friCur.aql;
-  if (a.qtySrc === 'report') return;
-  const ord = friOrderItems(friCur);   // P.O./P.I. first, master file for what they do not give
+  // The FRI report is read first and its values stay as stated: a report imported (or being imported) is never overwritten.
+  // The reference (P.O./P.I. › master file) is computed live by friOrderItems() for the AQL lot and the comparison.
+  if (friCur.source || a.qtySrc === 'report') return;
+  const ord = friOrderItems(friCur);   // manual validation without a report: prefill from P.O./P.I. first, master file otherwise
   const items = ord.items.filter(x => +x.qty > 0).map(x => ({ po: x._po, ref: x.allyRef || x.supRef || '', desc: x.desc || '', ship: +x.qty, packed: '', nII: '', nS3: '', src: x.src }));
   a.items = items;
   const tot = items.length ? items.reduce((s, x) => s + x.ship, 0) : friPos(friCur).reduce((s, p) => s + (+(friLotRow(p) || {}).qty || 0), 0);
@@ -3354,7 +3370,8 @@ function friReconcile(v){
   row('Order data source', ord.src === 'master' ? 'master file' : `P.O./P.I. — ${[...new Set(items.filter(i => i.srcDoc).map(i => i.srcDoc))].join(', ')}`, '', '', ord.src === 'master' ? 'na' : 'ok', ord.src === 'master' ? 'no P.O./P.I. item table uploaded — master file used' : `${items.filter(i => i.src !== 'master').length} line(s) from P.O./P.I.${items.some(i => i.notInDoc) ? `, ${items.filter(i => i.notInDoc).length} from master only` : ''}`);
   if (multi && ord.src === 'master') fus.forEach(({ p, fu }) => { const q = friLotItems(p).reduce((s, r) => s + (+r.qty || 0), 0) || +(fu || {}).qty || 0; row(`  ${p.po} · ${p.lot}`, q, '', '', 'na', `${friLotItems(p).length} item row(s)`); });
   row(ord.src !== 'master' ? `Order qty — P.O./P.I. (${items.length} item rows)` : multi ? `Order qty — total of ${pos.length} P.O.s (${items.length} item rows)` : items.length > 1 ? `P.O. qty (total of ${items.length} item rows)` : 'P.O. qty', poQty, repQty, poDocs.length ? `${poDocs.length} P.O. file(s)` : '', poQty == null || repQty == null ? 'na' : poQty === repQty ? 'ok' : 'diff', poQty && repQty && poQty !== repQty ? `${repQty > poQty ? '+' : ''}${Math.round((repQty - poQty) / poQty * 1000) / 10}%` : '');
-  if (poQty != null && repQty != null && poQty !== repQty) issue({ cp:'CP1', sev:'Major', title:`Shipment qty in the report (${repQty}) ≠ ${multi ? `total order qty of the ${pos.length} P.O.s` : 'P.O. qty'} in the master file (${poQty}).`, action:'Confirm the P.O. qty (all P.O. lines) and the lot inspected; correct the report.' });
+  if (poQty != null && repQty != null && poQty !== repQty) issue({ cp:'CP1', sev:'Major', title:`Shipment qty in the report (${repQty}) ≠ ${multi ? `total order qty of the ${pos.length} P.O.s` : 'order qty'} in the ${ord.src === 'master' ? 'master file' : 'P.O./P.I.'} (${poQty}).`, action:'Confirm the P.O. qty (all P.O. lines) and the lot inspected; correct the report.' });
+  if (v.source && v.source.text && repQty == null && poQty) issue({ pattern:3, cp:'CP1', sev:'Major', title:`Shipment / order qty not stated in the FRI report (${ord.src === 'master' ? 'master file' : 'P.O./P.I.'}: ${poQty}).`, action:'State the shipment qty per item and in total in the report.' });
   if (poQty && packed != null) row('Packed qty ≥ 80% of P.O. qty', `${Math.round(poQty * .8)} min.`, packed, '', packed >= .8 * poQty ? 'ok' : 'diff', `${Math.round(packed / poQty * 100)}%`);
   // EAN in the master file must be a valid GTIN (8 / 12 / 13 / 14 digits, GS1 check digit) and not the item code
   const gtinOk = x => { const d = String(x || '').replace(/\D/g, ''); return [8,12,13,14].includes(d.length) && friGtinOk(d.length === 12 ? '0' + d : d); };
@@ -3435,15 +3452,49 @@ function friReconcile(v){
     x.refs.push(mref(fuLine)); });
   return out;
 }
+
+// ── Packaging method per item: FRI report (read first) × P.O./P.I. × artwork ──
+function friPackSummary(v){
+  if (!v.po) return [];
+  const rep = (v.source && v.source.text) || '', lines = rep.split('\n');
+  const dig = x => String(x || '').replace(/\D/g, '');
+  return friOrderItems(v).items.map(it => {
+    const keys = [it.allyRef, it.supRef, dig(it.ean)].filter(Boolean).map(String);
+    const rl = keys.length ? lines.filter(l => keys.some(k => l.includes(k))) : [];
+    const rp = rl.map(l => friPackOf(l)).find(p => p.outer || p.inner || p.words.length) || null;
+    const po = it.pack && (it.pack.outer || it.pack.inner || it.pack.ctns || (it.pack.words || []).length || it.pack.text) ? it.pack : null, ap = it.artPack || null;
+    const ref = (po && po.outer) || (ap && ap.outer) || null;
+    let status = 'ok', note = '';
+    if (po && ap && po.outer && ap.outer && po.outer !== ap.outer) { status = 'conflict'; note = 'P.O./P.I. ≠ artwork (RG-)'; }
+    else if (po && ap && po.inner && ap.inner && po.inner !== ap.inner) { status = 'conflict'; note = 'inner P.O./P.I. ≠ artwork (RG-)'; }
+    if (rp && rp.outer && ref && rp.outer !== ref) { status = 'conflict'; note = (note ? note + ' · ' : '') + `report ${rp.outer} ≠ ${po && po.outer ? 'P.O./P.I.' : 'artwork'} ${ref} pcs/carton (F-)`; }
+    if (!po && !ap) { status = 'missing'; note = 'packaging not stated in P.O./P.I. or artwork'; }
+    else if (!rp && status === 'ok') { status = 'report'; note = 'packing for this item not stated in the report'; }
+    return { item: it.allyRef || it.supRef || it.desc, desc: it.desc, qty: it.qty, src: it.src, po: po ? friPackLabel(po) : '', art: ap ? friPackLabel(ap) + ' — ' + ap.doc : '', rep: rp ? friPackLabel(rp) : '', status, note };
+  });
+}
+function friPackPanel(){
+  const v = friCur; if (!v || !v.po) return '';
+  const rows = friPackSummary(v); if (!rows.length) return '';
+  const tag = st => st === 'ok' ? '<span class="tag t-g">✓ consistent</span>' : st === 'conflict' ? '<span class="tag t-r">conflict</span>' : st === 'missing' ? '<span class="tag t-gray">not stated</span>' : '<span class="tag t-o">not in report</span>';
+  return `<div class="card">
+    <div class="ch2"><div class="ct" style="color:#F4811F;font-weight:700">1c · Packaging method per item — FRI report × P.O./P.I. × artwork</div><span class="fri-note">pcs/inner · pcs/carton · cartons · packing type</span></div>
+    <div class="tw"><table class="tbl" style="font-size:12px"><thead><tr><th>ITEM</th><th>ORDER QTY</th><th>FRI REPORT (read first)</th><th>P.O. / P.I.</th><th>ARTWORK</th><th>STATUS</th></tr></thead><tbody>
+    ${rows.map(r => `<tr><td><b>${friE(r.item)}</b><div class="fri-note">${friE((r.desc || '').slice(0, 40))}</div></td><td>${r.qty ?? '—'}<div class="fri-note">${friE(r.src || '')}</div></td>
+      <td>${r.rep ? friE(r.rep) : '<span class="fri-note">not stated</span>'}</td><td>${r.po ? friE(r.po) : '<span class="fri-note">not stated</span>'}</td><td>${r.art ? friE(r.art) : '<span class="fri-note">not stated / no artwork</span>'}</td>
+      <td>${tag(r.status)}${r.note ? `<div class="fri-note">${friE(r.note)}</div>` : ''}</td></tr>`).join('')}</tbody></table></div>
+    <div class="fri-note" style="margin-top:6px">Packaging comes from the P.O. / P.I. packing columns and the artwork carton marks (master file has no packaging data). Upload them in section 1a.</div>
+  </div>`;
+}
 function friReconPanel(){
   const v = friCur; if (!v.po) return '';
   const r = friReconcile(v), titles = new Set(v.findings.map(f => f.title));
   const ic = s => s === 'ok' ? '<span style="color:var(--g);font-weight:700">✓</span>' : s === 'diff' ? '<span style="color:#B9770E;font-weight:700">⚠</span>' : '<span style="color:var(--t3)">—</span>';
   const mf = (typeof MASTER_FU_DATA !== 'undefined' && MASTER_FU_DATA.length) ? 'master file loaded' : 'demo data — load the master file';
   return `<div class="card">
-    <div class="ch2"><div class="ct" style="color:#F4811F;font-weight:700">1b · P.O. reconciliation — master file × FRI report × documents (Step 3d)</div><span class="fri-note">${friE(mf)} · recalculated on every master-file load</span></div>
-    <div class="tw"><table class="tbl" style="font-size:12px"><thead><tr><th style="width:30px"></th><th>CHECK</th><th>MASTER FILE</th><th>FRI REPORT</th><th>DOCUMENTS</th><th>NOTE</th></tr></thead><tbody>
-      ${r.rows.map(x => `<tr><td>${ic(x.res)}</td><td>${friE(x.check)}</td><td><b>${friE(x.master)}</b></td><td>${friE(x.report)}</td><td>${friE(x.doc)}</td><td class="fri-note">${friE(x.note)}</td></tr>`).join('')}</tbody></table></div>
+    <div class="ch2"><div class="ct" style="color:#F4811F;font-weight:700">1b · Comparison — FRI report (read first) × provided documents × master file (Step 3d)</div><span class="fri-note">${friE(mf)} · recalculated on every master-file load</span></div>
+    <div class="tw"><table class="tbl" style="font-size:12px"><thead><tr><th style="width:30px"></th><th>CHECK</th><th>FRI REPORT (read first)</th><th>PROVIDED DOCUMENTS</th><th>REFERENCE — P.O./P.I. › MASTER FILE</th><th>NOTE</th></tr></thead><tbody>
+      ${r.rows.map(x => `<tr><td>${ic(x.res)}</td><td>${friE(x.check)}</td><td><b>${friE(x.report)}</b></td><td>${friE(x.doc)}</td><td>${friE(x.master)}</td><td class="fri-note">${friE(x.note)}</td></tr>`).join('')}</tbody></table></div>
     ${r.items.length ? `<div class="fri-note" style="margin:10px 0 4px"><b>Item lines (Orders Data)</b></div><div class="tw"><table class="tbl" style="font-size:12px"><thead><tr>${friPos(v).length > 1 ? '<th>P.O.</th>' : ''}<th>ITEM CODE</th><th>DESCRIPTION</th><th>EAN</th><th>ITF-14 / LOG</th><th>BRAND</th><th>QTY</th><th>SOURCE</th><th>PACKAGING — P.O./P.I. · ARTWORK</th><th>IN REPORT</th><th>GTIN IN ARTWORK</th></tr></thead><tbody>
       ${r.items.map(i => `<tr>${friPos(v).length > 1 ? `<td>${friE(i.po)}</td>` : ''}<td>${friE(i.code)||'—'}</td><td style="max-width:220px">${friE(i.desc)}</td><td>${friE(i.ean)||'—'}${i.eanBad?' <span class="tag t-o" title="not a valid GTIN (length / check digit) or equal to the item code">invalid</span>':''}</td><td>${friE(i.itf)||'—'}</td><td>${friE(i.brand)||'—'}</td><td>${i.qty ?? '—'}</td><td><span class="tag ${i.src === 'master' ? 't-gray' : 't-b'}" title="${friE(i.srcDoc || '')}">${friE(i.src || 'master')}</span></td><td style="font-size:11.5px">${i.pack ? friE(i.pack) : '<span class="fri-note">not in P.O./P.I.</span>'}${i.artPack ? `<div class="fri-note">artwork: ${friE(i.artPack)}</div>` : ''}</td>
         <td>${!v.source ? '—' : i.inRep ? ic('ok') : ic('diff') + ' not found'}</td><td>${i.eanArt === null ? '—' : i.eanArt === 'badmaster' ? '<span class="fri-note">fix master EAN first</span>' : i.eanArt === 'unreadable' ? '<span class="fri-note">no GTIN read in artwork</span>' : i.eanArt ? ic('ok') : ic('diff') + ' mismatch'}</td></tr>`).join('')}</tbody></table></div>` : ''}
