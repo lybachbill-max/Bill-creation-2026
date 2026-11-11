@@ -2232,6 +2232,7 @@ function friSet(path, val){
   const p = path.split('.'); let o = friCur;
   for (let i=0;i<p.length-1;i++) o = o[p[i]];
   o[p[p.length-1]] = val; friDirty = true;
+  if (p[0] === 'aql' && /^f(Cr|Ma|Mi)$/.test(p[1]) && val !== '') friCur.aql.foundBlank = false;
   if (p[0] === 'cps' && friCur.cps[+p[1]]) { friCur.cps[+p[1]].auto = false; const t = g('fri-auto-' + p[1]); if (t) t.remove(); }
   friRefreshDerived();
 }
@@ -2324,7 +2325,7 @@ function friAqlCheck(v){
     const ii = friIdxForN(nInsp);
     if (ii >= 0) {
       ref = { ma: friPlanByIdx(ii, a.aqlMa), mi: friPlanByIdx(ii, a.aqlMi) };
-      out.rows.push(['Ac/Re for n inspected', `n ${nInsp} (code ${FRI_CODES[ii]}) → Major Ac ${ref.ma.ac} · Minor Ac ${ref.mi.ac}`, '']);
+      out.rows.push(['Ac/Re for n inspected', `n ${nInsp} (code ${FRI_CODES[ii]}) → Major Ac ${ref.ma.ac}${ref.ma.note ? ` (${ref.ma.note})` : ''} · Minor Ac ${ref.mi.ac}${ref.mi.note ? ` (${ref.mi.note})` : ''}`, (ref.ma.note || ref.mi.note) ? 'ISO 2859-1 Table 2-A has no plan at this n for that AQL — the arrow gives the sample size to use' : '']);
       if (pMa && nInsp < pMa.n) out.issues.push({ pattern:6, cp:'CP6', sev:'Major', title:`n inspected ${nInsp} < n required ${pMa.n} for order qty ${lot} at level ${a.gen}`, action:'Re-inspect with the required sample size.', resp:'QC' });
       if ((acMa!=null && acMa !== ref.ma.ac) || (acMi!=null && acMi !== ref.mi.ac))
         out.issues.push({ pattern:14, cp:'CP6', sev:'Critical', title:`Ac used (Ma ${acMa ?? '—'} / Mi ${acMi ?? '—'}) ≠ Ac for n ${nInsp} (Ma ${ref.ma.ac} / Mi ${ref.mi.ac})`, action:'Restate the AQL verdict with the Ac/Re of the sample actually inspected.', resp:'QC' });
@@ -2332,6 +2333,10 @@ function friAqlCheck(v){
   } else if (pMa && ((acMa!=null && acMa !== pMa.ac) || (acMi!=null && acMi !== pMi.ac)))
     out.issues.push({ pattern:14, cp:'CP6', sev:'Critical', title:`Ac used (Ma ${acMa ?? '—'} / Mi ${acMi ?? '—'}) ≠ Ac at n ${pMa.n} (Ma ${pMa.ac} / Mi ${pMi.ac})`, action:'Restate the AQL verdict with the Ac/Re of the combined sample.', resp:'QC' });
   const use = ref || (pMa ? { ma:pMa, mi:pMi } : null);
+  if (fCr == null && fMa == null && fMi == null && (a.foundBlank || a.rep)) {
+    out.rows.push(['Defects found', a.foundBlank ? 'not recorded in the report ("Total Defectives Found" blank)' : 'not recorded', 'AQL cannot be recomputed']);
+    out.issues.push({ pattern:3, cp:'CP6', sev: a.rep === 'Pass' ? 'Critical' : 'Major', title:`Defect tally not recorded (Critical / Major / Minor found blank)${a.rep === 'Pass' ? ' while the report states AQL Result: Passed' : ''}.`, action:'Record the number of defects found per class (0 if none) and re-state the AQL result against the Ac of the sample inspected.', resp:'QC' });
+  }
   if (use && (fCr!=null || fMa!=null || fMi!=null)) {
     const crOk = !(fCr > 0), maOk = fMa==null || fMa <= use.ma.ac, miOk = fMi==null || fMi <= use.mi.ac;
     out.rows.push(['Defects found', `Critical ${fCr ?? '—'} ${crOk?'✓':'✗'} · Major ${fMa ?? '—'} ${maOk?'✓':'✗'} (Ac ${use.ma.ac}) · Minor ${fMi ?? '—'} ${miOk?'✓':'✗'} (Ac ${use.mi.ac})`, '']);
@@ -2341,7 +2346,7 @@ function friAqlCheck(v){
       if (a.rep === 'Pass') out.issues.push({ pattern:2, cp:'CP6', sev:'Critical', title:'AQL defects found > Ac but the report states AQL Pass', action:'Correct the AQL result in the report.', resp:'QC' });
     }
   }
-  out.rows.push(['AQL verdict (recomputed)', out.aqlVerdict || '—', a.rep ? `report states: ${a.rep}` : '']);
+  out.rows.push(['AQL verdict (recomputed)', out.aqlVerdict || (fCr == null && fMa == null && fMi == null ? 'cannot recompute — defects found not recorded' : '—'), a.rep ? `report states: ${a.rep}` : '']);
   return out;
 }
 // "Table of shipment items and sampling details": … | ship | packed | n II | n S3
@@ -2835,10 +2840,20 @@ function friParseReport(text){
   m = flat.match(/\bS\s*-?\s*([1-4])\b/); pick('aql.spec', 'Special level', m, m && 'S' + m[1]);
   m = flat.match(/Ma(?:jor)?\s*(?:defects?)?\s*(?:AQL)?\s*[:：]?\s*(1\.0|1\.5|2\.5|4\.0)\b/i) || flat.match(/AQL[^\n]{0,40}?Ma(?:jor)?\s*[:：]?\s*(1\.0|1\.5|2\.5|4\.0)/i); pick('aql.aqlMa', 'AQL Major', m, m && m[1]);
   m = flat.match(/Mi(?:nor)?\s*(?:defects?)?\s*(?:AQL)?\s*[:：]?\s*(1\.5|2\.5|4\.0|6\.5)\b/i) || flat.match(/AQL[^\n]{0,60}?Mi(?:nor)?\s*[:：]?\s*(1\.5|2\.5|4\.0|6\.5)/i); pick('aql.aqlMi', 'AQL Minor', m, m && m[1]);
-  const defect = cls => flat.match(new RegExp(cls + '\\s*(?:defects?)?\\s*(?:found|qty)?\\s*(?:[:：]|\\|)(?:\\s*\\|)?\\s*(\\d{1,3})\\b', 'i'));
+  const defect = cls => flat.match(new RegExp('(?<!AQL[^\\n|]{0,20})' + cls + '\\s*(?:defects?)?\\s*(?:found|qty)?\\s*(?:[:：]|\\|)(?:\\s*\\|)?\\s*(\\d{1,3})(?![\\d.,])', 'i'));
+  const rawRow = re => { const l = T.split('\n').find(x => re.test(x)); if (!l) return null; const cells = l.slice(l.search(re)).split('|').slice(1).map(c => c.trim()); return { line: l, cells: cells.slice(0, 3) }; };
+  const fRow = rawRow(/Total\s*Defect(?:ive)?s?\s*Found/i), aRow = rawRow(/Defect(?:ive)?s?\s*Accepted/i);
+  if (aRow && aRow.cells.some(c => /^\d+$/.test(c))) { const [c0, c1, c2] = aRow.cells; if (/^\d+$/.test(c1 || '')) found.push({ key:'aql.acMa', label:'Ac Major stated', value:c1, snippet:aRow.line.replace(/\s*\|\s*/g, ' | ').slice(0, 90) }); if (/^\d+$/.test(c2 || '')) found.push({ key:'aql.acMi', label:'Ac Minor stated', value:c2, snippet:aRow.line.replace(/\s*\|\s*/g, ' | ').slice(0, 90) }); }
+  if (fRow) {
+    const nums = fRow.cells.map(c => /^\d+$/.test(c) ? c : '');
+    if (nums.every(x => x === '')) found.push({ key:'_foundBlank', label:'Defects found', value:'blank in the report', snippet:fRow.line.replace(/\s*\|\s*/g, ' | ').slice(0, 90), apply:false });
+    else [['aql.fCr','Critical defects found'],['aql.fMa','Major defects found'],['aql.fMi','Minor defects found']].forEach(([k, l], i) => { if (nums[i] !== '') found.push({ key:k, label:l, value:nums[i], snippet:fRow.line.replace(/\s*\|\s*/g, ' | ').slice(0, 90) }); });
+  }
+  if (!fRow) {
   m = defect('Critical'); pick('aql.fCr', 'Critical defects found', m, m && m[1]);
   m = defect('Major'); pick('aql.fMa', 'Major defects found', m, m && m[1]);
   m = defect('Minor'); pick('aql.fMi', 'Minor defects found', m, m && m[1]);
+  }
   m = flat.match(/AQL\s*(?:result|verdict)\s*(?:[:：]|\|)?(?:\s*\|)?\s*(Pass(?:ed)?|Fail(?:ed)?|Accept(?:ed)?|Reject(?:ed)?)/i); pick('aql.rep', 'AQL result in report', m, m && (/pass|accept/i.test(m[1]) ? 'Pass' : 'Fail'));
   m = flat.match(/(?:Overall\s*(?:inspection\s*)?result|Final\s*result|Conclusion|Inspection\s*result)\s*(?:[:：]|\|)?(?:\s*\|)?\s*(Pass(?:ed)?|Fail(?:ed)?|Pending|On\s*hold|Accept(?:ed)?|Reject(?:ed)?)/i); pick('overall', 'Overall result in report', m, m && m[1], false);
   return found;
@@ -2877,6 +2892,7 @@ function friStartFromReport(name, kind, size, text, photos, imgs){
     ['P.O. / shipment qty','Packed qty','Sample size inspected'].forEach(l => { if (!found.some(f => f.label === l)) found.push({ key:'_', label:l, value:'from items table', snippet:'Table of shipment items and sampling details' }); });
     if (pit.acMa != null) found.push({ key:'_', label:'AQL Major', value:`${pit.aqlMa} · Ac ${pit.acMa}`, snippet:'Acceptance major defects' });
   }
+  friCur.aql.foundBlank = found.some(f => f.key === '_foundBlank');
   if (photos !== null) friCur.photos = photos > 0 ? 'Original report with photos' : 'Text / PDF export without photos';
   const ov = get('overall');
   friCur.source = { name, kind, size, photos, imgs: imgs || [], read: found.map(f => ({ label:f.label, value:f.value, snippet:f.snippet })), text: text.slice(0, 20000), at: new Date().toISOString().slice(0,16).replace('T',' ') };
