@@ -2065,6 +2065,9 @@ html *{scrollbar-width:auto;scrollbar-color:#9AA3AF #ECEEF1}
           <div class="fri-mi" onclick="friExport()"><b>Excel (.xlsx)</b><span>Register, findings, CP matrix — re-importable</span></div>
           <div class="fri-mi" onclick="friExportDocx()"><b>Word (.docx)</b><span>Open validation assessment, or the register</span></div>
           <div class="fri-mi" onclick="friExportPdf()"><b>PDF</b><span>Print dialog → "Save as PDF"</span></div>
+          <div style="border-top:1px solid var(--bd);margin:4px 0"></div>
+          <div class="fri-mi" onclick="friExportAnnotated()"><b>Annotated FRI report (.docx)</b><span>Original report, layout unchanged, with an IQA comment at every finding</span></div>
+          <div class="fri-mi" onclick="friExportCapa()"><b>Supplier CAPA (.docx)</b><span>Actions for the supplier, report photos, supplier response table</span></div>
         </div>
       </div>
       <button class="btn btn-p" onclick="friNew()">+ New validation</button>
@@ -2304,10 +2307,10 @@ function friAqlCheck(v){
   // packed ≥ 80 % of order qty (FRI validity)
   if (lot && totPacked != null) {
     out.rows.push(['Packed vs order qty', `${totPacked} / ${lot} = ${Math.round(totPacked / lot * 1000) / 10}%`, totPacked >= .8 * lot ? '≥ 80% ✓' : '< 80%']);
-    if (totPacked < .8 * lot) out.issues.push({ pattern:'', cp:'CP1', sev:'Major', title:`Packed qty ${totPacked} = ${Math.round(totPacked/lot*100)}% of order qty ${lot} (< 80% required for FRI validity)`, action:'Re-inspect at ≥80% packed, or record a written waiver.', resp:'QC + QS' });
+    if (totPacked < .8 * lot) out.issues.push({ anchor: String(totPacked), pattern:'', cp:'CP1', sev:'Major', title:`Packed qty ${totPacked} = ${Math.round(totPacked/lot*100)}% of order qty ${lot} (< 80% required for FRI validity)`, action:'Re-inspect at ≥80% packed, or record a written waiver.', resp:'QC + QS' });
   }
   if (lotUsed != null && lot != null && lotUsed !== lot)
-    out.issues.push({ pattern:5, cp:'CP1', sev:'Major', title:`Lot size used for AQL (${lotUsed}) ≠ order (shipment) qty ${lot}${totPacked===lotUsed?' — packed qty used instead of order qty':''}`, action:'Recompute the sample sizes and Ac/Re on the order qty (ARENA method).', resp:'QC' });
+    out.issues.push({ anchor: String(lotUsed), pattern:5, cp:'CP1', sev:'Major', title:`Lot size used for AQL (${lotUsed}) ≠ order (shipment) qty ${lot}${totPacked===lotUsed?' — packed qty used instead of order qty':''}`, action:'Recompute the sample sizes and Ac/Re on the order qty (ARENA method).', resp:'QC' });
   // per-item sample sizes
   if (items.length && pMa) {
     const nG = FRI_N[idx];
@@ -2333,24 +2336,24 @@ function friAqlCheck(v){
     if (ii >= 0) {
       ref = { ma: friPlanByIdx(ii, a.aqlMa), mi: friPlanByIdx(ii, a.aqlMi) };
       out.rows.push(['Ac/Re for n inspected', `n ${nInsp} (code ${FRI_CODES[ii]}) → Major Ac ${ref.ma.ac}${ref.ma.note ? ` (${ref.ma.note})` : ''} · Minor Ac ${ref.mi.ac}${ref.mi.note ? ` (${ref.mi.note})` : ''}`, (ref.ma.note || ref.mi.note) ? 'ISO 2859-1 Table 2-A has no plan at this n for that AQL — the arrow gives the sample size to use' : '']);
-      if (pMa && nInsp < pMa.n) out.issues.push({ pattern:6, cp:'CP6', sev:'Major', title:`n inspected ${nInsp} < n required ${pMa.n} for order qty ${lot} at level ${a.gen}`, action:'Re-inspect with the required sample size.', resp:'QC' });
+      if (pMa && nInsp < pMa.n) out.issues.push({ anchor: String(nInsp), pattern:6, cp:'CP6', sev:'Major', title:`n inspected ${nInsp} < n required ${pMa.n} for order qty ${lot} at level ${a.gen}`, action:'Re-inspect with the required sample size.', resp:'QC' });
       if ((acMa!=null && acMa !== ref.ma.ac) || (acMi!=null && acMi !== ref.mi.ac))
-        out.issues.push({ pattern:14, cp:'CP6', sev:'Critical', title:`Ac used (Ma ${acMa ?? '—'} / Mi ${acMi ?? '—'}) ≠ Ac for n ${nInsp} (Ma ${ref.ma.ac} / Mi ${ref.mi.ac})`, action:'Restate the AQL verdict with the Ac/Re of the sample actually inspected.', resp:'QC' });
+        out.issues.push({ anchor: 'Defectives Accepted', pattern:14, cp:'CP6', sev:'Critical', title:`Ac used (Ma ${acMa ?? '—'} / Mi ${acMi ?? '—'}) ≠ Ac for n ${nInsp} (Ma ${ref.ma.ac} / Mi ${ref.mi.ac})`, action:'Restate the AQL verdict with the Ac/Re of the sample actually inspected.', resp:'QC' });
     }
   } else if (pMa && ((acMa!=null && acMa !== pMa.ac) || (acMi!=null && acMi !== pMi.ac)))
     out.issues.push({ pattern:14, cp:'CP6', sev:'Critical', title:`Ac used (Ma ${acMa ?? '—'} / Mi ${acMi ?? '—'}) ≠ Ac at n ${pMa.n} (Ma ${pMa.ac} / Mi ${pMi.ac})`, action:'Restate the AQL verdict with the Ac/Re of the combined sample.', resp:'QC' });
   const use = ref || (pMa ? { ma:pMa, mi:pMi } : null);
   if (fCr == null && fMa == null && fMi == null && (a.foundBlank || a.rep)) {
     out.rows.push(['Defects found', a.foundBlank ? 'not recorded in the report ("Total Defectives Found" blank)' : 'not recorded', 'AQL cannot be recomputed']);
-    out.issues.push({ pattern:3, cp:'CP6', sev: a.rep === 'Pass' ? 'Critical' : 'Major', title:`Defect tally not recorded (Critical / Major / Minor found blank)${a.rep === 'Pass' ? ' while the report states AQL Result: Passed' : ''}.`, action:'Record the number of defects found per class (0 if none) and re-state the AQL result against the Ac of the sample inspected.', resp:'QC' });
+    out.issues.push({ anchor: 'Total Defectives Found', pattern:3, cp:'CP6', sev: a.rep === 'Pass' ? 'Critical' : 'Major', title:`Defect tally not recorded (Critical / Major / Minor found blank)${a.rep === 'Pass' ? ' while the report states AQL Result: Passed' : ''}.`, action:'Record the number of defects found per class (0 if none) and re-state the AQL result against the Ac of the sample inspected.', resp:'QC' });
   }
   if (use && (fCr!=null || fMa!=null || fMi!=null)) {
     const crOk = !(fCr > 0), maOk = fMa==null || fMa <= use.ma.ac, miOk = fMi==null || fMi <= use.mi.ac;
     out.rows.push(['Defects found', `Critical ${fCr ?? '—'} ${crOk?'✓':'✗'} · Major ${fMa ?? '—'} ${maOk?'✓':'✗'} (Ac ${use.ma.ac}) · Minor ${fMi ?? '—'} ${miOk?'✓':'✗'} (Ac ${use.mi.ac})`, '']);
     out.aqlVerdict = (crOk && maOk && miOk) ? 'PASS' : 'FAIL';
     if (out.aqlVerdict === 'FAIL') {
-      out.issues.push({ type:'NC', pattern:'', cp:'CP6', sev:'Medium', title:`AQL reject — ${!crOk?'Critical ':''}${!maOk?'Major ':''}${!miOk?'Minor ':''}defects above Ac`, action:'Hold the full packed qty; supplier to sort / rework 100%; re-inspection.', resp:'QC + supplier' });
-      if (a.rep === 'Pass') out.issues.push({ pattern:2, cp:'CP6', sev:'Critical', title:'AQL defects found > Ac but the report states AQL Pass', action:'Correct the AQL result in the report.', resp:'QC' });
+      out.issues.push({ anchor: 'Total Defectives Found', type:'NC', pattern:'', cp:'CP6', sev:'Medium', title:`AQL reject — ${!crOk?'Critical ':''}${!maOk?'Major ':''}${!miOk?'Minor ':''}defects above Ac`, action:'Hold the full packed qty; supplier to sort / rework 100%; re-inspection.', resp:'QC + supplier' });
+      if (a.rep === 'Pass') out.issues.push({ anchor: 'Total Defectives Found', pattern:2, cp:'CP6', sev:'Critical', title:'AQL defects found > Ac but the report states AQL Pass', action:'Correct the AQL result in the report.', resp:'QC' });
     }
   }
   out.rows.push(['AQL verdict (recomputed)', out.aqlVerdict || (fCr == null && fMa == null && fMi == null ? 'cannot recompute — defects found not recorded' : '—'), a.rep ? `report states: ${a.rep}` : '']);
@@ -2584,7 +2587,7 @@ function friRenderFindings(){
   ${fs.map((f,i) => `<tr style="${f.status==='Closed'?'opacity:.55':''}">
     <td><b>${friE(f.ref)}</b>${f.auto?'<div><span class="tag t-p" title="Extracted by the pre-validation — confirm, edit or remove">auto</span></div>':''}</td>
     <td><select class="fc" onchange="friSetF(${i},'type',this.value)">${['F','NC','RG','OB'].map(t => `<option${t===f.type?' selected':''}>${t}</option>`).join('')}</select></td>
-    <td><input class="fc" value="${friE(f.cp)}" placeholder="CP6 / TIL-D09-03" onchange="friSetF(${i},'cp',this.value)"/></td>
+    <td><input class="fc" value="${friE(f.cp)}" placeholder="CP6 / TIL-D09-03" onchange="friSetF(${i},'cp',this.value)"/><input class="fc" style="margin-top:4px;font-size:11px" value="${friE(f.anchor || '')}" placeholder="📍 pin to report text" title="Text or value in the report where the IQA comment goes in the annotated report (e.g. 768, Overall Result). Blank = the checkpoint heading." onchange="friSetF(${i},'anchor',this.value)"/></td>
     <td><select class="fc ${f.type==='F'?'sev-'+f.sev:''}" onchange="friSetF(${i},'sev',this.value);friRenderFindings()">${sevOpts(f.type).map(s => `<option${s===f.sev?' selected':''}>${s}</option>`).join('')}</select></td>
     <td><select class="fc" onchange="friSetF(${i},'pattern',this.value)"><option value=""></option>${FRI_PATTERNS.map(p => `<option value="${p[0]}"${String(p[0])===String(f.pattern)?' selected':''}>#${p[0]} ${friE(p[1].slice(0,60))}</option>`).join('')}</select></td>
     <td><textarea class="fc" onchange="friSetF(${i},'title',this.value)">${friE(f.title)}</textarea></td>
@@ -2799,7 +2802,8 @@ async function friImportAny(inp){
     let imgs = [];
     if (!['xls','csv'].includes(ext)) imgs = await friExtractImages(f, 'S' + Date.now(), { onProgress: n => msg(`Extracting photos from ${friE(f.name)}… ${n}`) });
     if (kind === 'Excel' && imgs.length) photos = imgs.length;
-    friStartFromReport(f.name, kind, f.size, text, photos, imgs);
+    const fileKey = 'src:' + Date.now(); await friIdbPut(fileKey, f);
+    friStartFromReport(f.name, kind, f.size, text, photos, imgs, fileKey, ext);
     msg('');
   } catch(err) { msg(''); alert(`Import failed (${f.name}): ${err.message}`); }
 }
@@ -2856,6 +2860,8 @@ function friParseReport(text){
   let po = (hits.find(x => x.h.labelled) || hits[0] || {}).p, m = null;
   if (po) found.push({ key:'po', label:'P.O. (matched in master file)', value: po, snippet: (hits.find(x => x.p === po) || {}).h?.line || po });
   else { m = flat.match(rx('P\\.?\\s?O\\.?\\s*(?:#|No\\.?|number)?', '([A-Z0-9][A-Z0-9\\-\\/.]{3,})')); if (m) { po = m[1]; pick('po', 'P.O. (not in master file)', m, po); } }
+  m = flat.match(/\bAlly(?:\s*name)?\s*[:：]\s*(?:\|\s*)?([A-Za-zÀ-ỹ][A-Za-zÀ-ỹ0-9 .&'\-]{1,40}?)(?=\s*(?:\||\n|$))/i); pick('ally', 'Ally', m, m && m[1].trim());
+  m = flat.match(/\b(?:Supplier|Vendor)(?:\s*name)?\s*[:：]\s*(?:\|\s*)?([A-Za-zÀ-ỹ0-9][^|\n]{2,80}?)(?=\s*(?:\||\n|$))/i); pick('sup', 'Supplier', m, m && m[1].trim());
   m = flat.match(/\bLot\s*(?:#|No\.?)?\s*[:：]?\s*(\d{1,2})\b/i); pick('lot', 'Lot', m, m ? 'Lot ' + m[1] : '');
   m = flat.match(rx('(?:Report|Inspection\\s*report|Booking)\\s*(?:No\\.?|Number|#|Ref\\.?)', '([A-Z0-9][\\w\\-\\/.]{2,})')); pick('reportNo', 'FRI report no.', m, m && m[1]);
   m = flat.match(rx('(?:Inspection\\s*date|Date\\s*of\\s*inspection|Inspection\\s*day)', '([0-9]{1,4}[\\/.\\- ][0-9A-Za-z]{1,9}[\\/.\\-, ]+[0-9]{2,4})')); pick('inspDate', 'Inspection date', m, m && friDate(m[1]));
@@ -2894,7 +2900,7 @@ function friParseReport(text){
   m = flat.match(/(?:Overall\s*(?:inspection\s*)?result|Final\s*result|Conclusion|Inspection\s*result)\s*(?:[:：]|\|)?(?:\s*\|)?\s*(Pass(?:ed)?|Fail(?:ed)?|Pending|On\s*hold|Accept(?:ed)?|Reject(?:ed)?)/i); pick('overall', 'Overall result in report', m, m && m[1], false);
   return found;
 }
-function friStartFromReport(name, kind, size, text, photos, imgs){
+function friStartFromReport(name, kind, size, text, photos, imgs, fileKey, ext){
   if (friDirty && !confirm('Discard the unsaved changes in the workbench?')) return;
   const found = friParseReport(text);
   const keep = (friCur && !friCur.source && (friCur.docs || []).length) ? friCur : null;   // documents uploaded first → attach the report to that validation
@@ -2908,6 +2914,7 @@ function friStartFromReport(name, kind, size, text, photos, imgs){
     const r = friRows().find(x => String(x.po) === get('po').value && friLotOf(x) === lot) || friRows().find(x => String(x.po) === get('po').value);
     if (r) friApplyPO(`${r.po}||${friLotOf(r)}`, true); else { friCur.po = get('po').value; friCur.lot = lot; } }
   found.forEach(f => { if (f.apply === false || f.key === 'po' || f.key === 'lot') return;
+    if ((f.key === 'ally' || f.key === 'sup') && friCur[f.key]) return;
     const p = f.key.split('.'); if (p.length === 2) friCur[p[0]][p[1]] = f.value; else friCur[f.key] = f.value; });
   { const lotRe = /\bLot\s*(?:#|No\.?)?\s*[:：]?\s*(\d{1,2})\b/i; const T = text;
     const known = [...new Set(friRows().map(r => String(r.po)).filter(p => p && p.length >= 4))].sort((a, b) => b.length - a.length);
@@ -2934,7 +2941,7 @@ function friStartFromReport(name, kind, size, text, photos, imgs){
   friCur.aql.foundBlank = found.some(f => f.key === '_foundBlank');
   if (photos !== null) friCur.photos = photos > 0 ? 'Original report with photos' : 'Text / PDF export without photos';
   const ov = get('overall');
-  friCur.source = { name, kind, size, photos, imgs: imgs || [], read: found.map(f => ({ label:f.label, value:f.value, snippet:f.snippet, alts:f.alts })), text: text.slice(0, 20000), at: new Date().toISOString().slice(0,16).replace('T',' ') };
+  friCur.source = { name, kind, size, photos, fileKey: fileKey || '', ext: ext || '', imgs: imgs || [], read: found.map(f => ({ label:f.label, value:f.value, snippet:f.snippet, alts:f.alts })), text: text.slice(0, 20000), at: new Date().toISOString().slice(0,16).replace('T',' ') };
   friCur.notes = `Imported from ${name} (${kind}${photos!==null?`, ${photos} embedded image(s)`:''}) on ${friCur.source.at}.${ov ? ` Report overall result: ${ov.value}.` : ''} Check every pre-filled field against the report.`;
   friTab('wb'); friApplyPre(true);
   const nAuto = friCur.findings.filter(f => f.auto).length;
@@ -3011,16 +3018,19 @@ function friTbl(head, rows, widths){
 function friDocxImg(rid, id, w, h){ const cx = Math.round(2.2 * 914400), cy = Math.round(cx * (h || 3) / (w || 4));
   return `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${id}" name="Picture ${id}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${id}" name="img${id}.jpeg"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r><w:r><w:t xml:space="preserve">  </w:t></w:r>`; }
 function friB64(u){ const s = atob(u.split(',')[1]), a = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; }
-function friDocx(bodyXml, landscape, media){
-  media = media || [];
+function friDocx(bodyXml, landscape, media, opts){
+  media = media || []; opts = opts || {};
+  const hf = (opts.header ? '<w:headerReference w:type="default" r:id="rIdHdr1"/>' : '') + (opts.footer ? '<w:footerReference w:type="default" r:id="rIdFtr1"/>' : '');
   const pg = landscape ? '<w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>' : '<w:pgSz w:w="11906" w:h="16838"/>';
-  const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><w:body>${bodyXml}<w:sectPr>${pg}<w:pgMar w:top="850" w:right="850" w:bottom="850" w:left="850" w:header="425" w:footer="425" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><w:body>${bodyXml}<w:sectPr>${hf}${pg}${opts.margins || '<w:pgMar w:top="850" w:right="850" w:bottom="850" w:left="850" w:header="425" w:footer="425" w:gutter="0"/>'}</w:sectPr></w:body></w:document>`;
   return friZip([
-    ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpeg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'],
+    ['[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpeg" ContentType="image/jpeg"/>${opts.header ? '<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>' : ''}${opts.footer ? '<Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>' : ''}<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`],
     ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'],
     ['word/document.xml', doc],
-    ['word/_rels/document.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${media.map(m => `<Relationship Id="${m.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${m.name}"/>`).join('')}</Relationships>`],
+    ['word/_rels/document.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${opts.header ? '<Relationship Id="rIdHdr1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>' : ''}${opts.footer ? '<Relationship Id="rIdFtr1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>' : ''}${media.map(m => `<Relationship Id="${m.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${m.name}"/>`).join('')}</Relationships>`],
     ...media.map(m => ['word/media/' + m.name, m.data]),
+    ...(opts.header ? [['word/header1.xml', friHdrFtr('h', opts.header)]] : []),
+    ...(opts.footer ? [['word/footer1.xml', friHdrFtr('f', opts.footer)]] : []),
   ]);
 }
 function friDownload(blob, name){ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
@@ -3397,7 +3407,7 @@ function friReconcile(v){
   row('Order data source', ord.src === 'master' ? 'master file' : `P.O./P.I. — ${[...new Set(items.filter(i => i.srcDoc).map(i => i.srcDoc))].join(', ')}`, '', '', ord.src === 'master' ? 'na' : 'ok', ord.src === 'master' ? 'no P.O./P.I. item table uploaded — master file used' : `${items.filter(i => i.src !== 'master').length} line(s) from P.O./P.I.${items.some(i => i.notInDoc) ? `, ${items.filter(i => i.notInDoc).length} from master only` : ''}`);
   if (multi && ord.src === 'master') fus.forEach(({ p, fu }) => { const q = friLotItems(p).reduce((s, r) => s + (+r.qty || 0), 0) || +(fu || {}).qty || 0; row(`  ${p.po} · ${p.lot}`, q, '', '', 'na', `${friLotItems(p).length} item row(s)`); });
   row(ord.src !== 'master' ? `Order qty — P.O./P.I. (${items.length} item rows)` : multi ? `Order qty — total of ${pos.length} P.O.s (${items.length} item rows)` : items.length > 1 ? `P.O. qty (total of ${items.length} item rows)` : 'P.O. qty', poQty, repQty, poDocs.length ? `${poDocs.length} P.O. file(s)` : '', poQty == null || repQty == null ? 'na' : poQty === repQty ? 'ok' : 'diff', poQty && repQty && poQty !== repQty ? `${repQty > poQty ? '+' : ''}${Math.round((repQty - poQty) / poQty * 1000) / 10}%` : '');
-  if (poQty != null && repQty != null && poQty !== repQty) issue({ cp:'CP1', sev:'Major', title:`Shipment qty in the report (${repQty}) ≠ ${multi ? `total order qty of the ${pos.length} P.O.s` : 'order qty'} in the ${ord.src === 'master' ? 'master file' : 'P.O./P.I.'} (${poQty}).`, action:'Confirm the P.O. qty (all P.O. lines) and the lot inspected; correct the report.' });
+  if (poQty != null && repQty != null && poQty !== repQty) issue({ anchor: String(v.aql.poQty), cp:'CP1', sev:'Major', title:`Shipment qty in the report (${repQty}) ≠ ${multi ? `total order qty of the ${pos.length} P.O.s` : 'order qty'} in the ${ord.src === 'master' ? 'master file' : 'P.O./P.I.'} (${poQty}).`, action:'Confirm the P.O. qty (all P.O. lines) and the lot inspected; correct the report.' });
   if (v.source && v.source.text && repQty == null && poQty) issue({ pattern:3, cp:'CP1', sev:'Major', title:`Shipment / order qty not stated in the FRI report (${ord.src === 'master' ? 'master file' : 'P.O./P.I.'}: ${poQty}).`, action:'State the shipment qty per item and in total in the report.' });
   if (poQty && packed != null) row('Packed qty ≥ 80% of P.O. qty', `${Math.round(poQty * .8)} min.`, packed, '', packed >= .8 * poQty ? 'ok' : 'diff', `${Math.round(packed / poQty * 100)}%`);
   // EAN in the master file must be a valid GTIN (8 / 12 / 13 / 14 digits, GS1 check digit) and not the item code
@@ -3919,6 +3929,176 @@ function friOrderItems(v){
   }));
   master.forEach((m, k) => { if (!used.has(k)) items.push(Object.assign({}, m, { src:'master', mQty: m.qty, mEan: m.ean, pack: null, notInDoc: true, artPack: artPack(m) })); });
   return { src:'P.O./P.I.', items };
+}
+
+</script>
+<script>
+// ═════════════ FRI deliverables: Annotated FRI report (original .docx + IQA comments) and Supplier CAPA (.docx) ═════════════
+// Format of the reference outputs (JUMBO / Thiên Minh PI 7212146930): comments by "IQA Review", one per place in the report,
+// "ID / ID. finding + evidence required"; summary on "Overall Result"; CAPA = title, subtitle, instructions, Action table,
+// photo row, Supplier response table, header "A.R.E.N.A. / QUALITY ASSURANCE • SUPPLIER CAPA REQUEST • REV n".
+const FRI_CP_ANCHOR = { CP1:'quantity', CP2:'packing', CP3:'artwork', CP4:'sample', CP5:'measurement', CP6:'workmanship', CP7:'onsite', CP8:'disposal', CP9:'other', CP10:'close' };
+const friSq = t => String(t || '').toLowerCase().replace(/[^a-z0-9.%]/g, '');
+function friShortName(s){ return String(s || '').replace(/\b(production|trading|export|import|co\.?|ltd\.?|company|jsc|sdn|bhd|corp(oration)?|limited|manufacturing|industr(y|ies))\b/gi, ' ').replace(/[,.]/g, ' ').trim().split(/\s+/).slice(0, 2).join(' '); }
+function friFileTag(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, ''); }
+function friCommentText(group){
+  const ids = group.map(f => f.ref).join(' / ');
+  const body = group.map(f => [f.title, f.action].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim()).join(' ');
+  return `${ids}. ${body}`;
+}
+function friRecommendation(v){
+  const c = friCompute(v), open = v.findings.filter(f => f.status !== 'Closed' && (f.type === 'NC' || f.type === 'RG' || (f.type === 'F' && f.sev !== 'Minor')));
+  const ids = open.map(f => f.ref);
+  if (c.ship === 'SRC RELEASED') return 'IQA recommends release approval: no open product nonconformance or blocking report finding. QS owns the SRC disposition.';
+  return `IQA recommends HOLD release approval pending ${ids.length ? ids.join(', ') : 'the open items'} closure. QS owns the SRC disposition.`;
+}
+// paragraph index in the original report where a finding belongs
+function friAnchorIndex(f, paras){
+  const clean = paras.map(p => p.clean);
+  const txt = paras.map(p => p.text);
+  if (f.anchor) {
+    const a = String(f.anchor);
+    let i = /^\d[\d.,\s]*$/.test(a) ? txt.findIndex((t, k) => clean[k] && t.replace(/[\s,.]/g, '') === a.replace(/[\s,.]/g, '')) : txt.findIndex((t, k) => clean[k] && friSq(t).includes(friSq(a)));
+    if (i >= 0) return i;
+  }
+  const cp = String(f.cp || '').toUpperCase().match(/CP\d+/); const key = cp ? FRI_CP_ANCHOR[cp[0]] : null;
+  if (key) {
+    const n = cp[0].slice(2), hits = [];
+    txt.forEach((t, k) => { const q = friSq(t); if (clean[k] && q.startsWith(n + '.') && q.includes(key) && q.length < 40) hits.push(k); });
+    if (cp[0] === 'CP7') txt.forEach((t, k) => { if (clean[k] && /^(function|stability|drop|load|assembly)\s*test/i.test(t.trim()) && t.length < 40) hits.push(k); });
+    if (hits.length) return cp[0] === 'CP10' ? hits[0] : hits[hits.length - 1];
+  }
+  const ov = txt.findIndex((t, k) => clean[k] && /^overall\s*result/i.test(t.trim()));
+  return ov >= 0 ? ov : txt.findIndex((t, k) => clean[k] && t.trim());
+}
+async function friAnnotatedDocx(v){
+  const src = v.source || {};
+  if (!src.fileKey || !/^docx?m?$/i.test(src.ext || '')) throw new Error('The annotated report needs the original Word (.docx) report. Import the .docx report (the original file with its photos) in this browser.');
+  const blob = await friIdbGet(src.fileKey); if (!blob || typeof blob === 'string') throw new Error('The original report file is not stored in this browser — import the .docx report again.');
+  const z = await friUnzip(await blob.arrayBuffer()), parts = {};
+  for (const n of z.names) parts[n] = await z.read(n);
+  const dec = n => new TextDecoder().decode(parts[n]);
+  let doc = dec('word/document.xml');
+  // paragraphs (a paragraph holding a nested paragraph / text box is not used as an anchor)
+  const paras = []; const re = /<w:p[ >][\s\S]*?<\/w:p>/g; let m;
+  while ((m = re.exec(doc))) { const x = m[0], inner = x.slice(4); paras.push({ start: m.index, end: m.index + x.length, xml: x, clean: !/<w:p[ >]/.test(inner) && !/txbxContent/.test(x), text: friXmlText(x).replace(/[|\s]+/g, ' ').trim() }); }
+  // existing comments
+  let com = parts['word/comments.xml'] ? dec('word/comments.xml') : null;
+  let nextId = com ? Math.max(-1, ...[...com.matchAll(/<w:comment\b[^>]*w:id="(\d+)"/g)].map(x => +x[1])) + 1 : 0;
+  // group findings by anchor paragraph; the summary goes on "Overall Result"
+  const groups = new Map();
+  v.findings.filter(f => f.status !== 'Closed').forEach(f => { const i = friAnchorIndex(f, paras); if (i < 0) return; if (!groups.has(i)) groups.set(i, []); groups.get(i).push(f); });
+  const ov = paras.findIndex(p => p.clean && /^overall\s*result/i.test(p.text));
+  const comments = [];
+  [...groups.entries()].forEach(([i, g]) => comments.push({ i, text: friCommentText(g) }));
+  const sumIdx = ov >= 0 ? ov : (comments.length ? Math.min(...comments.map(c => c.i)) : paras.findIndex(p => p.clean));
+  const sumText = friRecommendation(v);
+  const sc = comments.find(c => c.i === sumIdx);
+  if (sc) sc.text = sumText + ' ' + sc.text; else comments.push({ i: sumIdx, text: sumText });
+  comments.forEach(c => { c.id = nextId++; });
+  // insert markers from the last paragraph to the first
+  comments.sort((a, b) => b.i - a.i).forEach(c => {
+    const p = paras[c.i]; let x = p.xml;
+    const open = x.match(/^<w:p[^>]*>/)[0], pPr = (x.slice(open.length).match(/^<w:pPr>[\s\S]*?<\/w:pPr>/) || [''])[0];
+    const head = open + pPr, body = x.slice(head.length, x.length - 6);
+    x = head + `<w:commentRangeStart w:id="${c.id}"/>` + body + `<w:commentRangeEnd w:id="${c.id}"/><w:r><w:commentReference w:id="${c.id}"/></w:r></w:p>`;
+    doc = doc.slice(0, p.start) + x + doc.slice(p.end);
+  });
+  const now = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+  const cxml = comments.sort((a, b) => a.id - b.id).map(c => `<w:comment w:id="${c.id}" w:author="IQA Review" w:date="${now}" w:initials="IQA"><w:p><w:r><w:t xml:space="preserve">${friX(c.text)}</w:t></w:r></w:p></w:comment>`).join('');
+  if (com) com = com.replace(/<\/w:comments>\s*$/, cxml + '</w:comments>');
+  else com = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">${cxml}</w:comments>`;
+  const enc = s => new TextEncoder().encode(s);
+  parts['word/document.xml'] = enc(doc); parts['word/comments.xml'] = enc(com);
+  let ct = dec('[Content_Types].xml');
+  if (!/PartName="\/word\/comments\.xml"/.test(ct)) ct = ct.replace('</Types>', '<Override PartName="/word/comments.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"/></Types>');
+  parts['[Content_Types].xml'] = enc(ct);
+  let rl = dec('word/_rels/document.xml.rels');
+  if (!/relationships\/comments"/.test(rl)) rl = rl.replace('</Relationships>', '<Relationship Id="rIdIqaComments" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments" Target="comments.xml"/></Relationships>');
+  parts['word/_rels/document.xml.rels'] = enc(rl);
+  const order = ['[Content_Types].xml', ...Object.keys(parts).filter(n => n !== '[Content_Types].xml')];
+  const out = friZip(order.map(n => [n, parts[n]]));
+  return { blob: out, comments: comments.length, paras: paras.length };
+}
+async function friExportAnnotated(){
+  if (!friCur || !friCur.source) { alert('Import the FRI report (.docx) first.'); return; }
+  try {
+    const r = await friAnnotatedDocx(friCur), fu = friLotRow(friPos(friCur)[0] || {}) || {};
+    const name = `FRI_Annotated_${friFileTag(friCur.ally || fu.ally)}_${friFileTag(friShortName(friCur.sup || fu.sup))}_${friFileTag(friCur.po)}.docx`;
+    friDownload(r.blob, name);
+    const m = g('fri-save-msg'); if (m) m.textContent = `Annotated report: ${r.comments} comment(s) added to the original — ${name}`;
+  } catch(e) { alert(e.message); }
+}
+
+// ── Supplier CAPA ──
+function friCapaGroups(v){
+  const isSup = f => f.status !== 'Closed' && (f.type === 'NC' || /supplier/i.test(f.resp || ''));
+  const supp = v.findings.filter(isSup);
+  const paraKey = f => (f.cp || '') + '|' + (f.anchor || '');
+  const groups = [];
+  supp.forEach(f => { let gr = groups.find(gx => gx.key === paraKey(f)); if (!gr) groups.push(gr = { key: paraKey(f), items: [] }); gr.items.push(f); });
+  // an RG- on the same checkpoint as a supplier NC- travels with it (e.g. NC-01 / RG-02 carton declaration)
+  v.findings.filter(f => f.type === 'RG' && f.status !== 'Closed').forEach(f => { const gr = groups.find(gx => gx.items.some(x => x.type === 'NC' && (x.cp || '') === (f.cp || ''))); if (gr) gr.items.push(f); });
+  return groups;
+}
+function friCapaRefLabel(v){
+  const pi = (v.docs || []).filter(d => d.type === 'po').map(d => ((d.name + ' ' + (d.text || '')).match(/\b(?:P\.?\s?I\.?|Proforma(?:\s*Invoice)?)\s*(?:No\.?|#|:)?\s*([A-Z0-9][A-Z0-9-]{3,})/i) || [])[1]).find(Boolean);
+  return pi ? `PI ${pi}` : `PO ${friPos(v).map(p => p.po).join(' + ')}`;
+}
+function friHdrFtr(kind, text){
+  const tag = kind === 'h' ? 'hdr' : 'ftr', F = '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>';
+  const rp = kind === 'h' ? `<w:rPr>${F}<w:b/><w:color w:val="0C6863"/><w:sz w:val="16"/></w:rPr>` : `<w:rPr>${F}<w:color w:val="153650"/><w:sz w:val="16"/></w:rPr>`;
+  const page = kind === 'f' ? `<w:r>${rp}<w:fldChar w:fldCharType="begin"/></w:r><w:r>${rp}<w:instrText>PAGE</w:instrText></w:r><w:r>${rp}<w:fldChar w:fldCharType="separate"/></w:r><w:r>${rp}<w:t>1</w:t></w:r><w:r>${rp}<w:fldChar w:fldCharType="end"/></w:r>` : '';
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:${tag} xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr><w:spacing w:after="0"/>${kind === 'f' ? '<w:jc w:val="right"/>' : ''}</w:pPr><w:r>${rp}<w:t xml:space="preserve">${friX(text)}${kind === 'f' ? '    •    ' : ''}</w:t></w:r>${page}</w:p></w:${tag}>`;
+}
+async function friExportCapa(){
+  if (!friCur || !friCur.po) { alert('Open a validation first.'); return; }
+  const v = friCur, fu = friLotRow(friPos(v)[0] || {}) || {}, groups = friCapaGroups(v);
+  if (!groups.length) { alert('No supplier action in the findings (no NC- and no finding with supplier responsibility) — no Supplier CAPA is needed.'); return; }
+  const ally = (v.ally || fu.ally || '').toUpperCase(), supShort = friShortName(v.sup || fu.sup).toUpperCase(), ref = friCapaRefLabel(v);
+  const items = friOrderItems(v).items, product = (v.pf || (items[0] && items[0].desc) || '').toUpperCase();
+  const fmt = d => { if (!d) return ''; const t = new Date(String(d).slice(0, 10) + 'T00:00:00'); return isNaN(t) ? String(d) : t.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }); };
+  // reference format: Calibri, navy 153650, table header 153650 / white, rows F0F5F8 / white, no borders, teal 0C6863 headings
+  const NAVY = '153650', TEAL = '0C6863', BAND = 'F0F5F8', W = 9936, C1 = 2534, C2 = 778, C3 = 3312, media = []; let imgId = 0;
+  const run = (t, o) => { o = o || {}; return String(t ?? '').split('\n').map((ln, i) => `${i ? '<w:r><w:br/></w:r>' : ''}<w:r><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>${o.b ? '<w:b/>' : ''}<w:color w:val="${o.color || NAVY}"/><w:sz w:val="${o.sz || 21}"/>${o.sp ? `<w:spacing w:val="${o.sp}"/>` : ''}</w:rPr><w:t xml:space="preserve">${friX(ln)}</w:t></w:r>`).join(''); };
+  const para = (t, o, ppr) => `<w:p><w:pPr>${ppr || ''}<w:spacing w:before="${(o && o.before) ?? 0}" w:after="${(o && o.after) ?? 120}" w:line="264" w:lineRule="auto"/></w:pPr>${run(t, o)}</w:p>`;
+  const cp = (t, o) => `<w:p><w:pPr><w:spacing w:before="60" w:after="60" w:line="252" w:lineRule="auto"/>${o && o.jc ? `<w:jc w:val="${o.jc}"/>` : ''}</w:pPr>${run(t, Object.assign({ sz:19 }, o || {}))}</w:p>`;
+  const tc = (w, inner, fill, span) => `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${span ? `<w:gridSpan w:val="${span}"/>` : ''}<w:shd w:val="clear" w:color="auto" w:fill="${fill || 'FFFFFF'}"/><w:tcMar><w:top w:w="60" w:type="dxa"/><w:left w:w="110" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="110" w:type="dxa"/></w:tcMar><w:vAlign w:val="center"/></w:tcPr>${inner}</w:tc>`;
+  const tbl = (grid, rows) => `<w:tbl><w:tblPr><w:tblW w:w="${W}" w:type="dxa"/><w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid>${grid.map(w => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>${rows.join('')}</w:tbl>`;
+  let b = '';
+  b += `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="8" w:space="4" w:color="4F81BD"/></w:pBdr><w:spacing w:before="60" w:after="160" w:line="240" w:lineRule="auto"/></w:pPr>${run('Supplier corrective action request', { b:true, sz:58, sp:5 })}</w:p>`;
+  b += para(`${ally} / ${supShort}  •  ${ref}${product ? '  •  ' + product : ''}`, { after:120 });
+  b += para(`Please return the completed response and supporting records to the responsible Quality Supervisor (QS) before release review. QS will confirm the response deadline and disposition. Inspection date ${fmt(v.inspDate) || '—'}.${fu.etd || fu.realEtd ? ` ${ref.startsWith('PI') ? 'PI' : 'PO'} ETD ${fmt(fu.realEtd || fu.etd)}.` : ''}`, { after:200 });
+  const rows = [`<w:tr><w:trPr><w:tblHeader/></w:trPr>${tc(C1, cp('Action', { b:true, color:'FFFFFF' }), NAVY)}${tc(W - C1, cp('Required response and closure evidence', { b:true, color:'FFFFFF' }), NAVY, 3)}</w:tr>`];
+  groups.forEach((gr, k) => {
+    const ids = gr.items.map(f => f.ref).join(' / '), cpN = (String(gr.items[0].cp || '').toUpperCase().match(/CP(\d+)/) || [])[1];
+    const topic = cpN ? FRI_CPS[+cpN - 1][1] : 'Follow-up', fill = k % 2 ? 'FFFFFF' : BAND;
+    const text = gr.items.map(f => [f.title, f.action].filter(Boolean).join(' ')).join(' ').replace(/\s+/g, ' ').trim()
+      + ' Identify the affected lots and quantities, record containment and correction, and submit traceable evidence (photos, counts, re-verification records). Explain the cause and the preventive action.';
+    rows.push(`<w:tr>${tc(C1, cp(ids) + cp(topic), fill)}${tc(W - C1, cp(text), fill, 3)}</w:tr>`);
+  });
+  // photo row inside the action table: the report's own photos linked to these findings (max 3)
+  const seen = new Set(), photos = [];
+  for (const gr of groups) for (const f of gr.items) for (const r of (f.refs || []).filter(r => r.kind === 'photo' && !r.doc)) { if (photos.length >= 3 || seen.has(r.key)) continue; const u = await friImgGet(r.key); if (!u) continue; seen.add(r.key); photos.push({ u, r }); }
+  if (photos.length) {
+    const spans = [[C1 + C2, 2], [C3, 1], [C3, 1]];
+    const cells = photos.map(({ u, r }, k) => { imgId++; const rid = 'rIdCapa' + imgId; media.push({ rid, name: `capa${imgId}.jpeg`, data: friB64(u) });
+      const num = (String(r.label).match(/image(\d+)/i) || [])[1], cap = String(r.label).replace(/^Report photo [^—]*—\s*/, '').replace(/^Photo:\s*/i, '').trim();
+      const cx = Math.round(2.05 * 914400), cy = Math.round(cx * (r.h || 3) / (r.w || 4));
+      const drawing = friDocxImg(rid, 200 + imgId, r.w, r.h).replace(/cx="\d+" cy="\d+"/g, `cx="${cx}" cy="${cy}"`).replace(/<w:r><w:t xml:space="preserve">  <\/w:t><\/w:r>$/, '');
+      return tc(spans[k][0], `<w:p><w:pPr><w:spacing w:before="60" w:after="40"/></w:pPr>${drawing}</w:p>` + cp(`Photo ${num || imgId} · ${cap.charAt(0).toUpperCase() + cap.slice(1)}${/[.!?]$/.test(cap) ? '' : '.'}`, { b:true, sz:17 }), 'FFFFFF', spans[k][1] > 1 ? spans[k][1] : 0); });
+    while (cells.length < 3) cells.push(tc(spans[cells.length][0], cp(''), 'FFFFFF', spans[cells.length][1] > 1 ? spans[cells.length][1] : 0));
+    rows.push(`<w:tr>${cells.join('')}</w:tr>`);
+  }
+  b += tbl([C1, C2, C3, C3], rows);
+  b += `<w:p><w:pPr><w:keepNext/><w:spacing w:before="220" w:after="100"/></w:pPr>${run('Supplier response', { b:true, sz:26, color:TEAL })}</w:p>`;
+  const fields = ['Owner and target date', 'Affected lot and quantity', 'Containment and correction', 'Root cause and prevention', 'Verification and evidence references'];
+  b += tbl([3024, W - 3024], [`<w:tr><w:trPr><w:tblHeader/></w:trPr>${tc(3024, cp('Field', { b:true, color:'FFFFFF' }), NAVY)}${tc(W - 3024, cp('Supplier to complete', { b:true, color:'FFFFFF' }), NAVY)}</w:tr>`,
+    ...fields.map((f, k) => `<w:tr><w:trPr><w:trHeight w:val="560"/></w:trPr>${tc(3024, cp(f), k % 2 ? 'FFFFFF' : BAND)}${tc(W - 3024, cp(''), k % 2 ? 'FFFFFF' : BAND)}</w:tr>`)]);
+  const rev = +v.rev || 0, today = fmt(new Date().toISOString().slice(0, 10));
+  const blob = friDocx(b, false, media, { header: `A.R.E.N.A.  /  QUALITY ASSURANCE     •     SUPPLIER CAPA REQUEST • REV ${rev}`, footer: `${ally}  /  ${ref}    •    ${today}`,
+    margins: '<w:pgMar w:top="979" w:right="979" w:bottom="893" w:left="979" w:header="490" w:footer="461" w:gutter="0"/>' });
+  friDownload(blob, `Supplier_CAPA_${friFileTag(ally)}_${friFileTag(friShortName(v.sup || fu.sup))}_${friFileTag(v.po)}.docx`);
 }
 
 </script>
