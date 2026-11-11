@@ -3240,6 +3240,8 @@ async function friDocUpload(inp){
           if (s.basis && !friCur.basis) friCur.basis = s.basis;
           if (s.status) friCur.basisStatus = s.status; else if (friCur.basisStatus === 'None') friCur.basisStatus = 'Released'; }
       }
+      if (type === 'po') d.lines = await friReadPoDoc(f, r.text || '');
+      if (type === 'art') d.pack = friPackOf(r.text || '');
       d.imgs = await friExtractImages(f, d.id, { maxImgs:24, maxPages:6 });
       d.barcodes = [...new Set(d.imgs.flatMap(im => im.codes || []))];
       d.gtins = [...new Set([...d.gtins, ...d.barcodes])];
@@ -3249,6 +3251,7 @@ async function friDocUpload(inp){
   }
   if (msg) msg.textContent = n ? `${n} document(s) added.` : '';
   friDirty = true;
+  friSyncMasterItems();
   if (friCur.source) friApplyPre(true); else friRenderWorkbench();
 }
 async function friDocOpen(id){
@@ -3276,7 +3279,7 @@ function friDocsPanel(){
       ${docs.map(d => `<tr><td>${d.thumb ? `<img src="${d.thumb}" style="width:48px;height:48px;object-fit:cover;border-radius:4px;border:1px solid var(--bd)"/>` : `<span class="tag t-gray">${friE(d.kind)}</span>`}</td>
         <td><span class="tag t-b">${friE(FRI_DOC_LABEL[d.type] || d.type)}</span></td>
         <td>${friE(d.name)}<div class="fri-note">${Math.round(d.size/1024)} KB · ${friE(d.kind)}</div></td>
-        <td class="fri-note">${d.std ? `${friE(d.std.basis || 'checklist')} · ${d.std.total} IDs · ${d.std.mand.length} mandatory${d.std.qs.length ? ` · <b style="color:#B9770E">${d.std.qs.length} "QS to fill"</b>` : ''}` : ''}${d.gtins.length ? `GTIN: ${friE(d.gtins.slice(0,4).join(', '))}${d.gtins.length > 4 ? '…' : ''}${(d.barcodes || []).length ? ` <span class="tag t-g">${d.barcodes.length} barcode(s) decoded</span>` : ''}` : (d.std ? '' : (d.text ? `${d.text.length.toLocaleString()} characters of text` : (d.kind === 'Image' ? 'image (no text)' : 'no text found')))}</td>
+        <td class="fri-note">${(d.lines || []).length ? `<b>${d.lines.length} item line(s)</b> · Σ ${d.lines.reduce((a, l) => a + (+l.qty || 0), 0)} pcs${d.lines.some(l => l.pack && (l.pack.outer || l.pack.inner || (l.pack.words||[]).length)) ? ' · packaging read' : ''}<br>` : ''}${d.pack && (d.pack.outer || d.pack.inner || d.pack.words.length) ? `packaging: ${friE(friPackLabel(d.pack))}<br>` : ''}${d.std ? `${friE(d.std.basis || 'checklist')} · ${d.std.total} IDs · ${d.std.mand.length} mandatory${d.std.qs.length ? ` · <b style="color:#B9770E">${d.std.qs.length} "QS to fill"</b>` : ''}` : ''}${d.gtins.length ? `GTIN: ${friE(d.gtins.slice(0,4).join(', '))}${d.gtins.length > 4 ? '…' : ''}${(d.barcodes || []).length ? ` <span class="tag t-g">${d.barcodes.length} barcode(s) decoded</span>` : ''}` : (d.std ? '' : (d.text ? `${d.text.length.toLocaleString()} characters of text` : (d.kind === 'Image' ? 'image (no text)' : 'no text found')))}</td>
         <td class="fri-note" style="white-space:nowrap">${friE(d.at)}</td>
         <td style="white-space:nowrap"><button class="btn btn-d btn-sm" onclick="friDocOpen('${d.id}')">Open</button> <button class="btn btn-tx" title="Remove" onclick="friDocDel('${d.id}')">✕</button></td></tr>`).join('')}</tbody></table></div>`
       : '<div style="padding:12px;text-align:center;color:var(--t3);font-size:12.5px">No document uploaded yet.</div>'}
@@ -3294,10 +3297,11 @@ function friLotItems(p){ const od = (typeof MASTER_ORDER_DATA !== 'undefined' ? 
 function friSyncMasterItems(){   // item lines + order qty from the master file for every P.O. of the report (unless the report's own items table was read)
   if (!friCur) return; const a = friCur.aql;
   if (a.qtySrc === 'report') return;
-  const items = friPos(friCur).flatMap(p => friLotItems(p).filter(x => +x.qty > 0).map(x => ({ po: p.po, ref: x.allyRef || x.supRef || '', desc: x.desc || '', ship: +x.qty, packed: '', nII: '', nS3: '', src:'master' })));
+  const ord = friOrderItems(friCur);   // P.O./P.I. first, master file for what they do not give
+  const items = ord.items.filter(x => +x.qty > 0).map(x => ({ po: x._po, ref: x.allyRef || x.supRef || '', desc: x.desc || '', ship: +x.qty, packed: '', nII: '', nS3: '', src: x.src }));
   a.items = items;
   const tot = items.length ? items.reduce((s, x) => s + x.ship, 0) : friPos(friCur).reduce((s, p) => s + (+(friLotRow(p) || {}).qty || 0), 0);
-  if (tot) { a.poQty = String(tot); a.qtySrc = 'master'; }
+  if (tot) { a.poQty = String(tot); a.qtySrc = ord.src === 'master' ? 'master' : 'po-doc'; }
 }
 function friAddPo(key){ if (!friCur || !key) return; const [po, lot] = key.split('||'); friCur.morePos = friCur.morePos || [];
   if (!friPos(friCur).some(p => p.po === po && p.lot === lot)) friCur.morePos.push({ po, lot }); friDirty = true; friSyncMasterItems(); friRenderWorkbench(); }
@@ -3308,7 +3312,7 @@ function friReconcile(v){
   const pos = friPos(v), multi = pos.length > 1;
   const fus = pos.map(p => ({ p, fu: friLotRow(p) }));
   const fu = fus[0].fu; out.fu = fu;
-  const items = pos.flatMap(p => friLotItems(p).map(it => Object.assign({ _po: p.po }, it)));
+  const ord = friOrderItems(v), items = ord.items;   // P.O./P.I. (and artwork) first; master file for what they do not give
   const rep = (v.source && v.source.text) || '', repN = rep.toLowerCase(), repPhotoG = [...new Set(((v.source && v.source.imgs) || []).flatMap(im => im.codes || []))], repG = [...new Set([...friGtins(rep), ...repPhotoG])];
   const docs = v.docs || [], artDocs = docs.filter(d => d.type === 'art'), artG = [...new Set(artDocs.flatMap(d => d.gtins))];
   const poDocs = docs.filter(d => d.type === 'po'), poG = [...new Set(poDocs.flatMap(d => d.gtins))];
@@ -3331,8 +3335,9 @@ function friReconcile(v){
   });
   // quantities
   const poQty = items.length ? items.reduce((s, r) => s + (+r.qty || 0), 0) : fus.reduce((s, x) => s + (+(x.fu || {}).qty || 0), 0), repQty = n(v.aql.poQty), packed = n(v.aql.packed);   // total order qty of all item rows of ALL P.O.s in the report
-  if (multi) fus.forEach(({ p, fu }) => { const q = friLotItems(p).reduce((s, r) => s + (+r.qty || 0), 0) || +(fu || {}).qty || 0; row(`  ${p.po} · ${p.lot}`, q, '', '', 'na', `${friLotItems(p).length} item row(s)`); });
-  row(multi ? `Order qty — total of ${pos.length} P.O.s (${items.length} item rows)` : items.length > 1 ? `P.O. qty (total of ${items.length} item rows)` : 'P.O. qty', poQty, repQty, poDocs.length ? `${poDocs.length} P.O. file(s)` : '', poQty == null || repQty == null ? 'na' : poQty === repQty ? 'ok' : 'diff', poQty && repQty && poQty !== repQty ? `${repQty > poQty ? '+' : ''}${Math.round((repQty - poQty) / poQty * 1000) / 10}%` : '');
+  row('Order data source', ord.src === 'master' ? 'master file' : `P.O./P.I. — ${[...new Set(items.filter(i => i.srcDoc).map(i => i.srcDoc))].join(', ')}`, '', '', ord.src === 'master' ? 'na' : 'ok', ord.src === 'master' ? 'no P.O./P.I. item table uploaded — master file used' : `${items.filter(i => i.src !== 'master').length} line(s) from P.O./P.I.${items.some(i => i.notInDoc) ? `, ${items.filter(i => i.notInDoc).length} from master only` : ''}`);
+  if (multi && ord.src === 'master') fus.forEach(({ p, fu }) => { const q = friLotItems(p).reduce((s, r) => s + (+r.qty || 0), 0) || +(fu || {}).qty || 0; row(`  ${p.po} · ${p.lot}`, q, '', '', 'na', `${friLotItems(p).length} item row(s)`); });
+  row(ord.src !== 'master' ? `Order qty — P.O./P.I. (${items.length} item rows)` : multi ? `Order qty — total of ${pos.length} P.O.s (${items.length} item rows)` : items.length > 1 ? `P.O. qty (total of ${items.length} item rows)` : 'P.O. qty', poQty, repQty, poDocs.length ? `${poDocs.length} P.O. file(s)` : '', poQty == null || repQty == null ? 'na' : poQty === repQty ? 'ok' : 'diff', poQty && repQty && poQty !== repQty ? `${repQty > poQty ? '+' : ''}${Math.round((repQty - poQty) / poQty * 1000) / 10}%` : '');
   if (poQty != null && repQty != null && poQty !== repQty) issue({ cp:'CP1', sev:'Major', title:`Shipment qty in the report (${repQty}) ≠ ${multi ? `total order qty of the ${pos.length} P.O.s` : 'P.O. qty'} in the master file (${poQty}).`, action:'Confirm the P.O. qty (all P.O. lines) and the lot inspected; correct the report.' });
   if (poQty && packed != null) row('Packed qty ≥ 80% of P.O. qty', `${Math.round(poQty * .8)} min.`, packed, '', packed >= .8 * poQty ? 'ok' : 'diff', `${Math.round(packed / poQty * 100)}%`);
   // EAN in the master file must be a valid GTIN (8 / 12 / 13 / 14 digits, GS1 check digit) and not the item code
@@ -3344,13 +3349,29 @@ function friReconcile(v){
     if (badEan.length) issue({ type:'RG', sev:'—', resp:'QS', cp:'CP3', title:`EAN in the master file is not a valid GTIN for ${badEan.length} item(s): ${badEan.slice(0,4).map(it => `${it.allyRef || it.desc} = "${it.ean || 'blank'}"`).join(', ')}${badEan.length > 4 ? '…' : ''} — barcode cannot be verified.`, action:'Correct the EAN code in Orders Data from the P.O. / Ally item master, then reload the master file.' });
   }
   if (repPhotoG.length) row('Barcodes decoded in report photos', '', repPhotoG.slice(0,4).join(', '), '', 'ok', `${repPhotoG.length} code(s) read from the scan photos`);
+  // P.O./P.I. vs master file, packaging (P.O./P.I. ↔ artwork ↔ report)
+  const digitsOf = x => String(x || '').replace(/\D/g, '');
+  items.forEach(it => { const nm = it.allyRef || it.supRef || it.desc;
+    if (it.src === 'P.O./P.I.' && !it.inMaster) issue({ type:'OB', sev:'—', resp:'QS', cp:'CP1', title:`Item ${nm} of the P.O./P.I. (${it.srcDoc}) is not in the master file.`, action:'Add the line to the master file (Orders Data).' });
+    if (it.src === 'P.O./P.I.' && it.inMaster && it.mQty != null && +it.mQty !== +it.qty) issue({ type:'OB', sev:'—', resp:'QS', cp:'CP1', title:`Order qty of ${nm}: P.O./P.I. ${it.qty} ≠ master file ${it.mQty} — P.O./P.I. used.`, action:'Update the master file (Orders Data) to the P.O./P.I.' });
+    if (it.src === 'P.O./P.I.' && it.inMaster && it.mEan && digitsOf(it.mEan) !== digitsOf(it.ean) && digitsOf(it.ean)) issue({ type:'OB', sev:'—', resp:'QS', cp:'CP3', title:`EAN of ${nm}: P.O./P.I. ${it.ean} ≠ master file ${it.mEan} — P.O./P.I. used.`, action:'Correct the EAN in the master file.' });
+    if (it.notInDoc) issue({ type:'OB', sev:'—', resp:'QS', cp:'CP1', title:`Master-file line ${nm} (P.O. ${it._po}) is not in the uploaded P.O./P.I.`, action:'Check the P.O./P.I. revision or the master file.' });
+    const pk = it.pack, ap = it.artPack;
+    if (pk && ap && pk.outer && ap.outer && pk.outer !== ap.outer) issue({ type:'RG', sev:'—', resp:'QS + Compliance Director', cp:'CP2', title:`Packaging of ${nm}: P.O./P.I. ${pk.outer} pcs/carton ≠ artwork "${ap.doc}" ${ap.outer} pcs/carton — approved documents conflict.`, action:'Confirm the packing with the Ally; hold the next carton print until confirmed.' });
+    if (pk && ap && pk.inner && ap.inner && pk.inner !== ap.inner) issue({ type:'RG', sev:'—', resp:'QS + Compliance Director', cp:'CP2', title:`Packaging of ${nm}: P.O./P.I. ${pk.inner} pcs/inner ≠ artwork "${ap.doc}" ${ap.inner} pcs/inner — approved documents conflict.`, action:'Confirm the inner packing with the Ally.' });
+    const want = (pk && pk.outer) || (ap && ap.outer);
+    if (rep && want) { const keys = [it.allyRef, it.supRef, digitsOf(it.ean)].filter(Boolean).map(String);
+      const rl = rep.split('\n').filter(l => keys.some(k => l.includes(k))).map(l => friPackOf(l).outer).filter(Boolean);
+      const bad = rl.find(o => o !== want);
+      if (bad) issue({ cp:'CP2', sev:'Major', title:`Packing of ${nm} in the report: ${bad} pcs/carton ≠ ${pk && pk.outer ? 'P.O./P.I.' : 'artwork'} ${want} pcs/carton.`, action:'Check the packed cartons against the P.O./P.I.; correct the report or raise an NC- if the goods are packed differently.' }); }
+  });
   // item lines
   items.forEach(it => {
     const code = it.allyRef || it.supRef || '', gt = [it.ean, it.logCode].map(x => String(x || '').replace(/\D/g, '')).filter(x => x.length >= 13);
     const inRep = !!rep && ((code && has(repN, code)) || gt.some(x => repG.includes(x) || rep.includes(x)));
     const artG13 = artG.map(friGtin13of14);
     const eanArt = !artDocs.length ? null : badEan.includes(it) ? 'badmaster' : !artG.length ? 'unreadable' : (gt.length ? gt.every(x => artG.includes(x) || artG13.includes(friGtin13of14(x))) : null);
-    out.items.push({ po: it._po, eanBad: badEan.includes(it), code, desc: it.desc, ean: it.ean, itf: it.logCode, brand: it.brand, qty: it.qty, inRep, eanArt, brandRep: it.brand ? has(repN, it.brand) : null });
+    out.items.push({ src: it.src, srcDoc: it.srcDoc, pack: friPackLabel(it.pack), artPack: it.artPack ? friPackLabel(it.artPack) + ' (' + it.artPack.doc + ')' : '', po: it._po, eanBad: badEan.includes(it), code, desc: it.desc, ean: it.ean, itf: it.logCode, brand: it.brand, qty: it.qty, inRep, eanArt, brandRep: it.brand ? has(repN, it.brand) : null });
     if (rep && !inRep) issue({ cp:'CP1', sev:'Major', title:`P.O.${multi ? ' ' + it._po : ''} line ${code || it.ean} (${(it.desc || '').slice(0, 40)}) not found in the FRI report — no inspection record for this code.`, action:'Inspect / report every P.O. line; each code needs its own FRI record.' });
     if (eanArt === false) issue({ type:'OB', sev:'—', resp:'QS', cp:'CP3', title:`GTIN ${gt.join(' / ')} of ${code || it.desc} not found in the uploaded artwork files (artwork GTINs read: ${artG.slice(0,3).join(', ')}).`, action:'Upload the released artwork of this item, or confirm its barcode visually.' });
     if (rep && it.brand && !has(repN, it.brand)) issue({ cp:'CP3', sev:'Minor', title:`Brand "${it.brand}" (master file) not mentioned in the report for ${code || it.desc}.`, action:'Record the brand checked on product / packaging.' });
@@ -3407,8 +3428,8 @@ function friReconPanel(){
     <div class="ch2"><div class="ct" style="color:#F4811F;font-weight:700">1b · P.O. reconciliation — master file × FRI report × documents (Step 3d)</div><span class="fri-note">${friE(mf)} · recalculated on every master-file load</span></div>
     <div class="tw"><table class="tbl" style="font-size:12px"><thead><tr><th style="width:30px"></th><th>CHECK</th><th>MASTER FILE</th><th>FRI REPORT</th><th>DOCUMENTS</th><th>NOTE</th></tr></thead><tbody>
       ${r.rows.map(x => `<tr><td>${ic(x.res)}</td><td>${friE(x.check)}</td><td><b>${friE(x.master)}</b></td><td>${friE(x.report)}</td><td>${friE(x.doc)}</td><td class="fri-note">${friE(x.note)}</td></tr>`).join('')}</tbody></table></div>
-    ${r.items.length ? `<div class="fri-note" style="margin:10px 0 4px"><b>Item lines (Orders Data)</b></div><div class="tw"><table class="tbl" style="font-size:12px"><thead><tr>${friPos(v).length > 1 ? '<th>P.O.</th>' : ''}<th>ITEM CODE</th><th>DESCRIPTION</th><th>EAN</th><th>ITF-14 / LOG</th><th>BRAND</th><th>QTY</th><th>IN REPORT</th><th>GTIN IN ARTWORK</th></tr></thead><tbody>
-      ${r.items.map(i => `<tr>${friPos(v).length > 1 ? `<td>${friE(i.po)}</td>` : ''}<td>${friE(i.code)||'—'}</td><td style="max-width:220px">${friE(i.desc)}</td><td>${friE(i.ean)||'—'}${i.eanBad?' <span class="tag t-o" title="not a valid GTIN (length / check digit) or equal to the item code">invalid</span>':''}</td><td>${friE(i.itf)||'—'}</td><td>${friE(i.brand)||'—'}</td><td>${i.qty ?? '—'}</td>
+    ${r.items.length ? `<div class="fri-note" style="margin:10px 0 4px"><b>Item lines (Orders Data)</b></div><div class="tw"><table class="tbl" style="font-size:12px"><thead><tr>${friPos(v).length > 1 ? '<th>P.O.</th>' : ''}<th>ITEM CODE</th><th>DESCRIPTION</th><th>EAN</th><th>ITF-14 / LOG</th><th>BRAND</th><th>QTY</th><th>SOURCE</th><th>PACKAGING — P.O./P.I. · ARTWORK</th><th>IN REPORT</th><th>GTIN IN ARTWORK</th></tr></thead><tbody>
+      ${r.items.map(i => `<tr>${friPos(v).length > 1 ? `<td>${friE(i.po)}</td>` : ''}<td>${friE(i.code)||'—'}</td><td style="max-width:220px">${friE(i.desc)}</td><td>${friE(i.ean)||'—'}${i.eanBad?' <span class="tag t-o" title="not a valid GTIN (length / check digit) or equal to the item code">invalid</span>':''}</td><td>${friE(i.itf)||'—'}</td><td>${friE(i.brand)||'—'}</td><td>${i.qty ?? '—'}</td><td><span class="tag ${i.src === 'master' ? 't-gray' : 't-b'}" title="${friE(i.srcDoc || '')}">${friE(i.src || 'master')}</span></td><td style="font-size:11.5px">${i.pack ? friE(i.pack) : '<span class="fri-note">not in P.O./P.I.</span>'}${i.artPack ? `<div class="fri-note">artwork: ${friE(i.artPack)}</div>` : ''}</td>
         <td>${!v.source ? '—' : i.inRep ? ic('ok') : ic('diff') + ' not found'}</td><td>${i.eanArt === null ? '—' : i.eanArt === 'badmaster' ? '<span class="fri-note">fix master EAN first</span>' : i.eanArt === 'unreadable' ? '<span class="fri-note">no GTIN read in artwork</span>' : i.eanArt ? ic('ok') : ic('diff') + ' mismatch'}</td></tr>`).join('')}</tbody></table></div>` : ''}
     ${r.issues.length ? `<div style="margin-top:8px">${r.issues.map(x => `<div style="display:flex;gap:8px;align-items:center;margin-top:5px;font-size:12px"><span class="tag ${x.type==='NC'?'t-r':x.type==='RG'?'t-p':x.type==='OB'?'t-gray':x.sev==='Major'?'t-o':'t-gray'}">${x.type==='F'?x.sev:x.type+'-'}</span><span style="flex:1">${friE(x.title)}</span>
         ${titles.has(x.title) ? '<span class="fri-note">logged</span>' : `<button class="btn btn-d btn-sm" onclick='friAddFinding(${JSON.stringify(x).replace(/'/g,"&#39;")})'>+ Add</button>`}</div>`).join('')}</div>` : ''}
@@ -3706,6 +3727,104 @@ function friGtinsPrinted(text){
   for (const m of t.matchAll(/(?<![\d])(\d)[ \t|]{1,4}(\d{6})[ \t|]{1,4}(\d{6})(?![\d])/g)) { const c = m[1] + m[2] + m[3]; if (friGtinOk(c)) out.add(c); }
   for (const m of t.matchAll(/(?<![\d])(\d)[ \t|]{1,4}(\d{2})[ \t|]{1,4}(\d{5})[ \t|]{1,4}(\d{5})[ \t|]{1,4}(\d)(?![\d])/g)) { const c = m.slice(1, 6).join(''); if (friGtinOk(c)) out.add(c); }
   return [...out];
+}
+
+</script>
+<script>
+// ═════════════ P.O. / P.I. item lines + packaging method (priority source before the master file) ═════════════
+// Tables are read column by column from the original file (Excel sheets, Word tables, PDF lines); a header row is
+// recognised by its column names. Packaging = pcs per inner / per carton, cartons, packing type words.
+const FRI_POCOL = {
+  ean:   /\b(ean|barcode|gtin(?!\s*-?\s*14)|upc)\b/i,
+  itf:   /\b(itf|gtin\s*-?\s*14|dun\s*-?\s*14|outer\s*(ean|barcode)|carton\s*(ean|barcode))\b/i,
+  inner: /\binner\b|pcs\s*\/\s*inner|\bipq\b/i,
+  outer: /pcs\s*\/\s*(ctn|carton|outer|master)|per\s*(ctn|carton)|\bmpq\b|master\s*(pack|qty)|outer\s*(qty|pack)|qty\s*\/\s*(ctn|carton)|pcs\s*per\s*(ctn|carton)/i,
+  ctns:  /^\s*(total\s*)?(ctns?|cartons?)\s*$|no\.?\s*of\s*(ctns?|cartons?)|total\s*(ctns?|cartons?)|\bctn\s*qty\b/i,
+  pack:  /\bpacking\b|\bpackaging\b|pack(ing)?\s*(type|method|way)|\bpackage\b/i,
+  dims:  /(carton|ctn)\s*(size|dim|meas)|\bmeas(urement)?\b|\bcbm\b|\bdimension/i,
+  qty:   /\bq'?\s*ty\b|\bquantity\b|\border\s*qty\b|\btotal\s*(pcs|qty|quantity)\b|^\s*pcs\s*$/i,
+  sref:  /supplier\s*(ref|item|code|no)|factory\s*(ref|code|item)|\bmodel\b/i,
+  code:  /ally\s*ref|item\s*(no|code|#|ref|number)|\barticle\b|\bart\.?\s*no\b|\bsku\b|\bref(erence)?\b|\bcode\b/i,
+  desc:  /desc|product\s*(name|description)?|item\s*name|designation|\bname\b/i,
+};
+function friPoHeader(row){
+  const map = {}, used = new Set();
+  const order = ['itf','ean','inner','outer','ctns','pack','dims','qty','sref','code','desc'];
+  order.forEach(k => { const i = row.findIndex((c, j) => !used.has(j) && FRI_POCOL[k].test(String(c || '')) && !(k === 'qty' && /ctn|carton|inner|per|unit\s*price|\/|amount/i.test(String(c)))); if (i >= 0) { map[k] = i; used.add(i); } });
+  const score = Object.keys(map).length + (map.qty !== undefined ? 1 : 0) + (map.ean !== undefined ? 1 : 0);
+  return score >= 4 && (map.qty !== undefined || map.ean !== undefined) ? map : null;
+}
+function friNumCell(v){ const t = String(v ?? '').replace(/[\s,](?=\d{3}\b)/g, '').replace(/,/g, '.'); const m = t.match(/-?\d+(?:\.\d+)?/); return m ? +m[0] : null; }
+function friPackOf(text){
+  const t = String(text || '');
+  const outer = t.match(/(\d{1,4})\s*(?:pcs?|pieces?|sets?|units?|pairs?)\s*(?:\/|per|in\s*(?:1|one))\s*(?:export\s*|master\s*|outer\s*)?(?:ctns?|cartons?|outers?|master)\b/i) || t.match(/(?:pcs|qty|quantity)\s*\/\s*(?:ctn|carton)\s*[:=]?\s*(\d{1,4})/i) || t.match(/\bPCS\s*\/\s*CTN\s*[:=|]?\s*(\d{1,4})/i);
+  const inner = t.match(/(\d{1,4})\s*(?:pcs?|sets?|units?)\s*(?:\/|per)\s*(?:inner(?:\s*box)?|polybag|gift\s*box|colou?r\s*box|blister|bundle)\b/i) || t.match(/\binner\s*[:=|]?\s*(\d{1,4})\s*(?:pcs?|sets?)?/i);
+  const words = [...new Set((t.match(/\b(poly\s*bag|polybag|gift\s*box|colou?r\s*box|brown\s*box|kraft\s*box|display\s*box|PDQ|blister|shrink\s*wrap(?:ped)?|hang\s*tag|header\s*card|sleeve|bulk|pallet(?:ised|ized)?|[357]-?ply|corrugated|single\s*wall|double\s*wall|master\s*carton|export\s*carton)\b/gi) || []).map(w => w.toLowerCase().replace(/\s+/g, ' ')))];
+  const one = /\b1\s*pcs?\s*(?:\/|per)\s*(?:ctn|carton)\b/i.test(t) ? 1 : null;
+  return { outer: outer ? +outer[1] : one, inner: inner ? +inner[1] : null, words };
+}
+function friPackLabel(p){ if (!p) return ''; const a = []; if (p.inner) a.push(`${p.inner} pcs/inner`); if (p.outer) a.push(`${p.outer} pcs/carton`); if (p.ctns) a.push(`${p.ctns} ctns`); if (p.words && p.words.length) a.push(p.words.join(', ')); if (p.text && !a.length) a.push(p.text); return a.join(' · '); }
+// rows of cells from the original file (keeps empty cells → columns stay aligned)
+async function friDocTables(f){
+  const ext = (f.name.split('.').pop() || '').toLowerCase(), out = [];
+  if (['xlsx','xlsm','xls','csv'].includes(ext)) {
+    const wb = XLSX.read(new Uint8Array(await f.arrayBuffer()), { type:'array', cellDates:true });
+    wb.SheetNames.forEach(n => out.push(XLSX.utils.sheet_to_json(wb.Sheets[n], { header:1, raw:false, defval:'', blankrows:false }).map(r => r.map(c => String(c).trim()))));
+  } else if (ext === 'docx' || ext === 'docm') {
+    const z = await friUnzip(await f.arrayBuffer()), xml = new TextDecoder().decode(await z.read('word/document.xml'));
+    (xml.match(/<w:tbl>[\s\S]*?<\/w:tbl>/g) || []).forEach(tb => out.push((tb.match(/<w:tr[ >][\s\S]*?<\/w:tr>/g) || []).map(tr => (tr.match(/<w:tc[ >][\s\S]*?<\/w:tc>/g) || []).map(tc => friXmlText(tc).replace(/[|\s]+/g, ' ').trim()))));
+  } else if (ext === 'pdf') {
+    const r = await friPdfText(await f.arrayBuffer());
+    out.push(r.text.split('\n').map(l => l.split(' | ').map(c => c.trim())));
+  }
+  return out;
+}
+function friLinesFromTables(tables, fallbackText){
+  const lines = [];
+  tables.forEach(rows => {
+    let hi = -1, map = null;
+    for (let i = 0; i < Math.min(rows.length, 25); i++) { const m = friPoHeader(rows[i]); if (m) { hi = i; map = m; break; } }
+    if (!map) return;
+    for (let i = hi + 1; i < rows.length; i++) {
+      const r = rows[i], get = k => map[k] !== undefined ? String(r[map[k]] ?? '').trim() : '';
+      if (/^\s*(total|sub\s*-?total|grand\s*total)\b/i.test(r.join(' '))) continue;
+      const qty = friNumCell(get('qty')), eanD = get('ean').replace(/\D/g, ''), itfD = get('itf').replace(/\D/g, '');
+      const code = get('code'), sref = get('sref'), desc = get('desc');
+      if (!(qty > 0) || !(code || sref || eanD || desc)) continue;
+      const packText = [get('pack'), get('inner') && `${get('inner')} pcs/inner`, get('outer') && `${get('outer')} pcs/carton`].filter(Boolean).join(' · ');
+      const pk = friPackOf(packText + ' ' + desc);
+      const pack = { inner: friNumCell(get('inner')) || pk.inner, outer: friNumCell(get('outer')) || pk.outer, ctns: friNumCell(get('ctns')), words: pk.words, dims: get('dims'), text: get('pack') };
+      lines.push({ code, sref, desc, ean: eanD.length >= 8 ? eanD : '', itf: itfD.length >= 13 ? itfD : '', qty, pack });
+    }
+  });
+  if (!lines.length && fallbackText) {   // no table header: one line per GTIN with a pcs quantity
+    fallbackText.split('\n').forEach(l => { const g = friGtins(l)[0]; const q = l.match(/(\d[\d.,]*)\s*(?:pcs|pc|sets?|units?)\b/i);
+      if (g && q) lines.push({ code:'', sref:'', desc: l.replace(/\s*\|\s*/g, ' ').slice(0, 80), ean: g.length === 13 ? g : '', itf: g.length === 14 ? g : '', qty: friNumCell(q[1]), pack: friPackOf(l) }); });
+  }
+  return lines;
+}
+async function friReadPoDoc(f, text){ try { return friLinesFromTables(await friDocTables(f), text); } catch(e) { console.warn('P.O./P.I. table', f.name, e); return []; } }
+
+// Order items for the report: P.O./P.I. documents first, master file for what they do not give
+function friOrderItems(v){
+  const pos = friPos(v), master = pos.flatMap(p => friLotItems(p).map(it => Object.assign({ _po: p.po }, it)));
+  const docs = (v.docs || []).filter(d => d.type === 'po' && (d.lines || []).length);
+  const digits = x => String(x || '').replace(/\D/g, '');
+  const sameItem = (l, m) => (l.ean && [m.ean, m.logCode].map(digits).includes(l.ean)) || (l.itf && [m.logCode].map(digits).includes(l.itf)) || [l.code, l.sref].filter(Boolean).some(c => [m.allyRef, m.supRef].filter(Boolean).map(String).includes(String(c)));
+  const artPack = it => { const g = [it.ean, it.logCode].map(digits).filter(Boolean);
+    const d = (v.docs || []).filter(d => d.type === 'art').find(d => (d.gtins || []).some(x => g.includes(x) || g.includes(friGtin13of14(x))) || [it.allyRef, it.supRef].filter(Boolean).some(c => (d.name + ' ' + (d.text || '')).includes(String(c))));
+    if (!d) return null; const p = friPackOf(d.text || ''); return (p.outer || p.inner || p.words.length) ? Object.assign(p, { doc: d.name }) : null; };
+  if (!docs.length) return { src:'master', items: master.map(m => Object.assign({}, m, { src:'master', mQty: m.qty, mEan: m.ean, pack: null, artPack: artPack(m) })) };
+  const used = new Set(), items = [];
+  docs.forEach(d => d.lines.forEach(l => {
+    const mi = master.findIndex((m, k) => !used.has(k) && sameItem(l, m)); const m = mi >= 0 ? master[mi] : null; if (mi >= 0) used.add(mi);
+    const it = { _po: m ? m._po : (v.po || ''), allyRef: l.code || (m && m.allyRef) || '', supRef: l.sref || (m && m.supRef) || '', desc: l.desc || (m && m.desc) || '',
+      ean: l.ean || (m && m.ean) || '', logCode: l.itf || (m && m.logCode) || '', brand: m ? m.brand : '', qty: l.qty,
+      src: 'P.O./P.I.', srcDoc: d.name, mQty: m ? m.qty : null, mEan: m ? m.ean : null, inMaster: !!m, pack: l.pack };
+    it.artPack = artPack(it); items.push(it);
+  }));
+  master.forEach((m, k) => { if (!used.has(k)) items.push(Object.assign({}, m, { src:'master', mQty: m.qty, mEan: m.ean, pack: null, notInDoc: true, artPack: artPack(m) })); });
+  return { src:'P.O./P.I.', items };
 }
 
 </script>
