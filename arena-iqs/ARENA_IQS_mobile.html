@@ -2112,14 +2112,12 @@ html *{scrollbar-width:auto;scrollbar-color:#9AA3AF #ECEEF1}
       <button class="btn btn-d" onclick="g('fri-import-input').click()" title="Import an FRI report (Word .docx, Excel .xlsx/.xls/.csv or PDF) to start a validation from it — or a register exported from this page">⬆ Import report (Word · Excel · PDF)</button>
       <button class="btn btn-d" onclick="friDocPick()" title="Upload the P.O./P.I., approved artwork (many files: Word, Excel, PDF, AI, images), CE label / DoP, IM, test reports, QC Pack, ARENA FRI Standard checklist">📎 Upload artwork &amp; requirement docs</button>
       <div style="position:relative">
-        <button class="btn btn-d" onclick="friExportMenu(event)" title="Export the open validation, or the register when no validation is open">⬇ Export ▾</button>
+        <button class="btn btn-d" onclick="friExportMenu(event)" title="Annotated FRI report and Supplier CAPA of the open validation; backup of all validations">⬇ Export ▾</button>
         <div id="fri-export-menu" style="display:none;position:absolute;right:0;top:36px;z-index:50;background:#fff;border:1px solid var(--bd);border-radius:var(--ra);box-shadow:0 6px 18px rgba(0,0,0,.12);min-width:250px;padding:4px">
-          <div class="fri-mi" onclick="friExport()"><b>Excel (.xlsx)</b><span>Register, findings, CP matrix — re-importable</span></div>
-          <div class="fri-mi" onclick="friExportDocx()"><b>Word (.docx)</b><span>Open validation assessment, or the register</span></div>
-          <div class="fri-mi" onclick="friExportPdf()"><b>PDF</b><span>Print dialog → "Save as PDF"</span></div>
-          <div style="border-top:1px solid var(--bd);margin:4px 0"></div>
           <div class="fri-mi" onclick="friExportAnnotated()"><b>Annotated FRI report (.docx)</b><span>Original report, layout unchanged, with an IQA comment at every finding</span></div>
           <div class="fri-mi" onclick="friExportCapa()"><b>Supplier CAPA (.docx)</b><span>Actions for the supplier, report photos, supplier response table</span></div>
+          <div style="border-top:1px solid var(--bd);margin:4px 0"></div>
+          <div class="fri-mi" onclick="friExport()"><b>Backup (.xlsx)</b><span>All validations — re-import on another computer or your phone</span></div>
         </div>
       </div>
       <button class="btn btn-p" onclick="friNew()">+ New validation</button>
@@ -2537,7 +2535,6 @@ function friRenderWorkbench(){
   <div class="card">
     <div class="ch2"><div class="ct">${v.ref ? friE(v.ref) + (v.rev?` · Rev.${v.rev}`:'') : 'New FRI validation (not saved)'}</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span id="fri-save-msg" class="fri-note"></span>
-        <button class="btn btn-d btn-sm" onclick="friPrint()">🖨 Print</button>
         <button class="btn btn-d btn-sm" onclick="friNewRevision()" title="Keep this revision and start the next one">↻ New revision</button>
         <button class="btn btn-d btn-sm" onclick="friDelete()" style="color:var(--r)">Delete</button>
         <button class="btn btn-p btn-sm" onclick="friSave()">💾 Save</button></div></div>
@@ -2682,40 +2679,6 @@ function friRefreshDerived(){
 }
 
 // ── Print (validation assessment summary) ──
-async function friPrint(){
-  if (!friCur) return;
-  const evImgs = {}; for (const f of friCur.findings) evImgs[f.ref] = await friFindingImages(f, 4);
-  const v = friCur, c = friCompute(v), aq = friAqlCheck(v);
-  const meta = [['Validation ref', (v.ref||'(not saved)') + (v.rev?` · Rev.${v.rev}`:'')],['Ally',v.ally],['P.O. · lot',friPosLabel(v)],['Supplier',v.sup],['Department / product',`${v.dept} / ${v.pf}`],
-    ['FRI report no. / date',`${v.reportNo||'—'} / ${v.inspDate||'—'}`],['Inspection body / inspector',`${v.inspBody||'—'} / ${v.inspector||'—'}`],['Basis',v.basis?`${v.basis} (${v.basisStatus})`:'No ARENA FRI Standard for this category / P.O.'],['Validator / date',`${v.validator} / ${v.valDate}`]];
-  const F = v.findings;
-  printToPDF(`
-    <table style="margin-bottom:8pt">${meta.map(m => `<tr><td style="width:35%"><b>${friE(m[0])}</b></td><td>${friE(m[1])}</td></tr>`).join('')}</table>
-    <div style="padding:8pt;border:2pt solid #333;margin-bottom:10pt"><b style="font-size:13pt">${friE(c.verdict)}</b><br/>
-      ${c.cr} Critical · ${c.ma} Major · ${c.mi} Minor · ${c.nc} NC- · ${c.rg} RG- · ${c.ob} OB-${v.photos!=='Original report with photos'?' · PROVISIONAL — photos not reviewed':''}<br/>
-      <b>Shipment status: ${friE(c.ship)}</b>${c.reasons.length?' — '+friE(c.reasons.join(' · ')):''}
-      ${c.cov!==null?`<br/>Coverage ${c.cov}% · Conformity ${c.conf??'—'}% · Evidence ${c.evid??'—'}%`:''}</div>
-    <h3 style="color:#F4811F">Checkpoint requirement compliance matrix</h3>
-    <table><thead><tr><th>CP</th><th>Requirement source</th><th>What the report shows</th><th>Verdict</th></tr></thead><tbody>
-      ${v.cps.map((r,i) => `<tr><td>${r.cp} ${friE(FRI_CPS[i][1])}</td><td>${friE(r.src)||'—'}</td><td>${friE(r.shows)||'—'}</td><td>${friE(r.verdict)||'—'}</td></tr>`).join('')}</tbody></table>
-    <h3 style="color:#F4811F">Findings and action register</h3>
-    <table><thead><tr><th>Ref</th><th>CP / ID</th><th>Severity</th><th>What is wrong</th><th>Required action</th><th>Responsibility</th><th>Status</th></tr></thead><tbody>
-      ${F.length ? F.map(f => `<tr><td>${friE(f.ref)}</td><td>${friE(f.cp)}</td><td>${friE(f.sev)}</td><td>${friE(f.title)}</td><td>${friE(f.action)}</td><td>${friE(f.resp)}</td><td>${friE(f.status)}</td></tr>`).join('') : '<tr><td colspan="7" style="text-align:center">No finding</td></tr>'}</tbody></table>
-    ${F.some(f => f.type==='NC') ? '' : '<p style="font-size:9pt">No product nonconformance identified — report findings only.</p>'}
-    ${F.length ? `<h3 style="color:#F4811F">Evidence per finding</h3>${F.map(f => `<div style="page-break-inside:avoid;margin-bottom:8pt;border-bottom:0.5pt solid #ddd;padding-bottom:6pt"><b>${friE(f.ref)} (${friE(f.cp)}, ${friE(f.sev)})</b> ${friE(f.title)}
-      ${(f.refs||[]).filter(r => r.kind!=='photo').map(r => `<div style="font-size:8.5pt;color:#444">${r.kind==='master'?'Master file':friE(r.label)}: “${friE(r.excerpt)}”</div>`).join('')}
-      <div style="display:flex;gap:6pt;flex-wrap:wrap;margin-top:4pt">${(evImgs[f.ref]||[]).map(im => `<div style="width:150pt;font-size:7.5pt"><img src="${im.url}" style="width:150pt;max-height:115pt;object-fit:contain;border:0.5pt solid #ccc"/><div>${friE(im.label)}</div></div>`).join('')}</div>
-      ${(f.refs||[]).some(r => r.kind==='photo' && !r.doc) ? '' : '<div style="font-size:8.5pt;font-style:italic">Reference photo: none available in the report.</div>'}</div>`).join('')}` : ''}
-    ${(() => { const pr = friPackSummary(v); return pr.length ? `<h3 style="color:#F4811F">Packaging method per item</h3><table><thead><tr><th>Item</th><th>Order qty</th><th>FRI report</th><th>P.O. / P.I.</th><th>Artwork</th><th>Status</th></tr></thead><tbody>${pr.map(r => `<tr><td>${friE(r.item)}</td><td>${r.qty ?? ''}</td><td>${friE(r.rep || 'not stated')}</td><td>${friE(r.po || 'not stated')}</td><td>${friE(r.art || 'not stated')}</td><td>${friE((r.status === 'ok' ? 'consistent' : r.status === 'conflict' ? 'CONFLICT' : r.status === 'missing' ? 'not stated' : 'not in report') + (r.note ? ' — ' + r.note : ''))}</td></tr>`).join('')}</tbody></table>` : ''; })()}
-    <h3 style="color:#F4811F">AQL verification</h3>
-    <table><tbody>${aq.rows.map(r => `<tr><td style="width:35%">${friE(r[0])}</td><td>${friE(r[1])} ${friE(r[2])}</td></tr>`).join('')}</tbody></table>
-    ${v.notes ? `<h3 style="color:#F4811F">Notes / containment</h3><p style="font-size:9pt;white-space:pre-wrap">${friE(v.notes)}</p>` : ''}
-    <div style="margin-top:16pt;display:flex;gap:24pt">
-      <div style="flex:1;border-top:0.5pt solid #888;padding-top:4pt;font-size:8pt;text-align:center">Validated by: ${friE(v.validator)}</div>
-      <div style="flex:1;border-top:0.5pt solid #888;padding-top:4pt;font-size:8pt;text-align:center">QS Manager</div></div>`,
-    `FRI Validation ${v.ref || ''} — ${v.po} ${v.lot}`);
-}
-
 // ── Excel export / import (register + findings + CP matrix; _data sheet carries the full records) ──
 function friExport(){
   if (!FRI_DB.length) { alert('The register is empty.'); return; }
@@ -3023,16 +2986,6 @@ function friExportMenu(ev){
   const close = () => { m.style.display = 'none'; document.removeEventListener('click', close); };
   if (m.style.display === 'block') setTimeout(() => document.addEventListener('click', close), 0);
 }
-function friExportPdf(){
-  if (friCur && friCur.po && g('fri-pane-wb')?.classList.contains('on')) { friPrint(); return; }
-  friPrintRegister();
-}
-function friPrintRegister(){
-  if (!FRI_DB.length) { alert('The register is empty.'); return; }
-  printToPDF(`<table><thead><tr><th>Validation ref</th><th>P.O. · lot</th><th>Ally</th><th>Supplier</th><th>FRI report</th><th>Inspection</th><th>Cr/Ma/Mi</th><th>NC·RG·OB</th><th>Report verdict</th><th>Shipment</th></tr></thead><tbody>
-    ${FRI_DB.map(v => { const c = friCompute(v); return `<tr><td>${friE(v.ref)}${v.rev?' Rev.'+v.rev:''}</td><td>${friE(v.po)} · ${friE(v.lot)}</td><td>${friE(v.ally)}</td><td>${friE(v.sup)}</td><td>${friE(v.reportNo)}</td><td>${friE(v.inspDate)} ${friE(v.inspBody)}</td><td>${c.cr}/${c.ma}/${c.mi}</td><td>${c.nc}·${c.rg}·${c.ob}</td><td>${friE(c.verdict)}</td><td>${friE(c.ship)}</td></tr>`; }).join('')}</tbody></table>`, 'FRI Validation Register');
-}
-
 // ── Word (.docx) writer: stored ZIP + WordprocessingML ──
 const _friCrcT = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
 function _friCrc(u8){ let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = _friCrcT[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
@@ -3054,19 +3007,6 @@ function friZip(files){ // files: [[name, string]]
   return new Blob([...parts, ...cen, new Uint8Array(eo.buffer)], { type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 }
 function friX(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function friRun(t, o){ o = o || {}; const rp = `<w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>${o.b?'<w:b/>':''}${o.color?`<w:color w:val="${o.color}"/>`:''}<w:sz w:val="${o.sz||18}"/></w:rPr>`;
-  return String(t ?? '').split('\n').map((ln, i) => `${i?'<w:r><w:br/></w:r>':''}<w:r>${rp}<w:t xml:space="preserve">${friX(ln)}</w:t></w:r>`).join(''); }
-function friP(t, o){ o = o || {}; return `<w:p><w:pPr>${o.keep?'<w:keepNext/>':''}<w:spacing w:before="${o.before??60}" w:after="${o.after??60}"/>${o.shade?`<w:shd w:val="clear" w:color="auto" w:fill="${o.shade}"/>`:''}</w:pPr>${friRun(t, o)}</w:p>`; }
-function friH(t){ return friP(t, { b:true, sz:24, color:'F4811F', before:240, after:80, keep:true }); }
-function friTbl(head, rows, widths){
-  const tw = widths.reduce((a, b) => a + b, 0);
-  const cell = (t, w, hdr, fill) => `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${hdr?'<w:shd w:val="clear" w:color="auto" w:fill="1B3A5C"/>':fill?`<w:shd w:val="clear" w:color="auto" w:fill="${fill}"/>`:''}</w:tcPr><w:p><w:pPr><w:spacing w:before="30" w:after="30"/></w:pPr>${friRun(t, hdr ? { b:true, color:'FFFFFF', sz:16 } : { sz:16 })}</w:p></w:tc>`;
-  const sevFill = t => ({Critical:'FADBD8',Major:'FDEBD0',Minor:'F2F3F4',High:'FADBD8',Medium:'FDEBD0',Low:'F2F3F4'})[t] || '';
-  return `<w:tbl><w:tblPr><w:tblW w:w="${tw}" w:type="dxa"/><w:tblBorders>${['top','left','bottom','right','insideH','insideV'].map(b => `<w:${b} w:val="single" w:sz="4" w:space="0" w:color="BFBFBF"/>`).join('')}</w:tblBorders><w:tblLayout w:type="fixed"/></w:tblPr>
-    <w:tblGrid>${widths.map(w => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>
-    ${head ? `<w:tr><w:trPr><w:tblHeader/></w:trPr>${head.map((h, i) => cell(h, widths[i], true)).join('')}</w:tr>` : ''}
-    ${rows.map((r, ri) => `<w:tr>${r.map((c, i) => cell(c, widths[i], false, sevFill(c) || (ri % 2 ? 'EEEEEE' : ''))).join('')}</w:tr>`).join('')}</w:tbl>${friP('', { before:0, after:0 })}`;
-}
 function friDocxImg(rid, id, w, h){ const cx = Math.round(2.2 * 914400), cy = Math.round(cx * (h || 3) / (w || 4));
   return `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${id}" name="Picture ${id}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${id}" name="img${id}.jpeg"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r><w:r><w:t xml:space="preserve">  </w:t></w:r>`; }
 function friB64(u){ const s = atob(u.split(',')[1]), a = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; }
@@ -3086,60 +3026,6 @@ function friDocx(bodyXml, landscape, media, opts){
   ]);
 }
 function friDownload(blob, name){ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
-async function friExportDocx(){
-  const W = 10206; // A4 portrait text width (twips) with 1.5 cm margins
-  if (friCur && friCur.po && g('fri-pane-wb')?.classList.contains('on')) {
-    const v = friCur, c = friCompute(v), aq = friAqlCheck(v);
-    const vFill = /^CANNOT/.test(c.verdict) ? 'FADBD8' : /^CONDITIONAL/.test(c.verdict) ? 'FDEBD0' : /NOTES/.test(c.verdict) ? 'F2F3F4' : 'D5F5E3';
-    let b = friP('A.R.E.N.A. VIETNAM — FRI VALIDATION ASSESSMENT', { b:true, sz:30, color:'1B3A5C', after:40 });
-    b += friP(`${v.ref || '(not saved)'}${v.rev ? ' · Rev.' + v.rev : ''} · ${v.status}`, { sz:18, color:'707070', after:160 });
-    b += friTbl(null, [['Ally', v.ally], ['P.O. · lot', friPosLabel(v)], ['Supplier / factory', v.sup], ['Department / product', `${v.dept} / ${v.pf}`],
-      ['FRI report no. / date', `${v.reportNo || '—'} / ${v.inspDate || '—'}`], ['Inspection body / inspector / reviewer', `${v.inspBody || '—'} / ${v.inspector || '—'} / ${v.reviewer || '—'}`],
-      ['Basis', v.basis ? `${v.basis} (${v.basisStatus})` : 'No ARENA FRI Standard for this category / P.O.'], ['Source reviewed', v.photos + (v.source ? ` — ${v.source.name}` : '')],
-      ['Validator / date', `${v.validator} / ${v.valDate}`]], [3000, W - 3000]);
-    b += friP(c.verdict, { b:true, sz:26, shade:vFill, before:120, after:0 });
-    b += friP(`${c.cr} Critical · ${c.ma} Major · ${c.mi} Minor report finding(s) · ${c.nc} NC- · ${c.rg} RG- · ${c.ob} OB-${v.photos !== 'Original report with photos' ? ' · PROVISIONAL — photos not reviewed' : ''}`, { shade:vFill, before:0, after:0 });
-    b += friP(`Shipment status: ${c.ship}${c.reasons.length ? ' — ' + c.reasons.join(' · ') : ''}`, { b:true, shade:vFill, before:0, after:0 });
-    if (c.cov !== null) b += friP(`Coverage ${c.cov}% · Conformity ${c.conf ?? '—'}% · Evidence ${c.evid ?? '—'}%`, { shade:vFill, before:0 });
-    b += friH('1. Checkpoint requirement compliance matrix');
-    b += friTbl(['CP', 'Requirement source', 'What the report shows', 'Verdict'], v.cps.map((r, i) => [`${r.cp} ${FRI_CPS[i][1]}`, r.src || '—', r.shows || '—', r.verdict || '—']), [2000, 2400, 4206, 1600]);
-    const F = v.findings.filter(f => f.type === 'F'), N = v.findings.filter(f => f.type === 'NC'), RO = v.findings.filter(f => f.type === 'RG' || f.type === 'OB');
-    b += friH('2. Report findings (F-)');
-    b += F.length ? friTbl(['Ref', 'CP / ID', 'Severity', 'What is wrong', 'Required action', 'Resp.', 'Status'], F.map(f => [f.ref, f.cp, f.sev, f.title, f.action, f.resp, f.status]), [700, 1100, 1000, 3000, 2706, 1000, 700]) : friP('No report finding.');
-    b += friH('3. Product nonconformance register (NC-)');
-    b += N.length ? friTbl(['Ref', 'CP / ID', 'Risk grade', 'Nonconformance', 'Containment / action', 'Resp.', 'Status'], N.map(f => [f.ref, f.cp, f.sev, f.title, f.action, f.resp, f.status]), [700, 1100, 1000, 3000, 2706, 1000, 700]) : friP('No product nonconformance identified — report findings only.');
-    if (RO.length) { b += friH('4. Requirement gaps (RG-) and observations (OB-)'); b += friTbl(['Ref', 'CP / ID', 'Description', 'Action', 'Owner', 'Status'], RO.map(f => [f.ref, f.cp, f.title, f.action, f.resp, f.status]), [700, 1200, 3600, 2806, 1200, 700]); }
-    if ((v.docs || []).length) { b += friH('Requirement documents'); b += friTbl(['Type', 'File', 'Read'], v.docs.map(d => [FRI_DOC_LABEL[d.type] || d.type, d.name, d.std ? `${d.std.basis} · ${d.std.mand.length} mandatory IDs` : d.gtins.length ? 'GTIN ' + d.gtins.slice(0,4).join(', ') : d.kind]), [2600, 4806, 2800]); }
-    { const rc = friReconcile(v); if (rc.rows.length) { b += friH('P.O. reconciliation (master file × report × documents)'); b += friTbl(['Check', 'Master file', 'FRI report', 'Documents', 'Result'], rc.rows.map(x => [x.check, String(x.master), String(x.report), String(x.doc), (x.res === 'ok' ? 'OK' : x.res === 'diff' ? 'Check' : '—') + (x.note ? ' — ' + x.note : '')]), [2200, 2100, 2100, 1806, 2000]); } }
-    { const media = []; let ev = '';
-      for (const f of v.findings) {
-        ev += friP(`${f.ref} (${f.cp}, ${f.sev}) — ${f.title}`, { b:true, keep:true, before:140 });
-        (f.refs || []).filter(r => r.kind !== 'photo').forEach(r => { ev += friP(`${r.kind === 'master' ? 'Master file' : r.label}: “${r.excerpt}”`, { sz:16, color:'444444', before:0, after:20 }); });
-        const ims = await friFindingImages(f, 4);
-        if (ims.length) { ev += '<w:p>' + ims.map(im => { const k = media.length + 1; media.push({ rid:'rIdImg' + k, name:`ev${k}.jpeg`, data: friB64(im.url) }); return friDocxImg('rIdImg' + k, 100 + k, im.w, im.h); }).join('') + '</w:p>';
-          ev += friP(ims.map(im => im.label).join('  |  '), { sz:14, color:'707070', before:0 }); }
-        if (!(f.refs || []).some(r => r.kind === 'photo' && !r.doc)) ev += friP('Reference photo: none available in the report.', { sz:16, color:'707070', before:0 });
-      }
-      if (v.findings.length) { b += friH('Evidence per finding'); b += ev; }
-      v._media = media; }
-    { const pr = friPackSummary(v); if (pr.length) { b += friH('Packaging method per item'); b += friTbl(['Item', 'Order qty', 'FRI report', 'P.O. / P.I.', 'Artwork', 'Status'], pr.map(r => [r.item, String(r.qty ?? ''), r.rep || 'not stated', r.po || 'not stated', r.art || 'not stated', (r.status === 'ok' ? 'consistent' : r.status === 'conflict' ? 'CONFLICT' : r.status === 'missing' ? 'not stated' : 'not in report') + (r.note ? ' — ' + r.note : '')]), [1300, 900, 2000, 2200, 2206, 1600]); } }
-    b += friH('5. AQL verification');
-    b += friTbl(null, aq.rows.map(r => [r[0], `${r[1]}${r[2] ? '  (' + r[2] + ')' : ''}`]), [3000, W - 3000]);
-    b += friP('Source: ISO 2859-1 Tables 1 and 2-A (normal, single sampling).', { sz:15, color:'707070' });
-    if (v.notes) { b += friH('6. Notes / containment record'); b += friP(v.notes); }
-    b += friH('Sign-off');
-    b += friTbl(['Validated by', 'QS Manager', 'Date'], [[v.validator, '', ''], ['', '', '']], [3402, 3402, 3402]);
-    const media = v._media || []; delete v._media;
-    friDownload(friDocx(b, false, media), `FRI_Validation_${String(v.po).replace(/[^\w\-]+/g, '_')}_${(v.lot || '').replace(/\s+/g, '')}${v.rev ? '_Rev' + v.rev : ''}.docx`);
-    return;
-  }
-  if (!FRI_DB.length) { alert('The register is empty.'); return; }
-  const rows = FRI_DB.map(v => { const c = friCompute(v); return [v.ref + (v.rev ? ' Rev.' + v.rev : ''), `${v.po} · ${v.lot}`, v.ally, v.sup, v.reportNo, `${v.inspDate} ${v.inspBody}`, `${c.cr}/${c.ma}/${c.mi}`, `${c.nc}·${c.rg}·${c.ob}`, c.verdict, c.ship]; });
-  let b = friP('A.R.E.N.A. VIETNAM — FRI VALIDATION REGISTER', { b:true, sz:30, color:'1B3A5C', after:40 }) + friP(`${FRI_DB.length} validation(s) · ${new Date().toISOString().slice(0,10)}`, { color:'707070', after:160 });
-  b += friTbl(['Validation ref', 'P.O. · lot', 'Ally', 'Supplier', 'FRI report', 'Inspection', 'Cr/Ma/Mi', 'NC·RG·OB', 'Report verdict', 'Shipment'], rows, [2300, 1700, 900, 1700, 1200, 1500, 800, 800, 2400, 1838]);
-  friDownload(friDocx(b, true), `ARENA_FRI_Validation_Register_${new Date().toISOString().slice(0,10)}.docx`);
-}
-
 </script>
 <script>
 // ═════════════ FRI PRE-VALIDATION — CP1–CP10 matrix + findings extracted from the imported report text ═════════════
@@ -3791,12 +3677,6 @@ function friDupPhotos(imgs){
 }
 
 // ── images for exports ──
-async function friFindingImages(f, max){
-  const out = [];
-  for (const r of (f.refs || []).filter(r => r.kind === 'photo').slice(0, max || 4)) { const u = await friImgGet(r.key); if (u) out.push({ url: u, w: r.w || 320, h: r.h || 240, label: r.label }); }
-  return out;
-}
-
 </script>
 <script>
 // ═════════════ BARCODE DECODER — EAN-13 / UPC-A and ITF-14 from rendered artwork pages and pictures ═════════════
