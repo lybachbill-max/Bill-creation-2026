@@ -17,3 +17,9 @@ This one file replaces `ARENA_IQS_v70_1.html` and `ARENA_IQS_v70_2.html` (branch
 Not carried over: the ARENA Framework v2.3 audit editor. v70.2 replaced it; old v2.3 audits still open read-only.
 
 Items marked VERIFY (CBAM 2025/2083 dates, EUDR Annex I 2026/2102 entries, Vietnam benchmark tier, EN 581 clause numbers, VN holiday / Tết calendar) still need checking against the official texts.
+
+## Private phone link (claude.ai)
+`python3 arena-iqs/make_link.py <out.html>` builds the link edition from `ARENA_IQS_mobile.html` (run `make_mobile.py` first):
+the embedded PDF reader and order book are gzip-compressed (link limit 16 MB); downloads go through the link's save prompt;
+alert/confirm become in-page messages (confirm = tap the same button again within 6 s); `.doc` exports and printing are not available from the link.
+Data saved in the link stays in that phone's browser; use Backup (.xlsx) to move FRI validations between devices.
