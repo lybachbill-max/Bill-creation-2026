@@ -21,5 +21,6 @@ Items marked VERIFY (CBAM 2025/2083 dates, EUDR Annex I 2026/2102 entries, Vietn
 ## Private phone link (claude.ai)
 `python3 arena-iqs/make_link.py <out.html>` builds the link edition from `ARENA_IQS_mobile.html` (run `make_mobile.py` first):
 the embedded PDF reader and order book are gzip-compressed (link limit 16 MB); downloads go through the link's save prompt;
-alert/confirm become in-page messages (confirm = tap the same button again within 6 s); `.doc` exports and printing are not available from the link.
+`.doc` (Word-HTML) exports are converted to real `.docx` by `link_docx.js` (computed styles: colours, shading, tables, merged cells, landscape);
+alert/confirm become in-page messages (confirm = tap the same button again within 6 s); printing is not available from the link.
 Data saved in the link stays in that phone's browser; use Backup (.xlsx) to move FRI validations between devices.

@@ -5,6 +5,7 @@ Changes against the phone file, nothing else:
   * the embedded PDF reader and order book are gzip-compressed (unpacked in the browser on first use)
     so the page stays under the 16 MB link limit;
   * downloads go through the link's "save file" prompt (the link blocks direct downloads);
+  * Word-HTML .doc exports are converted to real .docx (link_docx.js; the link refuses .doc);
   * alert / confirm become in-page messages (the link blocks pop-up dialogs);
     a confirm asks you to tap the same button again within 6 seconds;
   * browser storage falls back to memory if the browser refuses it (private window).
@@ -51,17 +52,29 @@ HEAD = r"""<title>ARENA IQS Mobile</title>
   window.print = function(){ toast('Printing is not available from the link. Use the exported file instead.', 'warn'); };
   // downloads: hand generated files to the link's save prompt
   var OK = /\.(gif|png|jpe?g|webp|mp4|webm|txt|json|md|docx|pptx|epub|csv|ttf|html|svg|pdf|xlsx|zip)$/i;
+  // generated files: keep each blob reachable even after the page releases its URL right after the click
+  var blobs = new Map(), mk0 = URL.createObjectURL, rv0 = URL.revokeObjectURL;
+  URL.createObjectURL = function(o){ var u = mk0.call(URL, o); if (o instanceof Blob) blobs.set(u, o); return u; };
+  URL.revokeObjectURL = function(u){ setTimeout(function(){ blobs.delete(u); rv0.call(URL, u); }, 60000); };
   function save(href, name){
     name = name || 'download';
-    if (!OK.test(name)) { toast('"' + name + '" cannot be saved from the link (file type not allowed). Use the file version of the IQS for this export.', 'warn'); return; }
-    fetch(href).then(function(r){ return r.blob(); }).then(function(blob){
+    var known = blobs.get(href);
+    (known ? Promise.resolve(known) : fetch(href).then(function(r){ return r.blob(); })).then(function(blob){
+      // Word-HTML .doc exports: the link refuses .doc, so convert them to a real .docx
+      if (/\.doc$/i.test(name) && window.iqsHtmlToDocx) {
+        toast('Preparing ' + name.replace(/\.doc$/i, '.docx') + '…');
+        return blob.text().then(window.iqsHtmlToDocx).then(function(dx){ return { blob: dx, name: name.replace(/\.doc$/i, '.docx') }; });
+      }
+      return { blob: blob, name: name };
+    }).then(function(f){
+      if (!OK.test(f.name)) { toast('"' + f.name + '" cannot be saved from the link (file type not allowed).', 'warn'); return; }
       return window.claude && window.claude.use ? window.claude.use('downloads').then(function(d){
         if (!d) { toast('Saving files is not available in this view.', 'warn'); return; }
-        return d.save({ filename: name, data: blob }).then(function(){ toast('Saved ' + name); }, function(e){
+        return d.save({ filename: f.name, data: f.blob }).then(function(){ toast('Saved ' + f.name); }, function(e){
           var c = e && e.code; if (c === 'declined') return;
-          toast(c === 'rate_limited' ? 'A save prompt is already open. Finish it, then try again.' : 'Could not save ' + name + (c ? ' (' + c + ')' : '') + '.', 'warn'); });
+          toast(c === 'rate_limited' ? 'A save prompt is already open. Finish it, then try again.' : 'Could not save ' + f.name + (c ? ' (' + c + ')' : '') + '.', 'warn'); });
       }) : toast('Saving files is not available in this view.', 'warn');
-    }).catch(function(){ toast('Could not read the file to save.', 'warn'); });
+    }).catch(function(e){ console.warn('save', e); toast('Could not prepare ' + name + ' for saving.', 'warn'); });
   }
   var click0 = HTMLAnchorElement.prototype.click;
   HTMLAnchorElement.prototype.click = function(){
@@ -117,7 +130,7 @@ def main():
     bad = [l for l in s.split('\n') if '�' in l]
     assert len(bad) <= 6 and all(len(l) > 30000 and 'cptable' in s[:s.index(l)][-200000:] + l for l in bad), 'U+FFFD outside the SheetJS tables'
     s = s.replace('�', '\\ufffd')
-    s = HEAD + s
+    s = HEAD + '<script id="iqs-link-docx">\n' + (HERE / 'link_docx.js').read_text(encoding='utf-8') + '</script>\n' + s
     DST.write_text(s, encoding='utf-8')
     print(f'{DST}: {DST.stat().st_size / 1e6:.2f} MB')
 
