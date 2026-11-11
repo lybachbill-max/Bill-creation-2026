@@ -97,7 +97,7 @@ function tcsDelPo(kind, i){ (kind === 'pi' ? TCS.pis : TCS.masterPos).splice(i, 
 // master P.O. → P.I.-like lines (ETD / FRI of the lot)
 function tcsMasterPI(p){
   const fu = friLotRow(p) || {}, items = friLotItems(p);
-  return { name: 'Master file', po: p.po, lot: p.lot, src: 'master', ally: fu.ally, sup: fu.sup, lines: items.map((it, i) => ({ line: i + 1, sref: String(it.supRef || '').trim(), ally: String(it.allyRef || '').trim(), hage: '', desc: it.desc || '', ean: String(it.ean || '').replace(/\D/g, ''), qty: +it.qty || 0, fri: tcsDate(fu.inspPlan || fu.inspActual), etd: tcsDate(it.etd || fu.etd), cn: it.cn || it.hs || '' })) };
+  return { name: 'Master file', po: p.po, lot: p.lot, src: 'master', ally: fu.ally, sup: fu.sup, lines: items.map((it, i) => ({ line: i + 1, dept: String(it.dept || fu.dept || '').toUpperCase(), sref: String(it.supRef || '').trim(), ally: String(it.allyRef || '').trim(), hage: '', desc: it.desc || '', ean: String(it.ean || '').replace(/\D/g, ''), qty: +it.qty || 0, fri: tcsDate(fu.inspPlan || fu.inspActual), etd: tcsDate(it.etd || fu.etd), cn: it.cn || it.hs || '' })) };
 }
 
 // Offer sheet (ARENA template) with pictures mapped by picture centre
@@ -215,6 +215,9 @@ function tcsFlags(t){
     food: /\b(food|kitchen|cutlery|plates?|cups?|mugs?|bowls?|cook(ing|ware)?|bbq|barbecue|grill|lunch\s*box|bottles?|tableware|utensils?|spatula|tongs)\b/.test(x),
     brush: /brush|broom|bristle/.test(x), heat: /\b(bbq|barbecue|grill|oven|heat|fire\s*pit|stove)\b/.test(x),
     load: /\b(bed|table|chair|bench|shelf|shelves|stand|rack|stool|trellis|arch|pergola|planter|sand\s*(box|pit)|swing|hammock|cart|trolley)\b/.test(x),
+    seat: /\b(chairs?|arm\s*chairs?|stools?|bench(es)?|loungers?|sun\s*beds?|deck\s*chairs?|recliners?|sofas?|settees?|rocking\s*chairs?|seats?|seating|bistro\s*set|dining\s*set|lounge\s*set|corner\s*set)\b/.test(x),
+    table: /\b(tables?|bistro\s*set|dining\s*set|lounge\s*set|coffee\s*table|side\s*table)\b/.test(x),
+    outdoor: /\b(garden|outdoor|patio|balcony|terrace|camping|bistro|deck|pool\s*side|poolside)\b/.test(x),
     loose: /accessory\s*for\s*assembly|\bset\s*:|\d+\s*x\s+\w|assembl|\bkit\b|screws?|bolts?|panels?/.test(x), fixing: /trellis|wall|fix(ing)?\b|mount/.test(x),
     ground: /\b(stakes?|spikes?|pegs?|edging|border|into\s*(the\s*)?ground)\b/.test(x),
     pack: ((x.match(/\b(pallet|sleeve|poly\s*bag|polybag|colou?r\s*box|gift\s*box|display\s*box|blister|shrink)\b/) || [])[1] || 'carton').replace(/\s+/g, ' '),
@@ -226,7 +229,7 @@ function tcsItems(){
   const findOffer = l => offer.find(o => (l.sref && tcsNorm(o.sref) === tcsNorm(l.sref)) || (l.ean && o.ean && o.ean === l.ean));
   pis.forEach(pi => pi.lines.forEach(l => {
     let it = items.find(i => i.key === key(l));
-    if (!it) { it = { key: key(l), sref: l.sref, ean: l.ean, ally: l.ally, hage: l.hage, poDesc: l.desc, lines: [], cn: l.cn || '', offer: findOffer(l) }; items.push(it); }
+    if (!it) { it = { key: key(l), sref: l.sref, ean: l.ean, ally: l.ally, hage: l.hage, poDesc: l.desc, lines: [], cn: l.cn || '', dept: l.dept || '', offer: findOffer(l) }; items.push(it); }
     it.lines.push(Object.assign({ po: pi.po }, l));
     if (!it.ally && l.ally) it.ally = l.ally; if (!it.ean && l.ean) it.ean = l.ean;
   }));
@@ -284,7 +287,15 @@ function tcsReqs(it){
   add('svhc', 'SVHC Candidate List screening per material (REACH Art. 33)', 'Sàng lọc SVHC theo Danh sách ứng viên cho mỗi vật liệu (REACH Điều 33)', 'mat', 'lab', 'MAJ', /SVHC|candidate\s*list|art(icle|\.)?\s*33/i, 'J5');
   add('pack', `Packaging heavy metals Pb+Cd+Hg+Cr(VI) ≤ 100 mg/kg (PPWR (EU) 2025/40 Art. 5) – packaging type: ${f.pack}`, `Kim loại nặng trong bao bì Pb+Cd+Hg+Cr(VI) ≤ 100 mg/kg (PPWR (EU) 2025/40 Điều 5) – loại bao bì: ${f.pack}`, 'mat', 'lab', 'MAJ', /packag[^\n]{0,60}(heavy\s*metal|\bPb\b|\bHg\b)|heavy\s*metals?[^\n]{0,30}packag|94\/62|2025\/40/i, 'J6');
   if (it.stream !== 'toy') add('edge', 'Sharp edges, points and burrs (all accessible parts)', 'Cạnh sắc, đầu nhọn và bavia (mọi chi tiết tiếp cận được)', 'prod', 'li', 'MAJ', /sharp\s*(edge|point)|burr/i, 'J4');
-  if (f.load && it.stream !== 'toy') add('load', 'Stability and strength under load (declared maximum load)', 'Độ ổn định và độ bền khi chịu tải (tải trọng tối đa công bố)', 'prod', 'li', 'MAJ', /stability|load\s*test|static\s*load|strength/i, 'J4');
+  // Outdoor furniture (rulebook §3 / §9): EN 581 parts are not hENs → SoA = current CEN edition (live-checked 11 Nov 2026:
+  // EN 581-1:2017; EN 581-2:2026 and EN 581-3:2026, CEN 20 May 2026). An older-edition report only with the Ally's written acceptance.
+  const furn = it.stream !== 'toy' && (f.seat || f.table) && (f.outdoor || it.dept === 'GARDEN');
+  if (furn) {
+    add('f581_1', 'EN 581-1:2017 outdoor furniture – general safety requirements (SoA: current CEN edition)', 'EN 581-1:2017 đồ nội thất ngoài trời – yêu cầu an toàn chung (SoA: phiên bản CEN hiện hành)', 'prod', 'li', 'MAJ', /EN\s*581-1\b/i, 'J4');
+    if (f.seat) { add('f581_2', 'EN 581-2:2026 outdoor seating – mechanical safety requirements and test methods (SoA: current CEN edition; a report to an older edition only with the Ally\'s written acceptance)', 'EN 581-2:2026 ghế ngoài trời – yêu cầu an toàn cơ học và phương pháp thử (SoA: phiên bản CEN hiện hành; báo cáo theo phiên bản cũ chỉ khi Ally chấp nhận bằng văn bản)', 'prod', 'li', 'MAJ', /EN\s*581-2\b/i, 'J4'); L[L.length - 1].ed = { re: /EN\s*581-2\s*:\s*(\d{4})/i, cur: 2026, std: 'EN 581-2' }; }
+    if (f.table) { add('f581_3', 'EN 581-3:2026 outdoor tables – mechanical safety requirements and test methods (SoA: current CEN edition; a report to an older edition only with the Ally\'s written acceptance)', 'EN 581-3:2026 bàn ngoài trời – yêu cầu an toàn cơ học và phương pháp thử (SoA: phiên bản CEN hiện hành; báo cáo theo phiên bản cũ chỉ khi Ally chấp nhận bằng văn bản)', 'prod', 'li', 'MAJ', /EN\s*581-3\b/i, 'J4'); L[L.length - 1].ed = { re: /EN\s*581-3\s*:\s*(\d{4})/i, cur: 2026, std: 'EN 581-3' }; }
+  }
+  if (f.load && !furn && it.stream !== 'toy') add('load', 'Stability and strength under load (declared maximum load)', 'Độ ổn định và độ bền khi chịu tải (tải trọng tối đa công bố)', 'prod', 'li', 'MAJ', /stability|load\s*test|static\s*load|strength/i, 'J4');
   if (f.steel && !f.stainless) add('corr', 'Corrosion resistance of steel parts (neutral salt spray ISO 9227)', 'Khả năng chống ăn mòn chi tiết thép (phun muối trung tính ISO 9227)', 'prod', 'wit', 'MAJ', /salt\s*spray|\bNSS\b|9227|corrosion/i, 'J4');
   if (f.brush) add('bris', 'Bristle retention / pull-out force', 'Độ bám lông chổi / lực kéo bật', 'prod', 'wit', 'CRI', /bristle|pull-?\s*out|tuft/i, 'J4');
   if (f.heat) add('heat', 'Heat resistance / deformation', 'Khả năng chịu nhiệt / biến dạng', 'prod', 'li', 'MAJ', /heat\s*resist|deformation/i, 'J4');
@@ -359,6 +370,10 @@ function tcsEvaluate(){
       else if (!best.r.valid) { q.st = 'CONDITIONAL'; q.status = { en: `CONDITIONAL – ${k.R} issue date not readable; QS to confirm validity (K-1)`, vi: `CÓ ĐIỀU KIỆN – ${k.R} không đọc được ngày phát hành; QS xác nhận hiệu lực (K-1)` }; q.evText = { en: `${rep(best)} – issue date to confirm`, vi: `${rep(best)} – cần xác nhận ngày phát hành` }; q.rv = 'date'; }
       else if (best.r.valid < ref) { q.st = 'OPEN'; q.status = it.etd ? { en: `OPEN (${sev}) – ${k.R} expires ${k.d} before ETD ${k.e} (K-1); retest ${k.job} ASAP`, vi: `MỞ (${sev}) – ${k.R} hết hiệu lực ${k.d} trước ETD ${k.e} (K-1); thử lại ${k.job} ngay` } : { en: `OPEN (${sev}) – ${k.R} expired ${k.d} (K-1); ETD not yet available; retest ${k.job} ASAP`, vi: `MỞ (${sev}) – ${k.R} hết hiệu lực ${k.d} (K-1); chưa có ETD; thử lại ${k.job} ngay` };
         q.evText = { en: `${rep(best)} – expires ${k.d} before ETD ${k.e || '(n/a)'}`, vi: `${rep(best)} – hết hiệu lực ${k.d} trước ETD ${k.e || '(chưa có)'}` }; q.rv = 'exp'; }
+      else if (q.ed && (+((best.r.text.match(q.ed.re) || [])[1] || q.ed.cur)) < q.ed.cur) { const y = +(best.r.text.match(q.ed.re) || [])[1], al = tcsAlly();
+        q.st = 'CONDITIONAL'; q.rv = 'ed';
+        q.status = { en: `CONDITIONAL – ${k.R} tested to ${q.ed.std}:${y}, not the current ${q.ed.std}:${q.ed.cur} (SoA); accepted only with ${al}'s written acceptance`, vi: `CÓ ĐIỀU KIỆN – ${k.R} thử theo ${q.ed.std}:${y}, không phải ${q.ed.std}:${q.ed.cur} hiện hành (SoA); chỉ chấp nhận khi ${al} đồng ý bằng văn bản` };
+        q.evText = { en: `${rep(best)} – ${q.ed.std}:${y}, valid to ${k.d}`, vi: `${rep(best)} – ${q.ed.std}:${y}, hiệu lực đến ${k.d}` }; }
       else { q.st = 'ACCEPTED'; q.status = it.etd ? { en: `ACCEPTED – ${k.R} ${k.no}, valid to ${k.d} ≥ ETD ${k.e}`, vi: `CHẤP NHẬN – ${k.R} ${k.no}, hiệu lực đến ${k.d} ≥ ETD ${k.e}` } : { en: `ACCEPTED – ${k.R} ${k.no}, valid to ${k.d}; ETD not yet available – re-check at P.O.`, vi: `CHẤP NHẬN – ${k.R} ${k.no}, hiệu lực đến ${k.d}; chưa có ETD – kiểm tra lại khi có P.O.` };
         q.evText = { en: `${rep(best)} – valid to ${k.d} / ETD ${k.e || '(n/a)'}`, vi: `${rep(best)} – hiệu lực đến ${k.d} / ETD ${k.e || '(chưa có)'}` }; q.rv = 'ok'; }
       q.action = tcsAction(it, q, k); q.pic = q.st === 'ACCEPTED' ? 'QS' : q.by === 'qc' ? 'A.R.E.N.A. QC' : q.id === 'tDoC' || q.id === 'tSA' || q.id === 'ceDoC' ? `${tcsAlly()} / supplier` : 'Supplier';
@@ -389,6 +404,7 @@ function tcsAction(it, q, k){
   if (q.rv === 'ref') return { en: `${q.type === 'doc' ? 'Issuer' : 'Lab'} to amend ${k.R} with supplier ref ${sref}; re-submit.`, vi: `${q.type === 'doc' ? 'Đơn vị phát hành' : 'PTN'} sửa đổi ${k.R} bổ sung mã NCC ${sref}; nộp lại.` };
   if (q.rv === 'exp') return { en: `Retest ASAP – ${k.R} expires ${k.d}${k.e ? ' before ETD ' + k.e : ''}. ` + test.en, vi: `Thử nghiệm lại ngay – ${k.R} hết hiệu lực ${k.d}${k.e ? ' trước ETD ' + k.e : ''}. ` + test.vi };
   if (q.rv === 'fail') return { en: `Failed result in ${k.R}: supplier to find the root cause, correct and retest ASAP. ` + (test ? test.en : ''), vi: `Kết quả không đạt trong ${k.R}: NCC tìm nguyên nhân, khắc phục và thử lại ngay. ` + (test ? test.vi : '') };
+  if (q.rv === 'ed') { const al = tcsAlly(); return { en: `${al}: decide in writing whether ${k.R} (older ${q.ed.std} edition) is accepted for this shipment; if not, ` + test.en.replace(/^Test/, 'test').replace(/^Send/, 'send') + ` New testing to ${q.ed.std}:${q.ed.cur}.`, vi: `${al}: quyết định bằng văn bản có chấp nhận ${k.R} (phiên bản ${q.ed.std} cũ) cho lô hàng này; nếu không, ` + test.vi + ` Thử nghiệm mới theo ${q.ed.std}:${q.ed.cur}.` }; }
   if (q.rv === 'cond' || q.rv === 'date') return { en: `QS to check ${k.R}: signature, stamp, signed PDF, components of this item only, supplier ref (K-3)${q.rv === 'date' ? ', issue date (K-1)' : ''}.`, vi: `QS kiểm tra ${k.R}: chữ ký, con dấu, PDF có ký, chỉ chi tiết của mặt hàng này, mã NCC (K-3)${q.rv === 'date' ? ', ngày phát hành (K-1)' : ''}.` };
   if (q.id === 'ai') return { en: `Supplier: submit draft artwork (PDF + editable file) for A.R.E.N.A. QS review; ${tcsAlly()} approves final artwork before printing. A.R.E.N.A. QC: check correct version in each carton at FRI.`, vi: `NCC: nộp bản nháp artwork (PDF + file chỉnh sửa được) để QS A.R.E.N.A. xem xét; ${tcsAlly()} duyệt artwork cuối trước khi in. QC A.R.E.N.A.: kiểm tra đúng phiên bản trong mỗi thùng tại FRI.` };
   if (q.id === 'tSA' || q.id === 'tDoC' || q.id === 'ceDoC') return { en: `${tcsAlly()} (manufacturer): follow sheet CE & DoC guideline steps; supplier provides samples, material declaration and test reports stating supplier ref ${sref}. A.R.E.N.A. validates, never signs.`, vi: `${tcsAlly()} (nhà sản xuất): thực hiện các bước trong sheet CE & DoC guideline; NCC cung cấp mẫu, khai báo vật liệu và báo cáo thử nghiệm có mã NCC ${sref}. A.R.E.N.A. thẩm định, không ký.` };
