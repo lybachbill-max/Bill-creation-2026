@@ -1981,6 +1981,15 @@ html *{scrollbar-width:auto;scrollbar-color:#9AA3AF #ECEEF1}
 /* ── Notification / countdown panel ── */
 .bk-notif-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 .bk-nc{background:#fff;border-radius:var(--ra);padding:14px 16px;box-shadow:var(--shc);border-left:4px solid var(--bd);cursor:pointer;transition:all .18s;display:flex;gap:12px;align-items:center}
+.fri-outs{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.fri-out-head{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:12.5px;color:var(--t2)}
+button.bk-nc.fri-out{border:0;border-left:4px solid var(--bd);font:inherit;color:inherit;width:100%}
+.bk-nc.fri-out.nc-soon{border-left-color:var(--p)}.bk-nc.fri-out.nc-overdue{border-left-color:var(--r)}.bk-nc.fri-out.nc-ok{border-left-color:var(--g)}
+.bk-nc.fri-out:focus-visible{outline:2px solid var(--p);outline-offset:2px}
+.fri-out-t{font-weight:700;font-size:14.5px}.fri-out-vn{font-size:12px;color:var(--t2);margin:1px 0 3px}
+.fri-out-go{margin-left:auto;font-size:18px;color:var(--p);flex-shrink:0}
+.fri-out-off{opacity:.6}.fri-out-off .fri-out-go{color:var(--t3)}
+@media (max-width:820px){.fri-outs{grid-template-columns:1fr}}
 .bk-nc:hover{box-shadow:0 4px 14px rgba(0,0,0,.12);transform:translateY(-1px)}
 .bk-nc.nc-overdue{border-left-color:var(--r)}
 .bk-nc.nc-urgent{border-left-color:var(--w)}
@@ -2071,7 +2080,7 @@ html *{scrollbar-width:auto;scrollbar-color:#9AA3AF #ECEEF1}
       <button class="btn btn-p" onclick="friNew()">+ New validation</button>
     </div>
   </div>
-  <div class="g4" id="fri-kpis"></div>
+  <div class="fri-outs" id="fri-kpis"></div>
   <div class="fri-tabs">
     <div class="fri-tab on" id="fri-tab-reg" onclick="friTab('reg')">📋 Register</div>
     <div class="fri-tab" id="fri-tab-wb" onclick="friTab('wb')">🧾 Validation workbench</div>
@@ -2429,16 +2438,26 @@ function friNavBadge(){
   const n = FRI_DB.filter(v => friCompute(v).ship !== 'SRC RELEASED').length, b = g('nav-fri-cnt');
   if (b) { b.textContent = n; b.style.display = n ? '' : 'none'; b.title = `${n} validation(s) with SRC blocked or authorisation withheld`; }
 }
+// Output cards (replace the four status tiles, 11 Nov 2026): the two deliverables of the open validation —
+// Annotated FRI report and Supplier CAPA — with readiness and the shipment status. Status per validation stays in the register.
 function friRenderKpis(){
   const el = g('fri-kpis'); if (!el) return;
-  const cs = FRI_DB.map(v => friCompute(v));
-  const k = [
-    ['nc-soon','🧾',FRI_DB.length,'Validations','in the register'],
-    ['nc-overdue','⛔',cs.filter(c => c.ship==='SRC BLOCKED').length,'SRC blocked','open product NC-'],
-    ['nc-urgent','⚠️',cs.filter(c => c.ship==='AUTHORISATION WITHHELD').length,'Authorisation withheld','report corrections / RG- / coverage'],
-    ['nc-ok','✅',cs.filter(c => c.ship==='SRC RELEASED').length,'SRC released','report accepted, no open NC-'],
-  ];
-  el.innerHTML = k.map(c => `<div class="bk-nc ${c[0]}" style="cursor:default"><div style="font-size:22px">${c[1]}</div><div><div class="bk-nc-val">${c[2]}</div><div class="bk-nc-lbl">${c[3]}</div><div class="bk-nc-sub">${c[4]}</div></div></div>`).join('');
+  const v = friCur, src = v && v.source, isDocx = !!(src && !src.pending && src.fileKey && /^docx?m?$/i.test(src.ext || ''));
+  const open = v ? v.findings.filter(f => f.status !== 'Closed').length : 0;
+  let groups = []; try { groups = v && v.po ? friCapaGroups(v) : []; } catch(e) {}
+  const ship = v ? (friCompute(v).ship || '') : '', shipCls = /BLOCKED/.test(ship) ? 't-r' : /WITHHELD/.test(ship) ? 't-o' : /RELEASED/.test(ship) ? 't-g' : 't-gray';
+  const who = v ? `${friX(v.ref || 'Validation')} · P.O. ${friX(friPosLabel(v))}` : 'No validation open · Chưa mở thẩm định';
+  const card = (cls, icon, title, vn, sub, ready, fn) => `<button type="button" class="bk-nc ${cls} fri-out${ready ? '' : ' fri-out-off'}" onclick="${fn}()" aria-label="${title}">
+    <div style="font-size:26px;flex-shrink:0">${icon}</div>
+    <div style="min-width:0;text-align:left"><div class="fri-out-t">${title}</div><div class="fri-out-vn">${vn}</div><div class="bk-nc-sub">${sub}</div></div>
+    <div class="fri-out-go">${ready ? '⬇' : '›'}</div></button>`;
+  const annSub = !v ? 'Open or import a validation first' : isDocx ? `Original report${src.name ? ' “' + friX(src.name) + '”' : ''}, layout unchanged · ${open} open finding(s) as IQA comments`
+    : src && !src.pending ? 'Needs the original Word (.docx) report — import the .docx' : 'Import the FRI report (.docx) first';
+  const capaSub = !v ? 'Open or import a validation first' : groups.length ? `${groups.length} action group(s) to send to ${friX(friShortName(v.sup) || 'the supplier')} · report photos · response table`
+    : 'No supplier action in the findings (no NC-, no supplier responsibility)';
+  el.innerHTML = `<div class="fri-out-head"><span>${who}</span>${v ? `<span class="tag ${shipCls}">${friX(ship || 'Not assessed')}</span>` : ''}</div>` +
+    card('nc-soon', '📝', 'Annotated FRI report (.docx)', 'Báo cáo FRI có chú thích IQA', annSub, isDocx, 'friExportAnnotated') +
+    card(groups.length ? 'nc-overdue' : 'nc-ok', '📮', 'Supplier CAPA (.docx)', 'Yêu cầu CAPA gửi nhà cung cấp', capaSub, !!groups.length, 'friExportCapa');
 }
 function friRenderRegister(){
   const tb = g('fri-reg-tbody'); if (!tb) return;
@@ -2476,6 +2495,7 @@ function friIn(path, val, opts){
 }
 function friRenderWorkbench(){
   const el = g('fri-wb'); if (!el || !friCur) return;
+  try { friRenderKpis(); } catch(e) {}
   const v = friCur, a = v.aql, c = v.cov;
   el.innerHTML = (v.source ? '' : `<div class="card" style="border-left:4px solid var(--p);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
       <div><div class="ct">① Import the FRI report first</div><div class="fri-note">The report is read first and its own values stay as stated. Then ② upload the P.O. / P.I., artwork and other documents: each is compared with the report (P.O./P.I. › master file as reference).</div></div>

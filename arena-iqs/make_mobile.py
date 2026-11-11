@@ -25,7 +25,7 @@ MOBILE_CSS = r"""
   .sider .ni{min-height:44px;font-size:15px}
   .main-wrap{width:100%;min-width:0}
   .topbar{height:52px;min-height:52px;padding:0 8px;gap:6px;padding-top:env(safe-area-inset-top);box-sizing:content-box}
-  .mb-menu{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border:1px solid var(--bd);border-radius:8px;background:#fff;font-size:20px;flex-shrink:0;cursor:pointer}
+  .mb-menu{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border:1px solid var(--bd);border-radius:8px;background:#fff;color:#1F2733;font-size:20px;flex-shrink:0;cursor:pointer}
   #topbar-title{font-size:15px !important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:90px;flex:1 1 auto}
   #btn-back,#btn-fwd,#mf-status-label,#mf-modified-label,#clock{display:none !important}
   .topbar button[onclick*="openMfModal"],.topbar .btn[onclick*="openMfModal"]{font-size:0 !important;padding:0 10px !important;min-width:40px;height:36px}
@@ -40,7 +40,7 @@ MOBILE_CSS = r"""
   .ph{flex-direction:column;align-items:stretch !important;gap:10px}
   .ph-r{display:flex;flex-wrap:wrap;gap:6px}
   .ph h2{font-size:18px}
-  .g2,.g3,.g4,.kpi-grid-4,.kpi-grid-6,#fri-kpis,.dash-grid{grid-template-columns:1fr 1fr !important;gap:8px !important}
+  .g2,.g3,.g4,.kpi-grid-4,.kpi-grid-6,.dash-grid{grid-template-columns:1fr 1fr !important;gap:8px !important}
   .g2{grid-template-columns:1fr !important}
   #page-fri-val .fri-grid{grid-template-columns:1fr !important}
   #page-fri-val .fri-grid > div[style*="span"]{grid-column:auto !important}
@@ -73,7 +73,7 @@ MOBILE_JS = r"""
     var app = document.querySelector('.app'), tb = document.querySelector('.topbar');
     if (!app || !tb || document.querySelector('.mb-menu')) return;
     var bd = document.createElement('div'); bd.className = 'mb-backdrop'; bd.onclick = function(){ toggle(false); }; app.appendChild(bd);
-    var b = document.createElement('button'); b.className = 'mb-menu'; b.type = 'button'; b.setAttribute('aria-label', 'Menu'); b.textContent = '☰'; b.onclick = function(){ toggle(); };
+    var b = document.createElement('button'); b.className = 'mb-menu'; b.type = 'button'; b.setAttribute('aria-label', 'Menu'); b.innerHTML = '<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'; b.onclick = function(){ toggle(); };
     tb.insertBefore(b, tb.firstChild);
     document.querySelector('.sider').addEventListener('click', function(e){ if (e.target.closest('.ni') && window.matchMedia('(max-width:820px)').matches) toggle(false); });
     if (typeof window.go === 'function') { var g0 = window.go; window.go = function(){ var r = g0.apply(this, arguments); if (window.matchMedia('(max-width:820px)').matches) toggle(false); var c = document.querySelector('.content'); if (c) c.scrollTop = 0; return r; }; }
