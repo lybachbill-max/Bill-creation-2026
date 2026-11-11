@@ -46,7 +46,7 @@ MOBILE_CSS = r"""
   #page-fri-val .fri-grid > div[style*="span"]{grid-column:auto !important}
   .card{padding:12px;border-radius:10px}
   .ch2{flex-wrap:wrap;gap:8px}
-  .tw,.tcf-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+  .tw{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
   .tbl{font-size:12px}
   .tbl th,.tbl td{padding:7px 8px}
   .fb{gap:6px}
