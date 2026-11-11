@@ -2823,6 +2823,18 @@ function friDate(s){
   m = s.match(/^([A-Za-z]{3})[A-Za-z]*[\s\-.]*(\d{1,2})[\s,]+(\d{4})/); if (m && mo[m[1].toLowerCase()]) return `${m[3]}-${String(mo[m[1].toLowerCase()]).padStart(2,'0')}-${m[2].padStart(2,'0')}`;
   return '';
 }
+// Where a master-file P.O. number really appears in the report text: whole token only (not inside a longer
+// number / code); a short all-digit P.O. (≤ 6 digits, e.g. 10700) only next to a P.O. label on the same line.
+function friPoHit(text, po){
+  const esc = String(po).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const tok = new RegExp('(?<![\\w./-])' + esc + '(?![\\w/-]|\\.\\d)', 'i');
+  const lines = String(text).split('\n').filter(l => tok.test(l));
+  if (!lines.length) return null;
+  const label = /\b(?:P\.?\s?O\.?|purchase\s*order|order\s*(?:no|number|#))\s*(?:#|no\.?|number)?/i;
+  const labelled = lines.find(l => label.test(l));
+  if (/^\d{1,6}$/.test(String(po)) && !labelled) return null;
+  return { line: (labelled || lines[0]).replace(/\s*\|\s*/g, ' | ').trim().slice(0, 120), labelled: !!labelled };
+}
 function friParseReport(text){
   const T = text.replace(/ /g, ' ');
   const flat = T.replace(/\s*\|[ \t]*/g, ' | ').replace(/( \| )+/g, ' | ').replace(/^ \| /gm, '').replace(/["“”]/g, '');
@@ -2832,8 +2844,9 @@ function friParseReport(text){
   const rx = (lbl, val) => new RegExp(lbl + SEP + val, 'i');
   // P.O.: prefer a P.O. number that exists in the master file
   const known = friRows().map(r => String(r.po)).filter(p => p && p.length >= 4).sort((a, b) => b.length - a.length);
-  let po = known.find(p => flat.includes(p)), m = null;
-  if (po) found.push({ key:'po', label:'P.O. (matched in master file)', value: po, snippet: po });
+  const hits = known.map(p => ({ p, h: friPoHit(T, p) })).filter(x => x.h);
+  let po = (hits.find(x => x.h.labelled) || hits[0] || {}).p, m = null;
+  if (po) found.push({ key:'po', label:'P.O. (matched in master file)', value: po, snippet: (hits.find(x => x.p === po) || {}).h?.line || po });
   else { m = flat.match(rx('P\\.?\\s?O\\.?\\s*(?:#|No\\.?|number)?', '([A-Z0-9][A-Z0-9\\-\\/.]{3,})')); if (m) { po = m[1]; pick('po', 'P.O. (not in master file)', m, po); } }
   m = flat.match(/\bLot\s*(?:#|No\.?)?\s*[:：]?\s*(\d{1,2})\b/i); pick('lot', 'Lot', m, m ? 'Lot ' + m[1] : '');
   m = flat.match(rx('(?:Report|Inspection\\s*report|Booking)\\s*(?:No\\.?|Number|#|Ref\\.?)', '([A-Z0-9][\\w\\-\\/.]{2,})')); pick('reportNo', 'FRI report no.', m, m && m[1]);
@@ -2887,11 +2900,13 @@ function friStartFromReport(name, kind, size, text, photos, imgs){
   { const lotRe = /\bLot\s*(?:#|No\.?)?\s*[:：]?\s*(\d{1,2})\b/i; const T = text;
     const known = [...new Set(friRows().map(r => String(r.po)).filter(p => p && p.length >= 4))].sort((a, b) => b.length - a.length);
     const seen = new Set(friPos(friCur).map(p => p.po));
-    known.forEach(po => { if (seen.has(po) || !T.includes(po)) return; if ([...seen].some(s2 => s2.includes(po))) return;
+    const mainSup = String((friLotRow(friPos(friCur)[0] || {}) || {}).sup || '').trim().toLowerCase();
+    known.forEach(po => { if (seen.has(po)) return; const hit = friPoHit(T, po); if (!hit) return; if ([...seen].some(s2 => s2.includes(po))) return;
+      const sup = String((friRows().find(r => String(r.po) === po) || {}).sup || '').trim().toLowerCase(); if (mainSup && sup && sup !== mainSup) return;
       const rows = friRows().filter(r => String(r.po) === po), open = rows.filter(r => r.status === 'Open');
       const lot = (rows.find(r => friLotOf(r) === friCur.lot) || open[0] || rows[0]); seen.add(po);
       (friCur.morePos = friCur.morePos || []).push({ po, lot: friLotOf(lot) }); });
-    if ((friCur.morePos || []).length) { found.push({ key:'_', label:'Other P.O.s in the report', value: friCur.morePos.map(p => p.po).join(', '), snippet:`${friPos(friCur).length} P.O.s found in the report text` }); friSyncMasterItems(); } }
+    if ((friCur.morePos || []).length) { found.push({ key:'_', label:'Other P.O.s in the report', value: friCur.morePos.map(p => p.po).join(', '), snippet: friCur.morePos.map(p => (friPoHit(T, p.po) || {}).line || p.po).join(' ‖ ').slice(0, 160) }); friSyncMasterItems(); } }
   const pit = friParseItems(text);
   if (pit.items.length) {
     friCur.aql.items = pit.items; friCur.aql.qtySrc = 'report';
