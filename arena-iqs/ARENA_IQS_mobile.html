@@ -2118,6 +2118,23 @@ button.bk-nc.fri-out{border:0;border-left:4px solid var(--bd);font:inherit;color
 #page-fri-val .fri-mi{padding:8px 10px;border-radius:6px;cursor:pointer;display:flex;flex-direction:column;gap:1px;font-size:12.5px}
 #page-fri-val .fri-mi span{font-size:11px;color:var(--t3)}
 #page-fri-val .fri-mi:hover{background:var(--pl,#E6F4FF)}
+#page-fri-val .fri-files{margin:-4px 0 14px;padding:10px 14px}
+#page-fri-val .fri-file{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--bd)}
+#page-fri-val .fri-file:first-of-type{border-top:0}
+#page-fri-val .fri-file-n{flex:1;min-width:0;overflow-wrap:anywhere;font-size:13px}
+#page-fri-val .fri-file-n span{display:block;font-size:11.5px;color:var(--t3)}
+#fri-viewer{position:fixed;inset:0;z-index:3000;background:rgba(15,23,42,.72);display:flex;flex-direction:column}
+#fri-viewer .fv-bar{display:flex;align-items:center;gap:8px;padding:10px max(12px,env(safe-area-inset-left,0px));padding-top:calc(10px + env(safe-area-inset-top,0px));background:#fff;border-bottom:1px solid var(--bd)}
+#fri-viewer .fv-t{flex:1;min-width:0;font-weight:600;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#fri-viewer .fv-body{flex:1;overflow:auto;padding:12px;-webkit-overflow-scrolling:touch}
+#fri-viewer .fv-page{display:block;margin:0 auto 12px;max-width:100%;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+#fri-viewer .fv-doc{background:#fff;max-width:900px;margin:0 auto;padding:16px;border-radius:6px;font-size:13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+#fri-viewer .fv-imgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;max-width:900px;margin:12px auto 0}
+#fri-viewer .fv-imgs img{width:100%;background:#fff;border-radius:4px}
+#fri-viewer .fv-sheet{background:#fff;max-width:100%;overflow:auto;border-radius:6px}
+#fri-viewer .fv-sheet table{border-collapse:collapse;font-size:12px}
+#fri-viewer .fv-sheet td{border:1px solid #DDD;padding:3px 6px;white-space:nowrap;vertical-align:top}
+#fri-viewer .fv-msg{color:#fff;text-align:center;padding:30px 12px}
 @media (max-width:900px){#page-fri-val .fri-grid{grid-template-columns:1fr 1fr}}
 </style>
 <div id="page-fri-val" class="page">
@@ -2132,6 +2149,7 @@ button.bk-nc.fri-out{border:0;border-left:4px solid var(--bd);font:inherit;color
       <button class="btn btn-d" onclick="friDocPick()" title="Recognised automatically from name and content: the P.O./P.I., approved artwork (many files: Word, Excel, PDF, AI, images), CE label / DoP, IM, test reports, QC Pack, ARENA FRI Standard checklist">📎 Upload artwork &amp; requirement docs</button>
     </div>
   </div>
+  <div class="card fri-files" id="fri-files" hidden></div>
   <div class="fri-outs" id="fri-kpis"></div>
 </div>
 
@@ -2385,7 +2403,83 @@ function friTag(po, lot){
 
 // Output cards (replace the four status tiles, 11 Nov 2026): the two deliverables of the open validation —
 // Annotated FRI report and Supplier CAPA — with readiness and the shipment status of the open validation.
+// Uploaded files of the open validation: the imported report + every document, each opens in the in-page viewer
+// (works on the phone link too, where new windows and inline PDFs are blocked). List and open only.
+function friRenderFiles(){
+  const el = g('fri-files'); if (!el) return;
+  const v = friCur, src = v && v.source && !v.source.pending ? v.source : null, docs = v ? (v.docs || []) : [];
+  const rows = [];
+  if (src && src.fileKey) rows.push({ key: src.fileKey, name: src.name, label: 'FRI report' + (src.kind ? ' · ' + src.kind : ''), size: src.size });
+  docs.forEach(d => rows.push({ key: d.id, name: d.name, label: FRI_DOC_LABEL[d.type] || d.type, size: d.size }));
+  el.hidden = !rows.length; if (!rows.length) { el.innerHTML = ''; return; }
+  const kb = n => !n ? '' : n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+  const ico = n => /\.pdf$|\.ai$/i.test(n) ? '📕' : /\.docx?m?$/i.test(n) ? '📘' : /\.(xlsx?|xlsm|csv)$/i.test(n) ? '📗' : /\.(jpe?g|png|gif|webp|bmp)$/i.test(n) ? '🖼' : '📄';
+  window._friFileRows = rows;
+  el.innerHTML = `<div class="fri-note" style="font-weight:600;margin-bottom:4px">Uploaded files · Tệp đã tải (${rows.length})</div>` +
+    rows.map((r, i) => `<div class="fri-file"><span style="font-size:20px">${ico(r.name)}</span><div class="fri-file-n">${friX(r.name)}<span>${friX(r.label)}${r.size ? ' · ' + kb(r.size) : ''}</span></div><button type="button" class="btn btn-d btn-sm" onclick="friViewFile(${i})">Open</button></div>`).join('');
+}
+function friDocxHtml(xml){
+  const body = (xml.match(/<w:body>([\s\S]*)<\/w:body>/) || [, xml])[1], out = [];
+  const para = p => { const t = friXmlText(p).trim(); return t ? `<p style="margin:0 0 6px">${friX(t).replace(/\n/g, '<br>')}</p>` : ''; };
+  let last = 0;
+  for (const m of body.matchAll(/<w:tbl>[\s\S]*?<\/w:tbl>/g)) {
+    (body.slice(last, m.index).match(/<w:p[ >][\s\S]*?<\/w:p>/g) || []).forEach(p => out.push(para(p)));
+    const rows = (m[0].match(/<w:tr[ >][\s\S]*?<\/w:tr>/g) || []).map(tr => '<tr>' + (tr.match(/<w:tc[ >][\s\S]*?<\/w:tc>/g) || []).map(tc => {
+      const span = +((tc.match(/<w:gridSpan w:val="(\d+)"/) || [])[1] || 1), t = friXmlText(tc).replace(/[|]/g, ' ').replace(/[ \t]+/g, ' ').trim();
+      return `<td${span > 1 ? ` colspan="${span}"` : ''} style="border:1px solid #CCD;padding:4px 6px;vertical-align:top">${friX(t).replace(/\n+/g, '<br>')}</td>`; }).join('') + '</tr>').join('');
+    out.push(`<div style="overflow-x:auto;margin:0 0 10px"><table style="border-collapse:collapse;font-size:12px;min-width:60%">${rows}</table></div>`);
+    last = m.index + m[0].length;
+  }
+  (body.slice(last).match(/<w:p[ >][\s\S]*?<\/w:p>/g) || []).forEach(p => out.push(para(p)));
+  return out.join('') || '<p>(no text)</p>';
+}
+async function friViewFile(i){
+  const row = (window._friFileRows || [])[i]; if (!row) return;
+  const blob = await friIdbGet(row.key);
+  let ov = g('fri-viewer'); if (ov) ov.remove();
+  ov = document.createElement('div'); ov.id = 'fri-viewer'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', row.name);
+  ov.innerHTML = `<div class="fv-bar"><div class="fv-t">${friX(row.name)}</div><button type="button" class="btn btn-d btn-sm" id="fv-save">Save a copy</button><button type="button" class="btn btn-p btn-sm" id="fv-close">Close</button></div><div class="fv-body" id="fv-body"><div class="fv-msg">Opening…</div></div>`;
+  document.body.appendChild(ov);
+  const close = () => { ov.querySelectorAll('[data-url]').forEach(x => URL.revokeObjectURL(x.dataset.url)); ov.remove(); document.removeEventListener('keydown', esc); };
+  const esc = e => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', esc); g('fv-close').onclick = close; g('fv-close').focus();
+  const body = g('fv-body');
+  if (!blob || typeof blob === 'string') { body.innerHTML = '<div class="fv-msg">The original file is not stored in this browser any more (browser storage cleared, or uploaded on another device). Upload it again.</div>'; g('fv-save').hidden = true; return; }
+  g('fv-save').onclick = () => friDownload(blob, row.name);
+  const ext = (row.name.split('.').pop() || '').toLowerCase();
+  const url = b => { const u = URL.createObjectURL(b); return u; };
+  try {
+    if (/^(jpe?g|png|gif|webp|bmp)$/.test(ext)) {
+      const u = url(blob); body.innerHTML = `<img class="fv-page" data-url="${u}" src="${u}" alt="${friX(row.name)}">`;
+    } else if (ext === 'pdf' || ext === 'ai') {
+      const pdfjs = await friLoadPdfJs(), doc = await pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
+      body.innerHTML = doc.numPages > 40 ? `<div class="fv-msg">Showing the first 40 of ${doc.numPages} pages — use Save a copy for the full file.</div>` : '';
+      const w = Math.min(body.clientWidth - 24, 1000);
+      for (let n = 1; n <= Math.min(doc.numPages, 40) && document.body.contains(ov); n++) {
+        const pg = await doc.getPage(n), vp0 = pg.getViewport({ scale: 1 }), sc = w / vp0.width, dpr = Math.min(window.devicePixelRatio || 1, 2), vp = pg.getViewport({ scale: sc * dpr });
+        const c = document.createElement('canvas'); c.className = 'fv-page'; c.width = vp.width; c.height = vp.height; c.style.width = (vp.width / dpr) + 'px';
+        body.appendChild(c); await pg.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+      }
+    } else if (/^(xlsx|xlsm|xls|csv)$/.test(ext)) {
+      const wb = XLSX.read(new Uint8Array(await blob.arrayBuffer()), { type:'array', cellDates:true });
+      const show = n => { const h = XLSX.utils.sheet_to_html(wb.Sheets[n], { header:'', footer:'' }); g('fv-sheet').innerHTML = h.replace(/<script[\s\S]*?<\/script>/gi, ''); };
+      body.innerHTML = (wb.SheetNames.length > 1 ? `<select class="fsel" id="fv-tab" style="margin-bottom:8px;max-width:100%">${wb.SheetNames.map(n => `<option>${friX(n)}</option>`).join('')}</select>` : '') + '<div class="fv-sheet" id="fv-sheet"></div>';
+      if (g('fv-tab')) g('fv-tab').onchange = e => show(e.target.value);
+      show(wb.SheetNames[0]);
+    } else if (ext === 'docx' || ext === 'docm') {
+      const z = await friUnzip(await blob.arrayBuffer());
+      const xml = new TextDecoder().decode(await z.read('word/document.xml'));
+      const media = z.names.filter(n => /^word\/media\/.+\.(png|jpe?g|gif|bmp)$/i.test(n)).slice(0, 120);
+      let imgs = '';
+      for (const n of media) { const u = url(new Blob([await z.read(n)], { type: /png$/i.test(n) ? 'image/png' : /gif$/i.test(n) ? 'image/gif' : 'image/jpeg' })); imgs += `<img data-url="${u}" src="${u}" alt="" loading="lazy">`; }
+      body.innerHTML = `<div class="fv-doc" style="white-space:normal">${friDocxHtml(xml)}</div>${imgs ? `<div class="fv-msg" style="padding:12px 0 0">Pictures in the document (${media.length})</div><div class="fv-imgs">${imgs}</div>` : ''}`;
+    } else {
+      body.innerHTML = `<div class="fv-msg">No preview for .${friX(ext)} files — use Save a copy to open it in its own app.</div>`;
+    }
+  } catch(e) { body.innerHTML = `<div class="fv-msg">This file could not be shown (${friX(e.message)}). Use Save a copy to open it in its own app.</div>`; }
+}
 function friRenderKpis(){
+  try { friRenderFiles(); } catch(e) {}
   const el = g('fri-kpis'); if (!el) return;
   const v = friCur, src = v && v.source, isDocx = !!(src && !src.pending && src.fileKey && /^docx?m?$/i.test(src.ext || ''));
   const open = v ? v.findings.filter(f => f.status !== 'Closed').length : 0;
