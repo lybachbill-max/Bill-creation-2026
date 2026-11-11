@@ -24831,6 +24831,35 @@ const tcsAddDays = (d, n) => d ? new Date(Date.parse(d + 'T00:00:00Z') + n * 864
 const tcsToday = () => new Date().toISOString().slice(0, 10);
 const tcsNorm = s => String(s ?? '').toLowerCase().replace(/[\s\-_.]+/g, '');
 
+
+// ═════ Standards live check (rulebook §0 / §3 / §4.2) — the single source for editions in texts, report checks and the workbook.
+// Checked live on TCS_STD_CHECKED (Regulatory Register mirror not synced). Re-check when older than 30 days (the page warns).
+// st: CURRENT (OJ-cited) · PASS-COEX (older edition still cited until a date) · WATCH (newer, not cited – gap test only)
+//     BLOCKED (citation withdrawn, cited replacement exists) · SoA (no edition cited – current CEN/ISO edition) · UNVERIFIED
+const TCS_STD_CHECKED = '2026-11-11';
+const TCS_STD = {
+  'EN 71-1': { use: 'EN 71-1:2014+A1:2018', st: 'CURRENT', ok: [/2014\s*\+\s*A1\s*:\s*2018/i], watch: [/:\s*202[5-9]/], note: 'OJ: CID (EU) 2023/740; no presumption for wave rollers (cl. 3.19, 4.15.1 – CID (EU) 2025/1785). EN 71-1:2026 = gap test only (rulebook §9).', src: 'https://eur-lex.europa.eu/eli/dec_impl/2023/740' },
+  'EN 71-2': { use: 'EN 71-2:2020', st: 'CURRENT', ok: [/:\s*2020\b/], note: 'OJ: CID (EU) 2023/740.', src: 'https://eur-lex.europa.eu/eli/dec_impl/2023/740' },
+  'EN 71-3': { use: 'EN 71-3:2019+A2:2024', st: 'CURRENT', ok: [/A2\s*:\s*2024/i], coex: [{ re: /A1\s*:\s*2021/i, ed: 'EN 71-3:2019+A1:2021', until: '2027-06-16' }], note: 'OJ: CID (EU) 2025/2519 amending 2023/740; EN 71-3:2019+A1:2021 PASS-COEX until 16 Jun 2027.', src: 'https://eur-lex.europa.eu/eli/dec_impl/2025/2519/oj/eng' },
+  'EN 581-1': { use: 'EN 581-1:2017', st: 'SoA', ok: [/:\s*2017\b/], note: 'Not an hEN – current CEN edition is state of the art.', src: 'https://iteh.es/catalog/standards/cen/d37f0328-4bfd-4cc5-90df-c4c633f46258/en-581-1-2017' },
+  'EN 581-2': { use: 'EN 581-2:2026', st: 'SoA', ok: [/:\s*2026\b/], note: 'Not an hEN; CEN 20 May 2026 (replaces 2015). Older edition only with the Ally\'s written acceptance (rulebook §3, §9).', src: 'https://standards.iteh.ai/catalog/standards/cen/982d2190-b0d0-471c-8546-1dd2107a15dc/en-581-2-2026' },
+  'EN 581-3': { use: 'EN 581-3:2026', st: 'SoA', ok: [/:\s*2026\b/], note: 'Not an hEN; CEN 20 May 2026 (replaces 2017). Older edition only with the Ally\'s written acceptance (rulebook §3, §9).', src: 'https://standards.iteh.ai/catalog/standards/cen/145f3fc8-6168-4a96-8377-d6357c61a2a1/en-581-3-2026' },
+  'AfPS GS 2019:01 PAK': { use: 'AfPS GS 2019:01 PAK (rev. 10 Apr 2020)', st: 'UNVERIFIED', note: 'German GS-mark specification (not a CE standard); no newer version found – confirm on the BAuA website before citing.', src: 'https://www.tuv.com/regulations-and-standards/en/eu-new-specification-afps-gs-2019-01-pak.html' },
+};
+const tcsStdAge = () => Math.round((Date.parse(tcsToday()) - Date.parse(TCS_STD_CHECKED)) / 864e5);
+// edition of a standard stated in a report: "EN 71-3:2019+A2:2024", "EN 581-2: 2015" …
+function tcsEdition(text, std){ const m = String(text).match(new RegExp(std.replace(/[ -]/g, '[\\s-]*') + '\\s*(:\\s*\\d{4}(?:\\s*\\+\\s*A\\d+\\s*:\\s*\\d{4})*)', 'i')); return m ? std + m[1].replace(/\s+/g, '') : ''; }
+// rulebook §3 edition rule → { st: ok | coex | ed-soa | ed-watch | ed-blocked | ed-missing, ed }
+function tcsEditionCheck(std, text, ref){
+  const S = TCS_STD[std]; if (!S) return { st: 'ok' };
+  const ed = tcsEdition(text, std); if (!ed) return { st: 'ed-missing', ed: '' };
+  if ((S.ok || []).some(re => re.test(ed))) return { st: 'ok', ed };
+  const c = (S.coex || []).find(x => x.re.test(ed)); if (c) return ref <= c.until ? { st: 'coex', ed, until: c.until } : { st: 'ed-blocked', ed, ended: c.until };
+  if (S.st === 'SoA') return { st: 'ed-soa', ed };
+  if ((S.watch || []).some(re => re.test(ed))) return { st: 'ed-watch', ed };
+  if (S.st === 'UNVERIFIED') return { st: 'ok', ed };
+  return { st: 'ed-blocked', ed };
+}
 // ── language ──
 function BI(en, vi){ return TCS.lang === 'bi' && vi ? en + '\n' + vi : en; }
 function tcsT(o, k){ return BI(o.en.replace(/\{(\w+)\}/g, (_, x) => k[x] ?? ''), o.vi && o.vi.replace(/\{(\w+)\}/g, (_, x) => k[x] ?? '')); }
@@ -25070,9 +25099,9 @@ function tcsReqs(it){
   const f = it.f, L = [], add = (id, en, vi, type, by, sev, kw, job) => L.push({ id, en, vi, type, by, sev, kw, job });
   const layer = f.wpc && f.coex ? ' – core and cap layer tested separately' : '', layerVi = f.wpc && f.coex ? ' – thử riêng lõi và lớp phủ' : '';
   if (it.stream === 'toy') {
-    add('t71_1', 'EN 71-1 mechanical and physical properties (sharp edges / points, small parts, stability)', 'EN 71-1 tính chất cơ lý (cạnh sắc / đầu nhọn, chi tiết nhỏ, độ ổn định)', 'prod', 'lab', 'CRI', /EN\s*71-1\b/i, 'J1');
-    add('t71_2', 'EN 71-2 flammability', 'EN 71-2 tính dễ cháy', 'prod', 'lab', 'MAJ', /EN\s*71-2\b/i, 'J1');
-    add('t71_3', 'EN 71-3 migration of certain elements (each material / colour)' + layer, 'EN 71-3 thôi nhiễm một số nguyên tố (mỗi vật liệu / màu)' + layerVi, 'mat', 'lab', 'CRI', /EN\s*71-3\b/i, 'J1');
+    add('t71_1', `${TCS_STD['EN 71-1'].use} mechanical and physical properties (sharp edges / points, small parts, stability)`, `${TCS_STD['EN 71-1'].use} tính chất cơ lý (cạnh sắc / đầu nhọn, chi tiết nhỏ, độ ổn định)`, 'prod', 'lab', 'CRI', /EN\s*71-1\b/i, 'J1'); L[L.length - 1].std = 'EN 71-1';
+    add('t71_2', `${TCS_STD['EN 71-2'].use} flammability`, `${TCS_STD['EN 71-2'].use} tính dễ cháy`, 'prod', 'lab', 'MAJ', /EN\s*71-2\b/i, 'J1'); L[L.length - 1].std = 'EN 71-2';
+    add('t71_3', `${TCS_STD['EN 71-3'].use} migration of certain elements (each material / colour)` + layer, `${TCS_STD['EN 71-3'].use} thôi nhiễm một số nguyên tố (mỗi vật liệu / màu)` + layerVi, 'mat', 'lab', 'CRI', /EN\s*71-3\b/i, 'J1'); L[L.length - 1].std = 'EN 71-3';
   }
   if (it.stream === 'ce') add('ceT', 'LVD / EMC / RoHS tests to the applicable harmonised standards', 'Thử nghiệm LVD / EMC / RoHS theo tiêu chuẩn hài hòa áp dụng', 'prod', 'lab', 'CRI', /\bEN\s*(60|61|55)\d{3}|\bLVD\b|\bEMC\b|RoHS|2011\/65/i, 'J4');
   if (f.food) {
@@ -25081,7 +25110,7 @@ function tcsReqs(it){
       add('fcS', 'Food contact: specific migration (Reg. (EU) 10/2011 Annex I)', 'Tiếp xúc thực phẩm: thôi nhiễm riêng (Quy định (EU) 10/2011 Phụ lục I)', 'mat', 'lab', 'MAJ', /specific\s*migration|\bSML\b/i, 'J1'); }
     add('fcSe', 'Food contact: sensory test (odour, taste – DIN 10955)', 'Tiếp xúc thực phẩm: thử cảm quan (mùi, vị – DIN 10955)', 'prod', 'lab', 'MAJ', /sensory|organoleptic|odou?r|10955/i, 'J1');
   }
-  if (f.plastic || f.wpc || f.recycled) add('chem', 'REACH Annex XVII: PAH (AfPS GS 2019:01), Cd, Pb, phthalates in plastic / rubber / WPC parts' + layer, 'REACH Phụ lục XVII: PAH (AfPS GS 2019:01), Cd, Pb, phthalate trong chi tiết nhựa / cao su / WPC' + layerVi, 'mat', 'lab', 'MAJ', /\bPAH\b|\bPAK\b|phthalat|cadmium/i, 'J2');
+  if (f.plastic || f.wpc || f.recycled) add('chem', 'REACH Annex XVII: PAH (AfPS GS 2019:01 PAK – edition UNVERIFIED, see Standards check), Cd, Pb, phthalates in plastic / rubber / WPC parts' + layer, 'REACH Phụ lục XVII: PAH (AfPS GS 2019:01), Cd, Pb, phthalate trong chi tiết nhựa / cao su / WPC' + layerVi, 'mat', 'lab', 'MAJ', /\bPAH\b|\bPAK\b|phthalat|cadmium/i, 'J2');
   if (f.wpc || f.recycled) add('pops', 'POPs Reg. (EU) 2019/1021: SCCP / MCCP, PBDE (recycled plastic / WPC)' + layer, 'POPs Quy định (EU) 2019/1021: SCCP / MCCP, PBDE (nhựa tái chế / WPC)' + layerVi, 'mat', 'lab', 'MAJ', /SCCP|MCCP|PBDE|\bPOPs?\b|2019\/1021/i, 'J2');
   if (f.board) add('form', 'Formaldehyde emission of wood-based panels (REACH Annex XVII Entry 77)', 'Phát thải formaldehyde của ván gỗ (REACH Phụ lục XVII mục 77)', 'mat', 'lab', 'MAJ', /formaldehyde|717-1|16516/i, 'J2');
   if (f.textile) add('tex', 'Textile parts: azo dyes, phthalates, PAH (REACH Annex XVII)', 'Chi tiết vải: thuốc nhuộm azo, phthalate, PAH (REACH Phụ lục XVII)', 'mat', 'lab', 'MAJ', /\bazo\b|aromatic\s*amine/i, 'J2');
@@ -25094,9 +25123,9 @@ function tcsReqs(it){
   // EN 581-1:2017; EN 581-2:2026 and EN 581-3:2026, CEN 20 May 2026). An older-edition report only with the Ally's written acceptance.
   const furn = it.stream !== 'toy' && (f.seat || f.table) && (f.outdoor || it.dept === 'GARDEN');
   if (furn) {
-    add('f581_1', 'EN 581-1:2017 outdoor furniture – general safety requirements (SoA: current CEN edition)', 'EN 581-1:2017 đồ nội thất ngoài trời – yêu cầu an toàn chung (SoA: phiên bản CEN hiện hành)', 'prod', 'li', 'MAJ', /EN\s*581-1\b/i, 'J4');
-    if (f.seat) { add('f581_2', 'EN 581-2:2026 outdoor seating – mechanical safety requirements and test methods (SoA: current CEN edition; a report to an older edition only with the Ally\'s written acceptance)', 'EN 581-2:2026 ghế ngoài trời – yêu cầu an toàn cơ học và phương pháp thử (SoA: phiên bản CEN hiện hành; báo cáo theo phiên bản cũ chỉ khi Ally chấp nhận bằng văn bản)', 'prod', 'li', 'MAJ', /EN\s*581-2\b/i, 'J4'); L[L.length - 1].ed = { re: /EN\s*581-2\s*:\s*(\d{4})/i, cur: 2026, std: 'EN 581-2' }; }
-    if (f.table) { add('f581_3', 'EN 581-3:2026 outdoor tables – mechanical safety requirements and test methods (SoA: current CEN edition; a report to an older edition only with the Ally\'s written acceptance)', 'EN 581-3:2026 bàn ngoài trời – yêu cầu an toàn cơ học và phương pháp thử (SoA: phiên bản CEN hiện hành; báo cáo theo phiên bản cũ chỉ khi Ally chấp nhận bằng văn bản)', 'prod', 'li', 'MAJ', /EN\s*581-3\b/i, 'J4'); L[L.length - 1].ed = { re: /EN\s*581-3\s*:\s*(\d{4})/i, cur: 2026, std: 'EN 581-3' }; }
+    add('f581_1', `${TCS_STD['EN 581-1'].use} outdoor furniture – general safety requirements (SoA: current CEN edition)`, `${TCS_STD['EN 581-1'].use} đồ nội thất ngoài trời – yêu cầu an toàn chung (SoA: phiên bản CEN hiện hành)`, 'prod', 'li', 'MAJ', /EN\s*581-1\b/i, 'J4'); L[L.length - 1].std = 'EN 581-1';
+    if (f.seat) { add('f581_2', `${TCS_STD['EN 581-2'].use} outdoor seating – mechanical safety requirements and test methods (SoA: current CEN edition; a report to an older edition only with the Ally's written acceptance)`, `${TCS_STD['EN 581-2'].use} ghế ngoài trời – yêu cầu an toàn cơ học và phương pháp thử (SoA: phiên bản CEN hiện hành; báo cáo theo phiên bản cũ chỉ khi Ally chấp nhận bằng văn bản)`, 'prod', 'li', 'MAJ', /EN\s*581-2\b/i, 'J4'); L[L.length - 1].std = 'EN 581-2'; }
+    if (f.table) { add('f581_3', `${TCS_STD['EN 581-3'].use} outdoor tables – mechanical safety requirements and test methods (SoA: current CEN edition; a report to an older edition only with the Ally's written acceptance)`, `${TCS_STD['EN 581-3'].use} bàn ngoài trời – yêu cầu an toàn cơ học và phương pháp thử (SoA: phiên bản CEN hiện hành; báo cáo theo phiên bản cũ chỉ khi Ally chấp nhận bằng văn bản)`, 'prod', 'li', 'MAJ', /EN\s*581-3\b/i, 'J4'); L[L.length - 1].std = 'EN 581-3'; }
   }
   if (f.load && !furn && it.stream !== 'toy') add('load', 'Stability and strength under load (declared maximum load)', 'Độ ổn định và độ bền khi chịu tải (tải trọng tối đa công bố)', 'prod', 'li', 'MAJ', /stability|load\s*test|static\s*load|strength/i, 'J4');
   if (f.steel && !f.stainless) add('corr', 'Corrosion resistance of steel parts (neutral salt spray ISO 9227)', 'Khả năng chống ăn mòn chi tiết thép (phun muối trung tính ISO 9227)', 'prod', 'wit', 'MAJ', /salt\s*spray|\bNSS\b|9227|corrosion/i, 'J4');
@@ -25173,12 +25202,15 @@ function tcsEvaluate(){
       else if (!best.r.valid) { q.st = 'CONDITIONAL'; q.status = { en: `CONDITIONAL – ${k.R} issue date not readable; QS to confirm validity (K-1)`, vi: `CÓ ĐIỀU KIỆN – ${k.R} không đọc được ngày phát hành; QS xác nhận hiệu lực (K-1)` }; q.evText = { en: `${rep(best)} – issue date to confirm`, vi: `${rep(best)} – cần xác nhận ngày phát hành` }; q.rv = 'date'; }
       else if (best.r.valid < ref) { q.st = 'OPEN'; q.status = it.etd ? { en: `OPEN (${sev}) – ${k.R} expires ${k.d} before ETD ${k.e} (K-1); retest ${k.job} ASAP`, vi: `MỞ (${sev}) – ${k.R} hết hiệu lực ${k.d} trước ETD ${k.e} (K-1); thử lại ${k.job} ngay` } : { en: `OPEN (${sev}) – ${k.R} expired ${k.d} (K-1); ETD not yet available; retest ${k.job} ASAP`, vi: `MỞ (${sev}) – ${k.R} hết hiệu lực ${k.d} (K-1); chưa có ETD; thử lại ${k.job} ngay` };
         q.evText = { en: `${rep(best)} – expires ${k.d} before ETD ${k.e || '(n/a)'}`, vi: `${rep(best)} – hết hiệu lực ${k.d} trước ETD ${k.e || '(chưa có)'}` }; q.rv = 'exp'; }
-      else if (q.ed && (+((best.r.text.match(q.ed.re) || [])[1] || q.ed.cur)) < q.ed.cur) { const y = +(best.r.text.match(q.ed.re) || [])[1], al = tcsAlly();
-        q.st = 'CONDITIONAL'; q.rv = 'ed';
-        q.status = { en: `CONDITIONAL – ${k.R} tested to ${q.ed.std}:${y}, not the current ${q.ed.std}:${q.ed.cur} (SoA); accepted only with ${al}'s written acceptance`, vi: `CÓ ĐIỀU KIỆN – ${k.R} thử theo ${q.ed.std}:${y}, không phải ${q.ed.std}:${q.ed.cur} hiện hành (SoA); chỉ chấp nhận khi ${al} đồng ý bằng văn bản` };
-        q.evText = { en: `${rep(best)} – ${q.ed.std}:${y}, valid to ${k.d}`, vi: `${rep(best)} – ${q.ed.std}:${y}, hiệu lực đến ${k.d}` }; }
+      else if (q.std && (q.ec = tcsEditionCheck(q.std, best.r.text, ref)).st.startsWith('ed-')) { const ec = q.ec, U = TCS_STD[q.std].use, al = tcsAlly(); q.rv = 'ed';
+        if (ec.st === 'ed-soa') { q.st = 'CONDITIONAL'; q.status = { en: `CONDITIONAL – ${k.R} tested to ${ec.ed}, not the current ${U} (SoA); accepted only with ${al}'s written acceptance`, vi: `CÓ ĐIỀU KIỆN – ${k.R} thử theo ${ec.ed}, không phải ${U} hiện hành (SoA); chỉ chấp nhận khi ${al} đồng ý bằng văn bản` }; }
+        else if (ec.st === 'ed-watch') { q.st = 'CONDITIONAL'; q.status = { en: `CONDITIONAL – ${k.R} tested to ${ec.ed} (newer, not OJ-cited – gap test only); evidence to the cited ${U} needed`, vi: `CÓ ĐIỀU KIỆN – ${k.R} thử theo ${ec.ed} (mới hơn, chưa được trích dẫn trên OJ – chỉ là thử bổ sung); cần bằng chứng theo ${U}` }; }
+        else if (ec.st === 'ed-missing') { q.st = 'CONDITIONAL'; q.status = { en: `CONDITIONAL – ${k.R}: edition of ${q.std} not stated; QS to confirm it is ${U}`, vi: `CÓ ĐIỀU KIỆN – ${k.R}: không ghi phiên bản ${q.std}; QS xác nhận là ${U}` }; }
+        else { q.st = 'OPEN'; q.status = { en: `OPEN (${sev}) – ${k.R} tested to ${ec.ed}, ${ec.ended ? 'coexistence ended ' + tcsFmt(ec.ended) + ' before ETD' : 'edition no longer cited (BLOCKED)'}; retest to ${U} ASAP`, vi: `MỞ (${sev}) – ${k.R} thử theo ${ec.ed}, ${ec.ended ? 'hết thời gian chuyển tiếp ' + tcsFmt(ec.ended) + ' trước ETD' : 'phiên bản không còn được trích dẫn'}; thử lại theo ${U} ngay` }; }
+        q.evText = { en: `${rep(best)} – ${ec.ed || q.std + ' (edition not stated)'}, valid to ${k.d}`, vi: `${rep(best)} – ${ec.ed || q.std + ' (không ghi phiên bản)'}, hiệu lực đến ${k.d}` }; }
       else { q.st = 'ACCEPTED'; q.status = it.etd ? { en: `ACCEPTED – ${k.R} ${k.no}, valid to ${k.d} ≥ ETD ${k.e}`, vi: `CHẤP NHẬN – ${k.R} ${k.no}, hiệu lực đến ${k.d} ≥ ETD ${k.e}` } : { en: `ACCEPTED – ${k.R} ${k.no}, valid to ${k.d}; ETD not yet available – re-check at P.O.`, vi: `CHẤP NHẬN – ${k.R} ${k.no}, hiệu lực đến ${k.d}; chưa có ETD – kiểm tra lại khi có P.O.` };
-        q.evText = { en: `${rep(best)} – valid to ${k.d} / ETD ${k.e || '(n/a)'}`, vi: `${rep(best)} – hiệu lực đến ${k.d} / ETD ${k.e || '(chưa có)'}` }; q.rv = 'ok'; }
+        q.evText = { en: `${rep(best)} – valid to ${k.d} / ETD ${k.e || '(n/a)'}`, vi: `${rep(best)} – hiệu lực đến ${k.d} / ETD ${k.e || '(chưa có)'}` }; q.rv = 'ok';
+        if (q.ec && q.ec.st === 'coex') { q.evText.en += ` · ${q.ec.ed} PASS-COEX until ${tcsFmt(q.ec.until)}`; q.evText.vi += ` · ${q.ec.ed} còn chấp nhận đến ${tcsFmt(q.ec.until)}`; } }
       q.action = tcsAction(it, q, k); q.pic = q.st === 'ACCEPTED' ? 'QS' : q.by === 'qc' ? 'A.R.E.N.A. QC' : q.id === 'tDoC' || q.id === 'tSA' || q.id === 'ceDoC' ? `${tcsAlly()} / supplier` : 'Supplier';
       q.due = q.st === 'ACCEPTED' ? '' : (it.etd ? tcsAddDays(it.etd, -45) : '');
       q.done = q.st === 'ACCEPTED';
@@ -25207,7 +25239,10 @@ function tcsAction(it, q, k){
   if (q.rv === 'ref') return { en: `${q.type === 'doc' ? 'Issuer' : 'Lab'} to amend ${k.R} with supplier ref ${sref}; re-submit.`, vi: `${q.type === 'doc' ? 'Đơn vị phát hành' : 'PTN'} sửa đổi ${k.R} bổ sung mã NCC ${sref}; nộp lại.` };
   if (q.rv === 'exp') return { en: `Retest ASAP – ${k.R} expires ${k.d}${k.e ? ' before ETD ' + k.e : ''}. ` + test.en, vi: `Thử nghiệm lại ngay – ${k.R} hết hiệu lực ${k.d}${k.e ? ' trước ETD ' + k.e : ''}. ` + test.vi };
   if (q.rv === 'fail') return { en: `Failed result in ${k.R}: supplier to find the root cause, correct and retest ASAP. ` + (test ? test.en : ''), vi: `Kết quả không đạt trong ${k.R}: NCC tìm nguyên nhân, khắc phục và thử lại ngay. ` + (test ? test.vi : '') };
-  if (q.rv === 'ed') { const al = tcsAlly(); return { en: `${al}: decide in writing whether ${k.R} (older ${q.ed.std} edition) is accepted for this shipment; if not, ` + test.en.replace(/^Test/, 'test').replace(/^Send/, 'send') + ` New testing to ${q.ed.std}:${q.ed.cur}.`, vi: `${al}: quyết định bằng văn bản có chấp nhận ${k.R} (phiên bản ${q.ed.std} cũ) cho lô hàng này; nếu không, ` + test.vi + ` Thử nghiệm mới theo ${q.ed.std}:${q.ed.cur}.` }; }
+  if (q.rv === 'ed') { const al = tcsAlly(), U = TCS_STD[q.std].use, ec = q.ec || {};
+    if (ec.st === 'ed-soa') return { en: `${al}: decide in writing whether ${k.R} (${ec.ed}) is accepted for this shipment; if not, ` + test.en.replace(/^Test/, 'test').replace(/^Send/, 'send') + ` New testing to ${U}.`, vi: `${al}: quyết định bằng văn bản có chấp nhận ${k.R} (${ec.ed}) cho lô hàng này; nếu không, ` + test.vi + ` Thử nghiệm mới theo ${U}.` };
+    if (ec.st === 'ed-missing') return { en: `QS: confirm the edition of ${q.std} in ${k.R} is ${U}; if older, lab to state it and follow the edition rule.`, vi: `QS: xác nhận phiên bản ${q.std} trong ${k.R} là ${U}; nếu cũ hơn, PTN ghi rõ và áp dụng quy tắc phiên bản.` };
+    return { en: `Retest ASAP to ${U} – ${k.R} is to ${ec.ed}. ` + test.en, vi: `Thử lại ngay theo ${U} – ${k.R} theo ${ec.ed}. ` + test.vi }; }
   if (q.rv === 'cond' || q.rv === 'date') return { en: `QS to check ${k.R}: signature, stamp, signed PDF, components of this item only, supplier ref (K-3)${q.rv === 'date' ? ', issue date (K-1)' : ''}.`, vi: `QS kiểm tra ${k.R}: chữ ký, con dấu, PDF có ký, chỉ chi tiết của mặt hàng này, mã NCC (K-3)${q.rv === 'date' ? ', ngày phát hành (K-1)' : ''}.` };
   if (q.id === 'ai') return { en: `Supplier: submit draft artwork (PDF + editable file) for A.R.E.N.A. QS review; ${tcsAlly()} approves final artwork before printing. A.R.E.N.A. QC: check correct version in each carton at FRI.`, vi: `NCC: nộp bản nháp artwork (PDF + file chỉnh sửa được) để QS A.R.E.N.A. xem xét; ${tcsAlly()} duyệt artwork cuối trước khi in. QC A.R.E.N.A.: kiểm tra đúng phiên bản trong mỗi thùng tại FRI.` };
   if (q.id === 'tSA' || q.id === 'tDoC' || q.id === 'ceDoC') return { en: `${tcsAlly()} (manufacturer): complete safety assessment, technical documentation, EC DoC and CE marking (TSD Art. 15–19 / Annexes III–V); supplier provides samples, material declaration and test reports stating supplier ref ${sref}. A.R.E.N.A. validates, never signs.`, vi: `${tcsAlly()} (nhà sản xuất): hoàn thành đánh giá an toàn, hồ sơ kỹ thuật, tuyên bố hợp quy EC và dấu CE (TSD Điều 15–19 / Phụ lục III–V); NCC cung cấp mẫu, khai báo vật liệu và báo cáo thử nghiệm có mã NCC ${sref}. A.R.E.N.A. thẩm định, không ký.` };
@@ -25354,6 +25389,18 @@ function tcsBuildBook(B){
   const DL = Math.max(r - 1, 3);
   S1.cf.push({ sqref: `M3:M${DL}`, formula: 'LEFT($M3,4)="Done"', fill: 'C6EFCE', color: '006100', stop: true }, { sqref: `M3:M${DL}`, formula: 'LEFT($M3,4)="Open"', fill: 'FFC7CE', color: '9C0006', stop: true });
   r = tcsKeyBlock(S1, DL + 2, LAST) + 1;
+  { // Standards check (rulebook §4.2): every standard cited in this workbook, edition, status, date checked, source
+    const used = [...new Set(items.flatMap(i => i.reqs.map(q => q.std).filter(Boolean)).concat(items.some(i => i.reqs.some(q => q.id === 'chem')) ? ['AfPS GS 2019:01 PAK'] : []))];
+    if (used.length) {
+      const hs = { b: true, fill: 'D9E1F2' }, age = tcsStdAge();
+      tcsSet(S1, r, 0, BI(`Standards check – editions live-checked ${tcsFmt(TCS_STD_CHECKED)}${age > 30 ? ` (${age} days ago – RE-CHECK before use)` : ''}; status per rulebook §4.2`, `Kiểm tra tiêu chuẩn – phiên bản kiểm tra trực tiếp ${tcsFmt(TCS_STD_CHECKED)}${age > 30 ? ` (${age} ngày trước – KIỂM TRA LẠI trước khi dùng)` : ''}; trạng thái theo quy tắc §4.2`), hs); tcsMerge(S1, r, 0, r, LAST, hs); S1.ht[r] = tcsHt(TCS.lang === 'bi' ? 2 : 1); r++;
+      [['Standard', 0, 1], ['Edition to use', 2, 4], ['Status', 5, 5], ['Notes', 6, 9], ['Source', 10, 12]].forEach(([h, a1, a2]) => { tcsSet(S1, r, a1, h, S_H); tcsMerge(S1, r, a1, r, a2, S_H); }); S1.ht[r] = 18; r++;
+      used.forEach(k => { const S = TCS_STD[k], stf = { fill: S.st === 'CURRENT' || S.st === 'SoA' ? 'C6EFCE' : S.st === 'PASS-COEX' || S.st === 'WATCH' || S.st === 'UNVERIFIED' ? 'FFEB9C' : 'FFC7CE', h: 'center', b: true };
+        [[k, 0, 1, { b: true }], [S.use, 2, 4, {}], [S.st, 5, 5, stf], [S.note, 6, 9, {}], [S.src, 10, 12, { color: '1F4E79' }]].forEach(([v, a1, a2, st]) => { tcsSet(S1, r, a1, v, st); tcsMerge(S1, r, a1, r, a2, st); });
+        S1.ht[r] = tcsHt(Math.max(tcsLines(S.note, W[6] + W[7] + W[8] + W[9]), tcsLines(S.src, W[10] + W[11] + W[12]))); r++; });
+      r++;
+    }
+  }
   const notes = [
     BI(`Basis: ${noPo ? 'P.O. / P.I. not yet available – validity (K-1) checked at today; re-check at P.O.' : etdPerPo.join(' · ')}.${B.notOnPo.length ? ' Offer items not on any P.O. (not in this TCF): ' + B.notOnPo.map(o => o.sref || o.name).join(', ') + '.' : ''} A.R.E.N.A. validates only – never manufacturer, importer or DoC signatory; CE is prohibited on GPSR products.`,
        `Cơ sở: ${noPo ? 'Chưa có P.O. / P.I. – hiệu lực (K-1) kiểm tra theo ngày hôm nay; kiểm tra lại khi có P.O.' : etdPerPo.join(' · ')}. A.R.E.N.A. chỉ thẩm định – không là nhà sản xuất, nhà nhập khẩu hay người ký DoC; cấm dấu CE trên sản phẩm GPSR.`),
@@ -25424,6 +25471,7 @@ function tcsRender(){
       <div class="fri-out-go">⬇</div></button>
     <div class="tcs-row" style="flex:1 1 300px">${tcsPill('OPEN')} ${n(q => q.st === 'OPEN' && q.sev === 'CRI')} CRI · ${n(q => q.st === 'OPEN' && q.sev === 'MAJ')} MAJ &nbsp; ${tcsPill('CONDITIONAL')} ${n(q => q.st === 'CONDITIONAL')} &nbsp; ${tcsPill('ACCEPTED')} ${n(q => q.st === 'ACCEPTED')}</div></div>
     <div class="tcs-note" style="margin-top:8px">${noPo ? '⚠ No P.O. / P.I. yet – P.O. fields stay blank and validity (K-1) is checked at today; add the P.O. / P.I. files when available.' : 'ETD per P.O.: ' + tcsE(B.pis.map(p => `${p.po}: ${tcsFmt(p.lines.map(l => l.etd).filter(Boolean).sort()[0]) || 'n/a'}`).join(' · '))}
+    <br>Standards editions live-checked ${tcsFmt(TCS_STD_CHECKED)}${tcsStdAge() > 30 ? ` – <b>${tcsStdAge()} days ago: re-check before use (rulebook §4.2)</b>` : ''}.
     ${B.notOnPo.length ? `<br>⚠ Offer item(s) not on any P.O. – left out of the TCF: ${tcsE(B.notOnPo.map(o => o.sref || o.name).join(', '))}` : ''}
     ${urgent.length ? `<br>⚠ FRI within 14 days with open evidence: ${tcsE(urgent.map(i => `item ${i.n} (${tcsFmt(i.fri)})`).join(', '))}` : ''}
     ${pastDue ? `<br>⚠ ${pastDue} action(s) already past the ETD − 45 days due date – next hard deadline is the first FRI; options: Ally accepts a short ETD delay, or a documented first-shipment exception (Ally + SRC owner QS).` : ''}</div></div>`;

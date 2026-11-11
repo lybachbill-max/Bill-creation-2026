@@ -25,6 +25,7 @@ function tcsRender(){
       <div class="fri-out-go">⬇</div></button>
     <div class="tcs-row" style="flex:1 1 300px">${tcsPill('OPEN')} ${n(q => q.st === 'OPEN' && q.sev === 'CRI')} CRI · ${n(q => q.st === 'OPEN' && q.sev === 'MAJ')} MAJ &nbsp; ${tcsPill('CONDITIONAL')} ${n(q => q.st === 'CONDITIONAL')} &nbsp; ${tcsPill('ACCEPTED')} ${n(q => q.st === 'ACCEPTED')}</div></div>
     <div class="tcs-note" style="margin-top:8px">${noPo ? '⚠ No P.O. / P.I. yet – P.O. fields stay blank and validity (K-1) is checked at today; add the P.O. / P.I. files when available.' : 'ETD per P.O.: ' + tcsE(B.pis.map(p => `${p.po}: ${tcsFmt(p.lines.map(l => l.etd).filter(Boolean).sort()[0]) || 'n/a'}`).join(' · '))}
+    <br>Standards editions live-checked ${tcsFmt(TCS_STD_CHECKED)}${tcsStdAge() > 30 ? ` – <b>${tcsStdAge()} days ago: re-check before use (rulebook §4.2)</b>` : ''}.
     ${B.notOnPo.length ? `<br>⚠ Offer item(s) not on any P.O. – left out of the TCF: ${tcsE(B.notOnPo.map(o => o.sref || o.name).join(', '))}` : ''}
     ${urgent.length ? `<br>⚠ FRI within 14 days with open evidence: ${tcsE(urgent.map(i => `item ${i.n} (${tcsFmt(i.fri)})`).join(', '))}` : ''}
     ${pastDue ? `<br>⚠ ${pastDue} action(s) already past the ETD − 45 days due date – next hard deadline is the first FRI; options: Ally accepts a short ETD delay, or a documented first-shipment exception (Ally + SRC owner QS).` : ''}</div></div>`;

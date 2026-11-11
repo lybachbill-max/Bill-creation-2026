@@ -136,6 +136,18 @@ function tcsBuildBook(B){
   const DL = Math.max(r - 1, 3);
   S1.cf.push({ sqref: `M3:M${DL}`, formula: 'LEFT($M3,4)="Done"', fill: 'C6EFCE', color: '006100', stop: true }, { sqref: `M3:M${DL}`, formula: 'LEFT($M3,4)="Open"', fill: 'FFC7CE', color: '9C0006', stop: true });
   r = tcsKeyBlock(S1, DL + 2, LAST) + 1;
+  { // Standards check (rulebook §4.2): every standard cited in this workbook, edition, status, date checked, source
+    const used = [...new Set(items.flatMap(i => i.reqs.map(q => q.std).filter(Boolean)).concat(items.some(i => i.reqs.some(q => q.id === 'chem')) ? ['AfPS GS 2019:01 PAK'] : []))];
+    if (used.length) {
+      const hs = { b: true, fill: 'D9E1F2' }, age = tcsStdAge();
+      tcsSet(S1, r, 0, BI(`Standards check – editions live-checked ${tcsFmt(TCS_STD_CHECKED)}${age > 30 ? ` (${age} days ago – RE-CHECK before use)` : ''}; status per rulebook §4.2`, `Kiểm tra tiêu chuẩn – phiên bản kiểm tra trực tiếp ${tcsFmt(TCS_STD_CHECKED)}${age > 30 ? ` (${age} ngày trước – KIỂM TRA LẠI trước khi dùng)` : ''}; trạng thái theo quy tắc §4.2`), hs); tcsMerge(S1, r, 0, r, LAST, hs); S1.ht[r] = tcsHt(TCS.lang === 'bi' ? 2 : 1); r++;
+      [['Standard', 0, 1], ['Edition to use', 2, 4], ['Status', 5, 5], ['Notes', 6, 9], ['Source', 10, 12]].forEach(([h, a1, a2]) => { tcsSet(S1, r, a1, h, S_H); tcsMerge(S1, r, a1, r, a2, S_H); }); S1.ht[r] = 18; r++;
+      used.forEach(k => { const S = TCS_STD[k], stf = { fill: S.st === 'CURRENT' || S.st === 'SoA' ? 'C6EFCE' : S.st === 'PASS-COEX' || S.st === 'WATCH' || S.st === 'UNVERIFIED' ? 'FFEB9C' : 'FFC7CE', h: 'center', b: true };
+        [[k, 0, 1, { b: true }], [S.use, 2, 4, {}], [S.st, 5, 5, stf], [S.note, 6, 9, {}], [S.src, 10, 12, { color: '1F4E79' }]].forEach(([v, a1, a2, st]) => { tcsSet(S1, r, a1, v, st); tcsMerge(S1, r, a1, r, a2, st); });
+        S1.ht[r] = tcsHt(Math.max(tcsLines(S.note, W[6] + W[7] + W[8] + W[9]), tcsLines(S.src, W[10] + W[11] + W[12]))); r++; });
+      r++;
+    }
+  }
   const notes = [
     BI(`Basis: ${noPo ? 'P.O. / P.I. not yet available – validity (K-1) checked at today; re-check at P.O.' : etdPerPo.join(' · ')}.${B.notOnPo.length ? ' Offer items not on any P.O. (not in this TCF): ' + B.notOnPo.map(o => o.sref || o.name).join(', ') + '.' : ''} A.R.E.N.A. validates only – never manufacturer, importer or DoC signatory; CE is prohibited on GPSR products.`,
        `Cơ sở: ${noPo ? 'Chưa có P.O. / P.I. – hiệu lực (K-1) kiểm tra theo ngày hôm nay; kiểm tra lại khi có P.O.' : etdPerPo.join(' · ')}. A.R.E.N.A. chỉ thẩm định – không là nhà sản xuất, nhà nhập khẩu hay người ký DoC; cấm dấu CE trên sản phẩm GPSR.`),
