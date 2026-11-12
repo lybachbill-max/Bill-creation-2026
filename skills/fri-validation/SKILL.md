@@ -1,6 +1,6 @@
 ---
 name: "fri-validation"
-description: "Validate a submitted FRI report against the PO, approved artwork, DoP, the released ARENA FRI Standard checklist (requirement IDs) and any project/Ally protocol, review its photos as evidence, and produce Word deliverables: Validation Assessment, Annotated FRI Report and Supplier CAPA Request. Every standard and edition cited (report, QC Pack, FRI template, DoP / DoC / CE label, test methods, ISO 2859-1) is live-checked per the ARENA rulebook (register if verified ≤ 30 days, else OJ / CEN-ISO / GB designated lists) and given a status CURRENT / PASS-COEX / WATCH / BLOCKED / SoA / UNVERIFIED; edition findings follow from it."
+description: "Validate a submitted FRI report against the PO, approved artwork, DoP, the released ARENA FRI Standard checklist (requirement IDs) and any project/Ally protocol, review its photos as evidence, and produce Word deliverables: Validation Assessment, Annotated FRI Report and a live Supplier CAPA Request (built from the open findings: status banner, finding IDs + severity, evidence, all linked photos). Every standard and edition cited (report, QC Pack, FRI template, DoP / DoC / CE label, test methods, ISO 2859-1) is live-checked per the ARENA rulebook (register if verified ≤ 30 days, else OJ / CEN-ISO / GB designated lists) and given a status CURRENT / PASS-COEX / WATCH / BLOCKED / SoA / UNVERIFIED; edition findings follow from it."
 ---
 
 # FRI Inspection Report — Validation Assessment Skill
@@ -489,33 +489,59 @@ No Courier New blocks, no SOURCE/FOUND/EXPECTED/STATUS labels, no sub-tables per
 
 **Evidence photo embedding:** Immediately below the "Responsibility:" line of a finding card, embed the report's own reference photo(s) for that finding when the Step 2b photo index has a match (matched by SKU/photo-ref/checkpoint named in "Found in report:"). Use `ImageRun` sized to fit inside the card (≈1.8–2.2in wide so it doesn't overrun the two-column layout — insert it as its own paragraph spanning the right-hand cell, not squeezed into the text column). If a finding has no corresponding photo in the index (e.g., a blank field, a missing signature, an arithmetic/tally error, a header-vs-checklist contradiction with nothing to photograph), print the line **"Reference photo: none available in the report."** instead — never substitute an unrelated image, and never fabricate a caption. A finding may cite more than one photo (e.g., a defect found on the same SKU photographed from two angles); embed all matched photos, each on its own line. Caption each photo as "Report photo imageNN — <what it shows>", using the image number from the report's `word/media` folder, so the supplier and QC can find it in the original report.
 
-### Step 7b — Generate the Supplier CAPA Request (companion document)
+### Step 7b — Generate the Supplier CAPA Request (live, built from the findings)
 
-Produce this alongside the Validation Assessment whenever the findings include at least one QC/Supplier-responsibility item (see Responsibility Assignment) — i.e. almost always — or whenever the person asks for something to send/email to the supplier, a corrective action request, a CAR or a CAPA ("CAPA sending to supplier if it has" = produce it only when at least one supplier action exists; otherwise say none is needed). This is a **separate, shorter, external-facing `.docx`**, not a copy of the internal Validation Assessment: the supplier never sees `F-`/`NC-` IDs, AQL Ac/Re derivations, RCA handoff mechanics, or QS-only actions (waivers, document sign-off, requirement clarifications) — only what the factory must physically do.
+The Supplier CAPA is generated **live from the validation's open findings at the moment of export**. Re-export after any change: a new report, uploaded document or edited finding.
 
-**Filter the action list:** include only findings/NCs whose Responsibility is `Supplier`, `QC + supplier`, or that require a physical factory action (rework, re-weigh, provide golden sample, sign acknowledgement, prepare units for re-inspection). Drop anything whose action is purely internal (report corrections, Ac/Re recomputation, QS document waivers, RCA paperwork).
+**Nothing is fixed:**
+- no content from a reference or example (the JUMBO / Thiên Minh PI 7212146930 file defines the layout only);
+- no fixed number of rows or photos;
+- no placeholder text.
 
-**Structure:**
+**When to produce it:**
+- At least one supplier action exists: an open `NC-` (product nonconformance), or any open finding whose Responsibility is `Supplier` / `QC + supplier` or that needs a physical factory action.
+- An `RG-` on the same checkpoint as a supplier `NC-` travels with that `NC-`.
+- Otherwise say plainly "no Supplier CAPA is needed (no NC- and no finding with supplier responsibility)" and still deliver the Annotated report.
+- Findings that are purely internal (report corrections owned by QC, Ac/Re recomputation, QS document waivers, RCA paperwork) never create a CAPA row.
+
+**Grouping:** one action row per checkpoint group: findings grouped by checkpoint and the report paragraph they anchor to.
+
+**Format** (reference layout):
+- Calibri; navy `153650` text and table headers; teal `0C6863` section headings; band `F0F5F8` / white rows; no table borders; A4 portrait, margins 979 / 893.
+- **Header:** `A.R.E.N.A.  /  QUALITY ASSURANCE  •  SUPPLIER CAPA REQUEST • REV n`.
+- **Footer:** `<ALLY>  •  <PI n | PO n>  •  <date>  •  <page>`.
+
+**Structure** (in this order):
 
 | Section | Content |
 |---|---|
-| Header block | To (factory/supplier, contact), Ally/PO#, Products (code, description, qty, brand, batch), inspection reference (report no. + date), From, and a red Status banner (e.g. "CAPA REQUIRED — NEXT ORDERS ON HOLD UNTIL ITEMS 1–3 ARE CLOSED") with the lot-status question (shipped / at factory; hold any units still at the factory) |
-| Nonconformities and gaps to correct | One numbered row per issue: SKU, issue observed (with the measured values), class, action required — physical actions only (re-weigh with calibrated scale, perform the missing test, replace units, provide records) |
-| Evidence photos | The report's own defect/evidence photos from the Step 2b index, three per row (≈200 × 150 px), each captioned "Report photo imageNN — <what it shows>", directly under the issue table — a supplier request without photographic evidence is not actionable. Where the gap is the absence of evidence (test not done, hold not shown), say so in one line |
-| Measurement/other deviations | Table of spec vs. found vs. action; if no photo evidence exists for an item (e.g. a weight or count deviation with no accompanying photo in the report), state that explicitly ("no photo evidence exists for this item — deviation is from the written measurement record only") rather than omitting the point or inventing a photo |
-| Items to prepare for re-inspection | Golden sample, packed qty, artwork/barcode evidence, close-meeting sign-off — whatever Step 3/3a/3c/3e found missing, phrased as what the supplier must have ready; tagged by protocol phase when Step 3c applies and by requirement ID when Step 3e applies (requirement IDs are protocol references and may be shown to the supplier; `F-`/`NC-`/`RG-`/`OB-` IDs never) |
-| Mismatch evidence (when F-01/F-13/F-14-type findings exist) | A 3-row table: report header vs. report's own checklist table vs. product template sampling level (or whichever requirement mismatched), each row plain-language, so the supplier sees in writing why the next sample size/method is changing — not just being told it is |
-| CAPA response table (to be completed by the supplier) | One row per numbered issue; columns: Containment · Root cause (why it happened / why it was not detected) · Corrective action · Preventive action · Owner / due date. Left blank for the supplier |
-| Response deadline | A boxed callout naming exactly what must be returned and by when (default 5 working days unless the person specifies otherwise) |
-| Sign-off | Issued by (A.R.E.N.A.) · Received by (Supplier, signature/stamp) · Date |
+| Title | "Supplier corrective action request" (underlined rule) |
+| Order line | `<ALLY> / <SUPPLIER SHORT NAME>  •  <PI n or PO n>  •  <PRODUCT>`. Each part only when known; never empty separators |
+| Intro | Return the completed response and records to the responsible QS before release review; QS confirms the deadline and disposition; inspection date; P.O. / P.I. ETD |
+| **Status banner** | `Shipment status: <SRC BLOCKED / AUTHORISATION WITHHELD / SRC RELEASED> — <reasons>` (e.g. "1 open NC-; 4 Critical/Major report finding(s)"). Red fill for BLOCKED, amber for WITHHELD. Same status as the validation |
+| Action table | Header **Action · Required response and closure evidence**. Per group: left cell = finding IDs (`NC-01 / RG-02`) + checkpoint name. Right cell, in order: (1) one line per finding `<ID> · <severity / class>: <what is wrong, with the measured values>. <required action>`; (2) **Evidence:** the sources behind each finding (report text, P.O. / P.I., master file, artwork, decoded barcode), each ≤ 180 characters with the value; (3) the closing sentence "Identify the affected lots and quantities, record containment and correction, and submit traceable evidence (photos, counts, re-verification records). Explain the cause and the preventive action." |
+| Photos | Under each group's row: **all** report photos linked to that group's findings (Step 2b), three per row, no cap. Each photo appears once in the document. Caption: `Photo NN · <what it shows>`. No linked photo → no photo row; the evidence line carries the values. Never an unrelated photo |
+| Supplier response | Teal heading "Supplier response". Blank table **Field · Supplier to complete**: Owner and target date · Affected lot and quantity · Containment and correction · Root cause and prevention · Verification and evidence references |
 
-Never include a photo the person hasn't already seen matched to that specific finding in Step 2b — the "never substitute an unrelated image" rule from Step 7 applies here too.
+**Finding IDs are shown** in the CAPA (reference format), so the supplier's response can refer to them.
 
-**What never goes to the supplier:** internal IDs (`F-`/`NC-`/`RG-`/`OB-`), Ac/Re derivations, RCA mechanics, QS waivers, Ally-internal regulatory discussions. An `RG-` conflict reaches the supplier only as a physical instruction (e.g. "do not print the next carton run until A.R.E.N.A. confirms the CE-marking block content"). A repeat pattern from another order may be cited by product and date, without the other Ally's commercial details.
+**What still never goes to the supplier:**
+- QS-only actions (waivers, document sign-off, requirement clarifications);
+- Ally-internal regulatory discussion;
+- another Ally's commercial details.
 
-**Language:** English for suppliers outside Vietnam (the QC-Pack bilingual EN/VI rule does not apply to supplier CAPA requests unless the user asks).
+An `RG-` reaches the supplier only as the physical instruction, e.g. "do not print the next carton run until A.R.E.N.A. confirms the CE-marking block".
 
-Use keep-with-next on section headings so no heading is left at the bottom of a page. Save as `Supplier_CAPA_Request_PO[PO#].docx`, alongside the Validation Assessment and the Annotated FRI Report (Step 7c), and present them together.
+**Language:** English, unless the user asks otherwise.
+
+**File name:** `Supplier_CAPA_<ALLY>_<SUPPLIER>_<PO>.docx`, dropping any part that is unknown (no double underscores).
+
+**Check before delivering:**
+- every supplier finding ID appears;
+- the photo count = the number of unique linked photos;
+- the banner = the validation's shipment status;
+- no empty separators;
+- headings keep-with-next.
 
 ### Step 7c — Generate the Annotated FRI Report (reviewer comments in the report itself)
 
@@ -673,6 +699,16 @@ flowchart TD
 | `qsd-qcp` / `qcp-excel-generator` | Requirement source for Step 5.2; updated at RCA close-out when the non-detection branch points to the inspection matrix |
 | `fri-report-template-generator` | **Upstream** — produces the ARENA FRI Standard (template + guideline, document ID `ARENA-FRI-STD-<CAT>-Vx`) and the requirement checklist `.xlsx` that Step 3e applies; checklist and guideline updated at RCA close-out when the FRI form failed to capture the defect |
 
+> **v3.6 (2026-11-12):** live Supplier CAPA — **Step 7b rewritten** to match the IQS output:
+> - built only from the open findings at export (no template content, no fixed rows or photo limit);
+> - produced only when a supplier action exists (NC- or supplier responsibility; RG- on the same checkpoint travels with its NC-);
+> - status banner with shipment status and reasons;
+> - one action row per checkpoint group: finding IDs + severity, measured values, required action, document evidence lines;
+> - all linked report photos, three per row, each once;
+> - supplier response table;
+> - order line, footer and file name without empty parts.
+>
+> Finding IDs are now shown to the supplier (reference format); QS-only actions and Ally-internal matters still are not.
 > **v3.5 (2026-11-11):** standards live check — new **Step 3f**: every standard / edition cited (report, QC Pack / ARENA FRI Standard / FRI template, DoP / DoC / CE label / IM, test methods, ISO 2859-1) is checked per rulebook §4.2 and given a status CURRENT / PASS-COEX / WATCH / BLOCKED / SoA / UNVERIFIED (never from memory); finding table (F- Minor for the inspector's wrong edition, RG- for out-of-date requirement documents, OB- for DoP / label editions, WATCH-only tests and SoA older editions; UNVERIFIED never blocks); dated Standards check table in the Validation Assessment and the reply; precedence line and Step 3d edition row point to Step 3f. Aligned with the IQS FRI page and the tcf-status-action-plan skill.
 > **v3.4 (2026-11-11):** order of work — the FRI report is read first and its values stay as stated; the provided documents (P.O. / P.I. › master file) are the reference it is compared with; report qty not stated → finding; a "Packaging method per item" table (FRI report × P.O. / P.I. × artwork, status per item) in the Validation Assessment.
 > **v3.3 (2026-11-11):** source priority — P.O. / P.I. and artwork provided first, master file only for what they do not give (per line, source stated; differences → OB- to update the master file); packaging method per item from the P.O. / P.I. and the artwork; packaging conflicts P.O. / P.I. ↔ artwork → RG-, report ↔ P.O. / P.I. → F- Major (CP2).
