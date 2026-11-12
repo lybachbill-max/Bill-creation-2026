@@ -2339,6 +2339,21 @@ function friDocxHtml(xml){
 async function friViewFile(i){
   const row = (window._friFileRows || [])[i]; if (!row) return;
   const blob = await friIdbGet(row.key);
+  // Computer file: open the ORIGINAL file unchanged — PDF / pictures / text in a new browser tab (browser's own viewer),
+  // Word / Excel / other formats handed to their own app via the browser download. The phone link (new tabs blocked)
+  // keeps the in-page viewer below, with "Save a copy" for the original.
+  if (blob && typeof blob !== 'string' && !window.iqsToast) {
+    const ext0 = (row.name.split('.').pop() || '').toLowerCase();
+    const MIME = { pdf:'application/pdf', png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif', webp:'image/webp', bmp:'image/bmp', txt:'text/plain', csv:'text/plain' };
+    if (MIME[ext0]) {
+      const u = URL.createObjectURL(blob.type === MIME[ext0] ? blob : new Blob([blob], { type: MIME[ext0] }));
+      const w = window.open(u, '_blank'); setTimeout(() => URL.revokeObjectURL(u), 300000);
+      if (w) return;                                   // pop-up blocked → fall through to the download
+    }
+    friDownload(blob, row.name);
+    const m = g('fri-import-msg'); if (m) m.textContent = `${row.name}: original file opened — ${MIME[ext0] ? 'new tab' : 'see your downloads (opens in ' + (/^xls/.test(ext0) || ext0 === 'xlsm' ? 'Excel' : /^doc/.test(ext0) ? 'Word' : 'its own app') + ')'}.`;
+    return;
+  }
   let ov = g('fri-viewer'); if (ov) ov.remove();
   ov = document.createElement('div'); ov.id = 'fri-viewer'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', row.name);
   ov.innerHTML = `<div class="fv-bar"><div class="fv-t">${friX(row.name)}</div><button type="button" class="btn btn-d btn-sm" id="fv-save">Save a copy</button><button type="button" class="btn btn-p btn-sm" id="fv-close">Close</button></div><div class="fv-body" id="fv-body"><div class="fv-msg">Opening…</div></div>`;
