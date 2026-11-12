@@ -3617,28 +3617,33 @@ async function friExportCapa(){
   const tbl = (grid, rows) => `<w:tbl><w:tblPr><w:tblW w:w="${W}" w:type="dxa"/><w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid>${grid.map(w => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>${rows.join('')}</w:tbl>`;
   let b = '';
   b += `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="8" w:space="4" w:color="4F81BD"/></w:pBdr><w:spacing w:before="60" w:after="160" w:line="240" w:lineRule="auto"/></w:pPr>${run('Supplier corrective action request', { b:true, sz:58, sp:5 })}</w:p>`;
-  b += para(`${ally} / ${supShort}  •  ${ref}${product ? '  •  ' + product : ''}`, { after:120 });
+  b += para([[ally, supShort].filter(Boolean).join(' / '), ref, product].filter(Boolean).join('  •  '), { after:120 });
   b += para(`Please return the completed response and supporting records to the responsible Quality Supervisor (QS) before release review. QS will confirm the response deadline and disposition. Inspection date ${fmt(v.inspDate) || '—'}.${fu.etd || fu.realEtd ? ` ${ref.startsWith('PI') ? 'PI' : 'PO'} ETD ${fmt(fu.realEtd || fu.etd)}.` : ''}`, { after:200 });
+  { const c = friCompute(v), blocked = /BLOCKED/.test(c.ship || ''), col = blocked ? 'C00000' : /WITHHELD/.test(c.ship || '') ? 'B45F06' : '2E7D32';
+    b += `<w:p><w:pPr><w:shd w:val="clear" w:color="auto" w:fill="${blocked ? 'FDECEA' : 'FFF4E5'}"/><w:spacing w:before="60" w:after="140"/></w:pPr>${run('Shipment status: ' + (c.ship || '—'), { b:true, color: col, sz:22 })}${(c.reasons || []).length ? run(' — ' + c.reasons.join('; '), { color: col, sz:20 }) : ''}</w:p>`; }
   const rows = [`<w:tr><w:trPr><w:tblHeader/></w:trPr>${tc(C1, cp('Action', { b:true, color:'FFFFFF' }), NAVY)}${tc(W - C1, cp('Required response and closure evidence', { b:true, color:'FFFFFF' }), NAVY, 3)}</w:tr>`];
-  groups.forEach((gr, k) => {
-    const ids = gr.items.map(f => f.ref).join(' / '), cpN = (String(gr.items[0].cp || '').toUpperCase().match(/CP(\d+)/) || [])[1];
+  const seen = new Set(), spans = [[C1 + C2, 2], [C3, 1], [C3, 1]];
+  const sevOf = f => f.type === 'NC' ? (f.sev && f.sev !== '—' ? f.sev + ' nonconformance' : 'Nonconformance') : f.type === 'RG' ? 'Requirement to confirm' : f.type === 'OB' ? 'Observation' : (f.sev && f.sev !== '—' ? f.sev : 'Finding');
+  for (let k = 0; k < groups.length; k++) {
+    const gr = groups[k], ids = gr.items.map(f => f.ref).join(' / '), cpN = (String(gr.items[0].cp || '').toUpperCase().match(/CP(\d+)/) || [])[1];
     const topic = cpN ? FRI_CPS[+cpN - 1][1] : 'Follow-up', fill = k % 2 ? 'FFFFFF' : BAND;
-    const text = gr.items.map(f => [f.title, f.action].filter(Boolean).join(' ')).join(' ').replace(/\s+/g, ' ').trim()
-      + ' Identify the affected lots and quantities, record containment and correction, and submit traceable evidence (photos, counts, re-verification records). Explain the cause and the preventive action.';
-    rows.push(`<w:tr>${tc(C1, cp(ids) + cp(topic), fill)}${tc(W - C1, cp(text), fill, 3)}</w:tr>`);
-  });
-  // photo row inside the action table: the report's own photos linked to these findings (max 3)
-  const seen = new Set(), photos = [];
-  for (const gr of groups) for (const f of gr.items) for (const r of (f.refs || []).filter(r => r.kind === 'photo' && !r.doc)) { if (photos.length >= 3 || seen.has(r.key)) continue; const u = await friImgGet(r.key); if (!u) continue; seen.add(r.key); photos.push({ u, r }); }
-  if (photos.length) {
-    const spans = [[C1 + C2, 2], [C3, 1], [C3, 1]];
-    const cells = photos.map(({ u, r }, k) => { imgId++; const rid = 'rIdCapa' + imgId; media.push({ rid, name: `capa${imgId}.jpeg`, data: friB64(u) });
-      const num = (String(r.label).match(/image(\d+)/i) || [])[1], cap = String(r.label).replace(/^Report photo [^—]*—\s*/, '').replace(/^Photo:\s*/i, '').trim();
-      const cx = Math.round(2.05 * 914400), cy = Math.round(cx * (r.h || 3) / (r.w || 4));
-      const drawing = friDocxImg(rid, 200 + imgId, r.w, r.h).replace(/cx="\d+" cy="\d+"/g, `cx="${cx}" cy="${cy}"`).replace(/<w:r><w:t xml:space="preserve">  <\/w:t><\/w:r>$/, '');
-      return tc(spans[k][0], `<w:p><w:pPr><w:spacing w:before="60" w:after="40"/></w:pPr>${drawing}</w:p>` + cp(`Photo ${num || imgId} · ${cap.charAt(0).toUpperCase() + cap.slice(1)}${/[.!?]$/.test(cap) ? '' : '.'}`, { b:true, sz:17 }), 'FFFFFF', spans[k][1] > 1 ? spans[k][1] : 0); });
-    while (cells.length < 3) cells.push(tc(spans[cells.length][0], cp(''), 'FFFFFF', spans[cells.length][1] > 1 ? spans[cells.length][1] : 0));
-    rows.push(`<w:tr>${cells.join('')}</w:tr>`);
+    const lines = gr.items.map(f => `${f.ref} · ${sevOf(f)}: ` + [f.title, f.action].filter(Boolean).map(t => String(t).trim()).map((t, n, arr) => n < arr.length - 1 && !/[.!?:;]$/.test(t) ? t + '.' : t).join(' ').replace(/\s+/g, ' ').trim());
+    const evid = [...new Set(gr.items.flatMap(f => (f.refs || []).filter(r => r.kind !== 'photo').map(r => `${r.kind === 'master' ? 'Master file' : r.label}${r.excerpt ? ': ' + String(r.excerpt).replace(/\s+/g, ' ').slice(0, 180) : ''}`)))];
+    const text = lines.join('\n') + (evid.length ? '\nEvidence: ' + evid.join(' · ') : '')
+      + '\nIdentify the affected lots and quantities, record containment and correction, and submit traceable evidence (photos, counts, re-verification records). Explain the cause and the preventive action.';
+    rows.push(`<w:tr><w:trPr><w:cantSplit/></w:trPr>${tc(C1, cp(ids) + cp(topic), fill)}${tc(W - C1, cp(text), fill, 3)}</w:tr>`);
+    // the report's own photos linked to this action, three per row, each photo once
+    const photos = [];
+    for (const f of gr.items) for (const r of (f.refs || []).filter(r => r.kind === 'photo' && !r.doc)) { if (seen.has(r.key)) continue; const u = await friImgGet(r.key); if (!u) continue; seen.add(r.key); photos.push({ u, r }); }
+    for (let p0 = 0; p0 < photos.length; p0 += 3) {
+      const cells = photos.slice(p0, p0 + 3).map(({ u, r }, q) => { imgId++; const rid = 'rIdCapa' + imgId; media.push({ rid, name: `capa${imgId}.jpeg`, data: friB64(u) });
+        const num = (String(r.label).match(/image(\d+)/i) || [])[1], cap = String(r.label).replace(/^Report photo [^—]*—\s*/, '').replace(/^Photo:\s*/i, '').trim();
+        const cx = Math.round(2.05 * 914400), cy = Math.round(cx * (r.h || 3) / (r.w || 4));
+        const drawing = friDocxImg(rid, 200 + imgId, r.w, r.h).replace(/cx="\d+" cy="\d+"/g, `cx="${cx}" cy="${cy}"`).replace(/<w:r><w:t xml:space="preserve">  <\/w:t><\/w:r>$/, '');
+        return tc(spans[q][0], `<w:p><w:pPr><w:spacing w:before="60" w:after="40"/></w:pPr>${drawing}</w:p>` + cp(`Photo ${num || imgId} · ${cap.charAt(0).toUpperCase() + cap.slice(1)}${/[.!?]$/.test(cap) ? '' : '.'}`, { b:true, sz:17 }), 'FFFFFF', spans[q][1] > 1 ? spans[q][1] : 0); });
+      while (cells.length < 3) cells.push(tc(spans[cells.length][0], cp(''), 'FFFFFF', spans[cells.length][1] > 1 ? spans[cells.length][1] : 0));
+      rows.push(`<w:tr><w:trPr><w:cantSplit/></w:trPr>${cells.join('')}</w:tr>`);
+    }
   }
   b += tbl([C1, C2, C3, C3], rows);
   b += `<w:p><w:pPr><w:keepNext/><w:spacing w:before="220" w:after="100"/></w:pPr>${run('Supplier response', { b:true, sz:26, color:TEAL })}</w:p>`;
@@ -3646,7 +3651,7 @@ async function friExportCapa(){
   b += tbl([3024, W - 3024], [`<w:tr><w:trPr><w:tblHeader/></w:trPr>${tc(3024, cp('Field', { b:true, color:'FFFFFF' }), NAVY)}${tc(W - 3024, cp('Supplier to complete', { b:true, color:'FFFFFF' }), NAVY)}</w:tr>`,
     ...fields.map((f, k) => `<w:tr><w:trPr><w:trHeight w:val="560"/></w:trPr>${tc(3024, cp(f), k % 2 ? 'FFFFFF' : BAND)}${tc(W - 3024, cp(''), k % 2 ? 'FFFFFF' : BAND)}</w:tr>`)]);
   const rev = +v.rev || 0, today = fmt(new Date().toISOString().slice(0, 10));
-  const blob = friDocx(b, false, media, { header: `A.R.E.N.A.  /  QUALITY ASSURANCE     •     SUPPLIER CAPA REQUEST • REV ${rev}`, footer: `${ally}  /  ${ref}    •    ${today}`,
+  const blob = friDocx(b, false, media, { header: `A.R.E.N.A.  /  QUALITY ASSURANCE     •     SUPPLIER CAPA REQUEST • REV ${rev}`, footer: [ally, ref, today].filter(Boolean).join('    •    '),
     margins: '<w:pgMar w:top="979" w:right="979" w:bottom="893" w:left="979" w:header="490" w:footer="461" w:gutter="0"/>' });
   friDownload(blob, `Supplier_CAPA_${friFileTag(ally)}_${friFileTag(friShortName(v.sup || fu.sup))}_${friFileTag(v.po)}.docx`);
 }
