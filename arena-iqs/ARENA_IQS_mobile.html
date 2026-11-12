@@ -3626,7 +3626,7 @@ async function friExportAnnotated(){
   if (!friCur || !friCur.source) { alert('Import the FRI report (.docx) first.'); return; }
   try {
     const r = await friAnnotatedDocx(friCur), fu = friLotRow(friPos(friCur)[0] || {}) || {};
-    const name = `FRI_Annotated_${friFileTag(friCur.ally || fu.ally)}_${friFileTag(friShortName(friCur.sup || fu.sup))}_${friFileTag(friCur.po)}.docx`;
+    const name = ['FRI_Annotated', friFileTag(friCur.ally || fu.ally), friFileTag(friShortName(friCur.sup || fu.sup)), friFileTag(friCur.po)].filter(Boolean).join('_') + '.docx';
     friDownload(r.blob, name);
     const m = g('fri-import-msg'); if (m) m.textContent = `Annotated report: ${r.comments} comment(s) added to the original — ${name}`;
   } catch(e) { alert(e.message); }
@@ -3705,7 +3705,7 @@ async function friExportCapa(){
   const rev = +v.rev || 0, today = fmt(new Date().toISOString().slice(0, 10));
   const blob = friDocx(b, false, media, { header: `A.R.E.N.A.  /  QUALITY ASSURANCE     •     SUPPLIER CAPA REQUEST • REV ${rev}`, footer: [ally, ref, today].filter(Boolean).join('    •    '),
     margins: '<w:pgMar w:top="979" w:right="979" w:bottom="893" w:left="979" w:header="490" w:footer="461" w:gutter="0"/>' });
-  friDownload(blob, `Supplier_CAPA_${friFileTag(ally)}_${friFileTag(friShortName(v.sup || fu.sup))}_${friFileTag(v.po)}.docx`);
+  friDownload(blob, ['Supplier_CAPA', friFileTag(ally), friFileTag(friShortName(v.sup || fu.sup)), friFileTag(v.po)].filter(Boolean).join('_') + '.docx');
 }
 
 </script>
