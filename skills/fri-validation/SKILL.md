@@ -596,7 +596,7 @@ Save as `<original file name>_ANNOTATED.docx` (Rev.n suffix on re-issue), e.g. `
 ```bash
 cp /home/claude/FRI_Validation_PO[PO#]_[YYYYMMDD].docx /mnt/user-data/outputs/
 cp "/home/claude/<original file name>_ANNOTATED.docx" /mnt/user-data/outputs/
-cp /home/claude/Supplier_CAPA_Request_PO[PO#].docx /mnt/user-data/outputs/   # when Step 7b applies
+cp /home/claude/Supplier_CAPA_<ALLY>_<SUPPLIER>_<PO>.docx /mnt/user-data/outputs/   # when Step 7b applies (unknown parts dropped)
 ```
 
 Present all Word deliverables together (`present_files` / the session's file-delivery tool). **Word files only. Do not deliver PDF renderings** (they are for internal render checks only), unless the user asks for a PDF.
