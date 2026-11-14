@@ -2055,7 +2055,7 @@ button.bk-nc.fri-out{border:0;border-left:4px solid var(--bd);font:inherit;color
 <!-- ════════════ FRI VALIDATION REPORT (replaces Final Inspection Booking · consolidated v70.2, 10 Nov 2026) ════════════
      Rules from the fri-validation skill v2.9: CP1–CP10 compliance matrix, finding types F- / NC- / RG- / OB-,
      finding-pattern library #1–#26, verdict + independent shipment status, AQL Ac/Re per ISO 2859-1 (Tables 1 & 2-A),
-     requirement coverage (Step 3e). The Word deliverables (annotated report, supplier CAPA) stay with the skill. -->
+     requirement coverage (Step 3e). The Word deliverables: Annotated FRI report (IQA comments), Corrected FRI report (fri-validate-correct: corrections in place + notes in the cells) and Supplier CAPA. -->
 <style>
 #page-fri-val .fri-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:10px 14px}
 #page-fri-val .fri-grid label{display:block;margin-bottom:3px}
@@ -2286,6 +2286,7 @@ function friAqlCheck(v){
       if (a.rep === 'Pass') out.issues.push({ anchor: 'Total Defectives Found', pattern:2, cp:'CP6', sev:'Critical', title:'AQL defects found > Ac but the report states AQL Pass', action:'Correct the AQL result in the report.', resp:'QC' });
     }
   }
+  out.use = use;   // Ac/Re plan of the sample really inspected (used by the corrected report)
   out.rows.push(['AQL verdict (recomputed)', out.aqlVerdict || (fCr == null && fMa == null && fMi == null ? 'cannot recompute — defects found not recorded' : '—'), a.rep ? `report states: ${a.rep}` : '']);
   return out;
 }
@@ -2468,7 +2469,7 @@ function friRenderKpis(){
     : 'No supplier action in the findings (no NC-, no supplier responsibility)';
   el.innerHTML = `<div class="fri-out-head"><span>${who}</span>${v ? `<span class="tag ${shipCls}">${friX(ship || 'Not assessed')}</span>` : ''}</div>` +
     card('nc-soon', '📝', 'Annotated FRI report (.docx)', 'Báo cáo FRI có chú thích IQA', annSub, isDocx, 'friExportAnnotated') +
-    card('nc-urgent', '✏️', 'Corrected FRI report (.docx)', 'Báo cáo FRI đã hiệu chỉnh', !v ? 'Open or import a validation first' : isDocx ? `Original report with the IQA corrections in place (old value struck, corrected value in red) · ${open} open finding(s)` : 'Needs the original Word (.docx) report', isDocx, 'friExportCorrected') +
+    card('nc-urgent', '✏️', 'Corrected FRI report (.docx)', 'Báo cáo FRI đã hiệu chỉnh + ghi chú', !v ? 'Open or import a validation first' : isDocx ? `Original report, photos kept · corrections in place (old value struck, corrected value in red) + ${open} open finding(s) as notes in the cells (► TO BE COMPLETED / TO BE CONFIRMED / INFO)` : 'Needs the original Word (.docx) report', isDocx, 'friExportCorrected') +
     card(groups.length ? 'nc-overdue' : 'nc-ok', '📮', 'Supplier CAPA (.docx)', 'Yêu cầu CAPA gửi nhà cung cấp', capaSub, !!groups.length, 'friExportCapa');
 }
 // ── Print (validation assessment summary) ──
@@ -3633,7 +3634,7 @@ function friOrderItems(v){
 
 </script>
 <script>
-// ═════════════ FRI deliverables: Annotated FRI report (original .docx + IQA comments) and Supplier CAPA (.docx) ═════════════
+// ═════════════ FRI deliverables: Annotated FRI report (IQA Word comments), Corrected FRI report (original corrected in place + notes in the cells, fri-validate-correct) and Supplier CAPA (.docx) ═════════════
 // Format of the reference outputs (JUMBO / Thiên Minh PI 7212146930): comments by "IQA Review", one per place in the report,
 // "ID / ID. finding + evidence required"; summary on "Overall Result"; CAPA = title, subtitle, instructions, Action table,
 // photo row, Supplier response table, header "A.R.E.N.A. / QUALITY ASSURANCE • SUPPLIER CAPA REQUEST • REV n".
@@ -3641,11 +3642,6 @@ const FRI_CP_ANCHOR = { CP1:'quantity', CP2:'packing', CP3:'artwork', CP4:'sampl
 const friSq = t => String(t || '').toLowerCase().replace(/[^a-z0-9.%]/g, '');
 function friShortName(s){ return String(s || '').replace(/\b(production|trading|export|import|co\.?|ltd\.?|company|jsc|sdn|bhd|corp(oration)?|limited|manufacturing|industr(y|ies))\b/gi, ' ').replace(/[,.]/g, ' ').trim().split(/\s+/).slice(0, 2).join(' '); }
 function friFileTag(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, ''); }
-function friCommentText(group){
-  const ids = group.map(f => f.ref).join(' / ');
-  const body = group.map(f => [f.title, f.action].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim()).join(' ');
-  return `${ids}. ${body}`;
-}
 function friRecommendation(v){
   const c = friCompute(v), open = v.findings.filter(f => f.status !== 'Closed' && (f.type === 'NC' || f.type === 'RG' || (f.type === 'F' && f.sev !== 'Minor')));
   const ids = open.map(f => f.ref);
@@ -3670,6 +3666,177 @@ function friAnchorIndex(f, paras){
   }
   const ov = txt.findIndex((t, k) => clean[k] && /^overall\s*result/i.test(t.trim()));
   return ov >= 0 ? ov : txt.findIndex((t, k) => clean[k] && t.trim());
+}
+// ── XML helpers for the corrected report ──
+function friParas(doc){ // paragraphs (a paragraph holding a nested paragraph / text box is not used as an anchor)
+  const paras = [], re = /<w:p[ >][\s\S]*?<\/w:p>/g; let m;
+  while ((m = re.exec(doc))) { const x = m[0], inner = x.slice(4); paras.push({ start: m.index, end: m.index + x.length, xml: x, clean: !/<w:p[ >]/.test(inner) && !/txbxContent/.test(x), text: friXmlText(x).replace(/[|\s]+/g, ' ').trim() }); }
+  return paras;
+}
+function friPairs(doc, tag){ // [start, end) of every <tag>…</tag>, nesting respected
+  const re = new RegExp(`<${tag}[ >]|</${tag}>`, 'g'), st = [], out = []; let m;
+  while ((m = re.exec(doc))) { if (m[0][1] === '/') { const s = st.pop(); if (s != null) out.push([s, m.index + m[0].length]); } else st.push(m.index); }
+  return out;
+}
+const friInner = (pairs, a, b) => pairs.filter(p => p[0] <= a && p[1] >= b).sort((x, y) => (x[1] - x[0]) - (y[1] - y[0]))[0] || null;
+function friRowCells(doc, tr, tcs){ // top-level cells of a row
+  const inRow = tcs.filter(c => c[0] > tr[0] && c[1] < tr[1]);
+  return inRow.filter(c => !inRow.some(o => o !== c && o[0] < c[0] && o[1] > c[1]));
+}
+const friTcW = x => +((x.slice(0, 600).match(/<w:tcW w:w="(\d+)"/) || [])[1] || 0);
+function friNoteXml(text){
+  return `<w:p><w:pPr><w:spacing w:before="20" w:after="20"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="C00000"/><w:sz w:val="15"/><w:szCs w:val="15"/><w:highlight w:val="yellow"/></w:rPr><w:t xml:space="preserve">${friX('► ' + text)}</w:t></w:r></w:p>`;
+}
+function friNotePrefix(f){
+  if (f.type === 'OB') return 'INFO: ';
+  if (/\b(missing|blank|not recorded|not stated|not given|absent|no photo|not done|not tested|without|empty|not filled|incomplete)\b/i.test(`${f.title} ${f.action || ''}`)) return 'TO BE COMPLETED: ';
+  return 'TO BE CONFIRMED: ';
+}
+function friSetCellText(cellXml, text){ // first <w:t> gets the text, the others are emptied (photos untouched)
+  let k = 0;
+  const x = cellXml.replace(/<w:t(?: [^>]*)?>[\s\S]*?<\/w:t>|<w:t\/>/g, () => k++ === 0 ? `<w:t xml:space="preserve">${friX(text)}</w:t>` : '<w:t></w:t>');
+  return k ? x : cellXml;
+}
+// Where a note for paragraph p goes: right after p, or — when p sits in a narrow number cell — at the end of the widest cell of its row
+function friNoteSpot(doc, p, tcs, trs){
+  const tc = friInner(tcs, p.start, p.end);
+  if (tc) {
+    const narrow = friTcW(doc.slice(tc[0], tc[1])) && friTcW(doc.slice(tc[0], tc[1])) < 2200, numeric = /^[\d\s.,%:/-]*$/.test(p.text);
+    if (narrow || numeric) {
+      const tr = friInner(trs, tc[0], tc[1]);
+      if (tr) {
+        const cells = friRowCells(doc, tr, tcs);
+        const wide = cells.slice().sort((a, b) => friTcW(doc.slice(b[0], b[1])) - friTcW(doc.slice(a[0], a[1])))[0];
+        if (wide && wide !== tc) return wide[1] - '</w:tc>'.length;
+      }
+    }
+  }
+  return p.end;
+}
+async function friCorrectedDocx(v){
+  const src = v.source || {};
+  if (!src.fileKey || !/^docx?m?$/i.test(src.ext || '')) throw new Error('The corrected report needs the original Word (.docx) report. Import the .docx report (the original file with its photos) in this browser.');
+  const blob = await friIdbGet(src.fileKey); if (!blob || typeof blob === 'string') throw new Error('The original report file is not stored in this browser — import the .docx report again.');
+  const z = await friUnzip(await blob.arrayBuffer()), parts = {};
+  for (const n of z.names) parts[n] = await z.read(n);
+  const dec = n => new TextDecoder().decode(parts[n]);
+  let doc = dec('word/document.xml');
+  const fixes = [], spotNotes = [];   // spotNotes: [label regex, text] — INFO notes for in-place corrections
+
+  // ── 1. corrections in place ──
+  const rowAfter = (labelRx) => { // value cells of the row whose first cell starts with the label
+    const paras = friParas(doc), tcs = friPairs(doc, 'w:tc'), trs = friPairs(doc, 'w:tr');
+    const p = paras.find(q => q.clean && labelRx.test(q.text)); if (!p) return null;
+    const tc = friInner(tcs, p.start, p.end); if (!tc) return null;
+    const tr = friInner(trs, tc[0], tc[1]); if (!tr) return null;
+    const cells = friRowCells(doc, tr, tcs), i = cells.findIndex(c => c[0] === tc[0]);
+    return i < 0 ? null : cells.slice(i + 1).filter(c => !/<w:tbl[ >]/.test(doc.slice(c[0], c[1])));
+  };
+  const cellText = c => friXmlText(doc.slice(c[0], c[1])).replace(/[|\s]+/g, ' ').trim();
+  const putCell = (c, text) => { doc = doc.slice(0, c[0]) + friSetCellText(doc.slice(c[0], c[1]), text) + doc.slice(c[1]); };
+  // Defectives Accepted = Ac of the sample actually inspected (ISO 2859-1 Table 2-A)
+  let aq = null; try { aq = friAqlCheck(v); } catch(e) {}
+  if (aq && aq.use) {
+    const cells = rowAfter(/^defectives\s*accepted/i);
+    if (cells && cells.length >= 3) {
+      const want = ['0', String(aq.use.ma.ac), String(aq.use.mi.ac)], had = cells.slice(0, 3).map(cellText);
+      if (had.some((h, k) => h.replace(/\s/g, '') !== want[k])) {
+        for (let k = 2; k >= 0; k--) putCell(cells[k], want[k]);   // right to left: earlier offsets stay valid
+        const t = `Defectives Accepted corrected from ${had.map(h => h || '—').join(' / ')} to ${want.join(' / ')} — Ac of n ${aq.use.ma.n} (Major ${v.aql.aqlMa}) / n ${aq.use.mi.n} (Minor ${v.aql.aqlMi}), ISO 2859-1 Table 2-A.`;
+        fixes.push(t); spotNotes.push([/^defectives\s*accepted/i, 'INFO: ' + t]);
+      }
+    }
+  }
+  // Inspection date → dd/mm/yyyy (only re-formatted when it is the same date; a different date becomes a note)
+  if (v.inspDate) {
+    const cells = rowAfter(/^inspection\s*date/i);
+    if (cells && cells.length) {
+      const had = cellText(cells[0]), iso = typeof iqsDate === 'function' ? iqsDate(had.replace(/\s+/g, '')) : '';
+      const want = v.inspDate.slice(8, 10) + '/' + v.inspDate.slice(5, 7) + '/' + v.inspDate.slice(0, 4);
+      if (had && had !== want) {
+        if (iso === v.inspDate) { putCell(cells[0], want); fixes.push(`Inspection date ${had} → ${want}`); }
+        else spotNotes.push([/^inspection\s*date/i, `TO BE CONFIRMED: report states ${had}, validation / photo date ${want}.`]);
+      }
+    }
+  }
+
+
+  // ── 1b. IQA value corrections from the findings (f.fix): the wrong value is struck through and the corrected value
+  //        appended in red "→ … (IQA)"; the overall result and the header "Result:" follow the validation verdict ──
+  const RED = 'C00000';
+  const strikeRuns = x => x.replace(/<w:r>(?!<w:rPr>)/g, '<w:r><w:rPr></w:rPr>').replace(/<w:r( [^>]*)?>(\s*)<w:rPr>/g, (m0, a, sp) => `<w:r${a || ''}>${sp}<w:rPr><w:strike/>`);
+  const arrow = to => `<w:r><w:rPr><w:b/><w:color w:val="${RED}"/></w:rPr><w:t xml:space="preserve"> → ${friX(to)} (IQA)</w:t></w:r>`;
+  const applyFix = (xml, fx) => {
+    const re = /<w:tr[ >](?:(?!<w:tr[ >])[\s\S])*?<\/w:tr>/g; let m; const rows = [];
+    while ((m = re.exec(xml))) rows.push({ s: m.index, e: m.index + m[0].length, x: m[0] });
+    for (const r of rows) {
+      if (!new RegExp(fx.row, 'i').test(friXmlText(r.x).replace(/[|\s]+/g, ' ').trim())) continue;
+      const tcs = []; const rt = /<w:tc[ >](?:(?!<w:tc[ >])[\s\S])*?<\/w:tc>/g; let c;
+      while ((c = rt.exec(r.x))) tcs.push({ s: c.index, e: c.index + c[0].length, x: c[0], t: friXmlText(c[0]).replace(/[|\s]+/g, ' ').trim() });
+      const want = String(fx.from || '').replace(/\s+/g, ' ').trim().toLowerCase(), cand = tcs.filter(q => want && q.t.toLowerCase().startsWith(want));
+      const tc = fx.last ? cand[cand.length - 1] : cand[0]; if (!tc) continue;
+      const lastP = tc.x.lastIndexOf('</w:p>'), nx = strikeRuns(tc.x.slice(0, lastP)) + arrow(fx.to) + tc.x.slice(lastP);
+      return { xml: xml.slice(0, r.s) + r.x.slice(0, tc.s) + nx + r.x.slice(tc.e) + xml.slice(r.e), done: true };
+    }
+    return { xml, done: false };
+  };
+  const openF = v.findings.filter(f => f.status !== 'Closed'), missed = [];
+  openF.forEach(f => (f.fix || []).forEach(fx => { const r = applyFix(doc, fx); if (r.done) { doc = r.xml; fixes.push(`${f.ref}: ${fx.from} → ${fx.to}`); } else missed.push(`${f.ref}: ${fx.from}`); }));
+  const verdict = openF.some(f => f.type === 'NC') ? 'Failed' : (openF.length ? 'Pending' : 'Passed');
+  const fixPara = (xml, rx) => { const re = /<w:p[ >](?:(?!<w:p[ >])[\s\S])*?<\/w:p>/g; let m, armed = false;
+    while ((m = re.exec(xml))) { const tx = friXmlText(m[0]).replace(/[|\s]+/g, ' ').trim();
+      if (rx.test(tx) && !/\b(Pending|Passed|Failed)\b/i.test(tx.replace(rx, ''))) { armed = true; continue; }
+      if (armed && !tx) continue;
+      if (rx.test(tx) || (armed && /^(Pending|Passed|Failed)\b/i.test(tx))) {
+        const cur = (tx.match(/\b(Pending|Passed|Failed)\b/i) || [])[1] || ''; if (cur.toLowerCase() === verdict.toLowerCase()) return xml;
+        const x = m[0], last = x.lastIndexOf('</w:p>');
+        const nx = x.slice(0, last).replace(/(<w:r(?: [^>]*)?>)((?:(?!<\/w:r>)[\s\S])*?<w:t[^>]*>)([^<]*\b(Pending|Passed|Failed)\b[^<]*)/g, (a, r0, mid, tx2) => strikeRuns(r0 + mid) + tx2) + arrow(verdict) + x.slice(last);
+        fixes.push(`Result ${cur || '—'} → ${verdict}`); return xml.slice(0, m.index) + nx + xml.slice(m.index + x.length); }
+      if (armed) return xml; }
+    return xml; };
+  doc = fixPara(doc, /^Overall\s*Result\s*:?/i);
+  Object.keys(parts).filter(n => /^word\/header\d*\.xml$/.test(n)).forEach(n => { parts[n] = new TextEncoder().encode(fixPara(dec(n), /^Result\s*:/i)); });
+  // ── 2. notes inside the cells (re-parsed after the corrections) ──
+  const paras = friParas(doc), tcs = friPairs(doc, 'w:tc'), trs = friPairs(doc, 'w:tr'), ins = [];
+  const open = v.findings.filter(f => f.status !== 'Closed');
+  open.forEach(f => {
+    const i = friAnchorIndex(f, paras); if (i < 0) return;
+    ins.push({ pos: friNoteSpot(doc, paras[i], tcs, trs), text: `${friNotePrefix(f)}${f.ref} ${String(f.title || '').trim()}${f.action ? ' → ' + String(f.action).trim() : ''}`.replace(/\s+/g, ' ') });
+  });
+  spotNotes.forEach(([rx, t]) => { const p = paras.find(q => q.clean && rx.test(q.text)); if (p) ins.push({ pos: friNoteSpot(doc, p, tcs, trs), text: t }); });
+  const ov = paras.find(p => p.clean && /^overall\s*result/i.test(p.text));
+  if (ov) ins.push({ pos: friNoteSpot(doc, ov, tcs, trs), text: 'INFO: ' + friRecommendation(v), first: true });
+  // consolidated open items just before "End report" (or at the end of the body)
+  const endP = paras.filter(p => /end\s*(of\s*)?report/i.test(p.text) && p.text.length < 60).pop();
+  const endPos = endP ? endP.start : doc.lastIndexOf('<w:sectPr');
+  if (open.length && endPos > 0) {
+    const head = `<w:p><w:pPr><w:keepNext/><w:spacing w:before="120" w:after="40"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="18"/></w:rPr><w:t xml:space="preserve">${friX(`Open items — IQA validation ${v.ref || ''}${v.rev ? ' Rev.' + v.rev : ''} (${open.length})`)}</w:t></w:r></w:p>`;
+    ins.push({ pos: endPos, xml: head + open.map(f => friNoteXml(`${friNotePrefix(f)}${f.ref} ${String(f.title || '').trim()}`.replace(/\s+/g, ' '))).join(''), last: true });
+  }
+  // insert from the end of the document to the start; at one position keep the reading order
+  ins.forEach((n, k) => n.k = k);
+  ins.sort((a, b) => b.pos - a.pos || (a.first ? 1 : 0) - (b.first ? 1 : 0) || b.k - a.k);
+  ins.forEach(n => { doc = doc.slice(0, n.pos) + (n.xml || friNoteXml(n.text)) + doc.slice(n.pos); });
+
+  const enc = s => new TextEncoder().encode(s);
+  parts['word/document.xml'] = enc(doc);
+  const order = ['[Content_Types].xml', ...Object.keys(parts).filter(n => n !== '[Content_Types].xml')];
+  const out = friZip(order.map(n => [n, parts[n]]));
+  return { blob: out, notes: ins.filter(n => !n.last).length, open: open.length, fixes, missed, verdict };
+}
+async function friExportCorrected(){
+  if (!friCur || !friCur.source) { alert('Import the FRI report (.docx) first.'); return; }
+  try {
+    const r = await friCorrectedDocx(friCur), fu = friLotRow(friPos(friCur)[0] || {}) || {};
+    const name = ['FRI_Corrected', friFileTag(friCur.ally || fu.ally), friFileTag(friShortName(friCur.sup || fu.sup)), friFileTag(friCur.po)].filter(Boolean).join('_') + '.docx';
+    friDownload(r.blob, name);
+    const m = g('fri-import-msg'); if (m) m.textContent = `Corrected report: ${r.fixes.length} correction(s) in place, ${r.notes} note(s) in the cells, ${r.open} open item(s) listed before "End report", result ${r.verdict}${r.missed.length ? ' — not placed: ' + r.missed.join('; ') : ''} — ${name}`;
+  } catch(e) { alert(e.message); }
+}
+function friCommentText(group){
+  const ids = group.map(f => f.ref).join(' / ');
+  const body = group.map(f => [f.title, f.action].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim()).join(' ');
+  return `${ids}. ${body}`;
 }
 async function friAnnotatedDocx(v){
   const src = v.source || {};
@@ -3719,80 +3886,6 @@ async function friAnnotatedDocx(v){
   const order = ['[Content_Types].xml', ...Object.keys(parts).filter(n => n !== '[Content_Types].xml')];
   const out = friZip(order.map(n => [n, parts[n]]));
   return { blob: out, comments: comments.length, paras: paras.length };
-}
-// Corrected FRI report (fri-validation Step 7c companion): a copy of the original .docx, format unchanged, with the IQA
-// corrections applied IN PLACE — the wrong value struck through and the corrected value in red (auditable) — a red "►" note
-// under each finding's paragraph, the IQA recommendation under "Overall Result" and an "Open items" list at the end.
-async function friCorrectedDocx(v){
-  const src = v.source || {};
-  if (!src.fileKey || !/^docx?m?$/i.test(src.ext || '')) throw new Error('The corrected report needs the original Word (.docx) report. Import the .docx report (the original file with its photos) in this browser.');
-  const blob = await friIdbGet(src.fileKey); if (!blob || typeof blob === 'string') throw new Error('The original report file is not stored in this browser — import the .docx report again.');
-  const z = await friUnzip(await blob.arrayBuffer()), parts = {};
-  for (const n of z.names) parts[n] = await z.read(n);
-  const dec = n => new TextDecoder().decode(parts[n]), enc = x => new TextEncoder().encode(x);
-  const open = v.findings.filter(f => f.status !== 'Closed');
-  const RED = 'C00000', note = (t, o) => `<w:p><w:pPr><w:spacing w:before="40" w:after="40"/></w:pPr><w:r><w:rPr>${o && o.b === false ? '' : '<w:b/>'}<w:color w:val="${RED}"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr><w:t xml:space="preserve">${friX(t)}</w:t></w:r></w:p>`;
-  const kind = f => f.type === 'NC' ? 'NONCONFORMANCE' : f.type === 'F' ? 'CORRECTION' : 'TO BE CONFIRMED';
-  const sevTxt = f => f.sev && f.sev !== '—' ? ` (${f.sev})` : '';
-  // 1. value corrections inside table rows (innermost <w:tr>): strike the old runs, append the corrected value in red
-  const strikeRuns = x => x.replace(/<w:r>(?!<w:rPr>)/g, '<w:r><w:rPr></w:rPr>').replace(/<w:r( [^>]*)?>(\s*)<w:rPr>/g, (m0, a, sp) => `<w:r${a || ''}>${sp}<w:rPr><w:strike/>`);
-  const applyFix = (xml, fx) => {
-    const re = /<w:tr[ >](?:(?!<w:tr[ >])[\s\S])*?<\/w:tr>/g; let m, done = false, out = xml;
-    const rows = []; while ((m = re.exec(xml))) rows.push({ s: m.index, e: m.index + m[0].length, x: m[0] });
-    for (let k = 0; k < rows.length && !done; k++) {
-      const r = rows[k], txt = friXmlText(r.x).replace(/[|\s]+/g, ' ').trim();
-      if (!new RegExp(fx.row, 'i').test(txt)) continue;
-      const tcs = []; const rt = /<w:tc[ >](?:(?!<w:tc[ >])[\s\S])*?<\/w:tc>/g; let c; while ((c = rt.exec(r.x))) tcs.push({ s: c.index, e: c.index + c[0].length, x: c[0], t: friXmlText(c[0]).replace(/[|\s]+/g, ' ').trim() });
-      const want = String(fx.from || '').replace(/\s+/g, ' ').trim().toLowerCase(), cand = tcs.filter(t => want ? t.t.toLowerCase().startsWith(want) : false);
-      const tc = fx.last ? cand[cand.length - 1] : cand[0]; if (!tc) continue;
-      const lastP = tc.x.lastIndexOf('</w:p>');
-      const nx = strikeRuns(tc.x.slice(0, lastP)) + `<w:r><w:rPr><w:b/><w:color w:val="${RED}"/></w:rPr><w:t xml:space="preserve"> → ${friX(fx.to)} (IQA)</w:t></w:r>` + tc.x.slice(lastP);
-      const nr = r.x.slice(0, tc.s) + nx + r.x.slice(tc.e);
-      out = xml.slice(0, r.s) + nr + xml.slice(r.e); done = true;
-    }
-    return { xml: out, done };
-  };
-  let doc = dec('word/document.xml'), applied = 0, missed = [];
-  open.forEach(f => (f.fix || []).forEach(fx => { const r = applyFix(doc, fx); if (r.done) { doc = r.xml; applied++; } else missed.push(`${f.ref}: ${fx.from}`); }));
-  // overall result (body paragraph) and the header "Result:" — failed when a product NC- is open, else pending
-  const ncOpen = open.some(f => f.type === 'NC'), verdict = ncOpen ? 'Failed' : (open.length ? 'Pending' : 'Passed');
-  const fixPara = (xml, rx) => { const re = /<w:p[ >](?:(?!<w:p[ >])[\s\S])*?<\/w:p>/g; let m, armed = false; while ((m = re.exec(xml))) { const t = friXmlText(m[0]).replace(/[|\s]+/g, ' ').trim();
-      if (rx.test(t) && !/\b(Pending|Passed|Failed)\b/i.test(t.replace(rx, ''))) { armed = true; continue; }   // label alone: the status is in the next paragraph
-      if (armed && !t) continue;
-      if (rx.test(t) || (armed && /^(Pending|Passed|Failed)\b/i.test(t))) {
-      const cur = (t.match(/:\s*(\w+)/) || [])[1] || ''; if (cur.toLowerCase() === verdict.toLowerCase()) return xml;
-      const x = m[0], last = x.lastIndexOf('</w:p>'), nx = x.slice(0, last).replace(/(<w:r(?: [^>]*)?>)((?:(?!<\/w:r>)[\s\S])*?<w:t[^>]*>)([^<]*\b(Pending|Passed|Failed)\b[^<]*)/g, (a, r0, mid, tx) => strikeRuns(r0 + mid) + tx) + `<w:r><w:rPr><w:b/><w:color w:val="${RED}"/></w:rPr><w:t xml:space="preserve"> → ${verdict} (IQA)</w:t></w:r>` + x.slice(last);
-      return xml.slice(0, m.index) + nx + xml.slice(m.index + x.length); } } return xml; };
-  doc = fixPara(doc, /^Overall\s*Result\s*:/i);
-  Object.keys(parts).filter(n => /^word\/header\d*\.xml$/.test(n)).forEach(n => { parts[n] = enc(fixPara(dec(n), /^Result\s*:/i)); });
-  // 2. red notes under each finding's anchor paragraph (same anchors as the annotated report)
-  const paras = []; const pr = /<w:p[ >][\s\S]*?<\/w:p>/g; let pm;
-  while ((pm = pr.exec(doc))) { const x = pm[0], inner = x.slice(4); paras.push({ start: pm.index, end: pm.index + x.length, xml: x, clean: !/<w:p[ >]/.test(inner) && !/txbxContent/.test(x), text: friXmlText(x).replace(/[|\s]+/g, ' ').trim() }); }
-  const groups = new Map();
-  open.forEach(f => { const i = friAnchorIndex(f, paras); if (i < 0) return; if (!groups.has(i)) groups.set(i, []); groups.get(i).push(f); });
-  let ov = paras.findIndex(p => p.clean && /^overall\s*result/i.test(p.text));
-  if (ov >= 0 && !/\b(Pending|Passed|Failed)\b/i.test(paras[ov].text.replace(/^overall\s*result\s*:?/i, ''))) { const nx = paras.findIndex((p, k) => k > ov && k <= ov + 3 && /^(Pending|Passed|Failed)\b/i.test(p.text.replace(/→.*$/, '').trim())); if (nx > 0) ov = nx; }
-  const ins = [...groups.entries()].map(([i, g]) => ({ i, xml: g.map(f => note(`► IQA ${kind(f)}: ${f.ref}${sevTxt(f)} ${f.title}${f.action ? ' → ' + f.action : ''}`)).join('') }));
-  if (ov >= 0) ins.push({ i: ov, xml: note('► INFO: ' + friRecommendation(v)), first: true });
-  ins.sort((a, b) => b.i - a.i || (a.first ? 1 : -1)).forEach(n => { const p = paras[n.i]; doc = doc.slice(0, p.end) + n.xml + doc.slice(p.end); });
-  // 3. open-items list before "End of report" (or at the end of the body)
-  const list = `<w:p><w:pPr><w:spacing w:before="200" w:after="80"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${RED}"/><w:sz w:val="22"/></w:rPr><w:t xml:space="preserve">Open items — IQA validation (${open.length}) · result ${verdict}</w:t></w:r></w:p>`
-    + open.map(f => note(`► ${kind(f)}: ${f.ref}${sevTxt(f)} ${f.title}${f.action ? ' → ' + f.action : ''}`, { b: false })).join('');
-  const endRx = /<w:p[ >](?:(?!<w:p[ >])[\s\S])*?End of report(?:(?!<w:p[ >])[\s\S])*?<\/w:p>/;
-  const em = doc.match(endRx);
-  if (em) doc = doc.replace(endRx, list + em[0]); else doc = doc.replace(/(<w:sectPr[\s\S]*?<\/w:sectPr>\s*<\/w:body>)/, list + '$1');
-  parts['word/document.xml'] = enc(doc);
-  const order = ['[Content_Types].xml', ...Object.keys(parts).filter(n => n !== '[Content_Types].xml')];
-  return { blob: friZip(order.map(n => [n, parts[n]])), applied, missed, notes: open.length, verdict };
-}
-async function friExportCorrected(){
-  if (!friCur || !friCur.source) { alert('Import the FRI report (.docx) first.'); return; }
-  try {
-    const r = await friCorrectedDocx(friCur), fu = friLotRow(friPos(friCur)[0] || {}) || {};
-    const name = ['FRI_Corrected', friFileTag(friCur.ally || fu.ally), friFileTag(friShortName(friCur.sup || fu.sup)), friFileTag(friCur.po)].filter(Boolean).join('_') + '.docx';
-    friDownload(r.blob, name);
-    const m = g('fri-import-msg'); if (m) m.textContent = `Corrected report: ${r.applied} value correction(s) in place, ${r.notes} IQA note(s), result ${r.verdict}${r.missed.length ? ' — not placed: ' + r.missed.join('; ') : ''} — ${name}`;
-  } catch(e) { alert(e.message); }
 }
 async function friExportAnnotated(){
   if (!friCur || !friCur.source) { alert('Import the FRI report (.docx) first.'); return; }
