@@ -1,6 +1,6 @@
 ---
 name: "fri-validation"
-description: "Validate a submitted FRI report against the PO, approved artwork, DoP, the released ARENA FRI Standard checklist (requirement IDs) and any project/Ally protocol, review its photos as evidence, and produce Word deliverables: Validation Assessment, Annotated FRI Report and a live Supplier CAPA Request (built from the open findings: status banner, finding IDs + severity, evidence, all linked photos). Every standard and edition cited (report, QC Pack, FRI template, DoP / DoC / CE label, test methods, ISO 2859-1) is live-checked per the ARENA rulebook (register if verified ≤ 30 days, else OJ / CEN-ISO / GB designated lists) and given a status CURRENT / PASS-COEX / WATCH / BLOCKED / SoA / UNVERIFIED; edition findings follow from it."
+description: "Validate a submitted FRI report against the PO, approved artwork, DoP, the released ARENA FRI Standard checklist (requirement IDs) and any project/Ally protocol, review its photos as evidence, and produce Word deliverables: Validation Assessment, Annotated FRI Report, Corrected FRI Report (corrections in place) and a live Supplier CAPA Request (built from the open findings: status banner, finding IDs + severity, evidence, all linked photos). Every standard and edition cited (report, QC Pack, FRI template, DoP / DoC / CE label, test methods, ISO 2859-1) is live-checked per the ARENA rulebook (register if verified ≤ 30 days, else OJ / CEN-ISO / GB designated lists) and given a status CURRENT / PASS-COEX / WATCH / BLOCKED / SoA / UNVERIFIED; edition findings follow from it. Measurements are judged per value against the report's own tolerances; the inspector's issues table is read in any language."
 ---
 
 # FRI Inspection Report — Validation Assessment Skill
@@ -324,6 +324,43 @@ No standard, edition, OJ citation, coexistence date or regulation date is judged
    - The reply lists the date checked and the sources.
    - A check older than 30 days is re-run before reuse.
 
+### Step 3g — Measurement Table and Inspector Issues (precision rules – lesson JUMBO / VAN HOISEN PO 7211182221)
+
+**Measurement table:**
+- Read every row (Parameter · Specification · Claimed · Finding · Requirement · Result) and compute the deviation of **each value**: spec vs finding, per size (L / M, Big / Medium) and per axis (L × W × H).
+- Judge it against the **report's own tolerances** in CP5:
+  - product dimension: typically ±5 %;
+  - product weight: ±5 % for industrial materials, ±10 % for the natural materials the template lists (wood, rattan, grass, bamboo, terracotta);
+  - packing size: the mm table (≤ 120: ±5 · 120–400: ±10 · 400–1000: ±20 · 1000–2000: ±30 · 2000–3000: ±50 · 3000–5000: ±80);
+  - packing weight: ±10 %.
+- Never use a fixed ±3 %. **Never read a tolerance figure ("+/-5 %") as a measured deviation.**
+- **Material class:** decide it from the product description (e.g. "Acacia wood" → natural). When the material is ambiguous (ceramic, clay, stone): fail only beyond the larger tolerance, and raise an `OB-` "confirm the material class" when the value lies between the two.
+
+**Findings from the measurement table:**
+
+| Situation | Finding |
+|---|---|
+| Value outside tolerance | `NC-`: Major for product dimension / weight, Minor for packing. Title gives each value as "found vs spec (deviation); limit". Evidence = the measurement row + the matching photos (Net weight, Product dimension, Pallet / Packing dimension) |
+| The report says "Within the tolerance" / "Conform" for an out-of-tolerance value | `F-`: Critical if marked Passed (pattern #1), Major if Pending |
+| CP5 summary Passed while a product value is out | `F-` Major |
+
+**Inspector's issues table** ("Issues item | Proposal CAPA"):
+- Every entry is a product finding, in whatever language it is written. Translate the gist, and keep the original text in quotes.
+  - e.g. "Màu khác mẫu … 20%" = colour differs from the approved sample, ≈ 20 % of goods.
+- **Colour differences:** `NC-` Major on CP4, with the issue photos (#1, #2 …) and the golden-sample photos.
+- **Appearance check:** if it is marked Passed ("no obvious colour deviation") while a colour issue is recorded, raise `F-` Major.
+- **Pending checkpoints:** a checkpoint left Pending is concluded by the issue it refers to.
+
+**CP7 on-site tests:**
+- Read the test rows one by one.
+- **Summary N/A while a test row was performed** (e.g. Stability Passed): `F-` Minor "CP7 summary says N/A although … was performed". This is not the Critical "CP7 N/A".
+- **N/A rows without justification:** list them (`F-` Minor).
+- **Assembly check N/A is justified** for one-piece products (no assembly, screws, bolts or kit in the description).
+
+**Artwork for another order:** an artwork / shipping-mark file whose Ally refs do not belong to the report raises `OB-` for QS: confirm the released artwork for this P.O.
+
+**Evidence lines:** never use P.O. / P.I. column-header rows as evidence. Cite the data row itself, once (no duplicates).
+
 ### Step 4 — Classify Findings
 
 **Embedded finding-pattern library (default severities):**
@@ -543,6 +580,25 @@ An `RG-` reaches the supplier only as the physical instruction, e.g. "do not pri
 - no empty separators;
 - headings keep-with-next.
 
+### Step 7d — Generate the Corrected FRI Report (the annotated findings applied in place)
+
+A **copy of the original `.docx`**, with the same format, text and photos as the original. The IQA corrections are applied **in place** so the reader sees the corrected report directly.
+
+1. **Value corrections:** in the cell that is wrong (CP summary results, measurement-table requirement / result, appearance check, CP7 summary), the original run is **struck through** and the corrected value is appended in red: `→ <corrected value> (IQA)`. Examples: `Pending → Failed (colour differs from the sample) (IQA)`; `Within the tolerance → Out of tolerance: M 2.8 kg vs 3.5 kg spec (−20.0 %) (IQA)`.
+2. **Overall result and header "Result:":** struck and corrected to **Failed** when a product `NC-` is open, **Pending** when only report or requirement items are open, **Passed** otherwise. The status word may sit in the paragraph after the "Overall Result:" label; correct it there.
+3. **Notes:** a red bold `► IQA NONCONFORMANCE / CORRECTION / TO BE CONFIRMED: <ID> (<severity>) <finding> → <action>` paragraph under each finding's anchor paragraph (same anchors as the annotated comments). The `► INFO:` IQA recommendation goes under the overall result.
+4. **Open items:** an "Open items — IQA validation (n) · result <verdict>" list before "End of report".
+
+**Never** delete or retype the inspector's original values, and never move or recompress photos.
+
+**Check before delivering:**
+- XML well-formed;
+- the original words and photos all still present;
+- each correction landed in the intended cell (report any that could not be placed);
+- every open finding has its note.
+
+**File:** `FRI_Corrected_<ALLY>_<SUPPLIER>_<PO>.docx` (unknown parts dropped). It is delivered with the Annotated report (comments only) and the Supplier CAPA.
+
 ### Step 7c — Generate the Annotated FRI Report (reviewer comments in the report itself)
 
 Always produce this third deliverable. It is the inspector's report with a Word comment anchored at **each place in the report where a finding was captured**, so the inspector and QS see every `F-`/`NC-` item in context and can correct the report line by line. It complements — never replaces — the Validation Assessment.
@@ -699,6 +755,15 @@ flowchart TD
 | `qsd-qcp` / `qcp-excel-generator` | Requirement source for Step 5.2; updated at RCA close-out when the non-detection branch points to the inspection matrix |
 | `fri-report-template-generator` | **Upstream** — produces the ARENA FRI Standard (template + guideline, document ID `ARENA-FRI-STD-<CAT>-Vx`) and the requirement checklist `.xlsx` that Step 3e applies; checklist and guideline updated at RCA close-out when the FRI form failed to capture the defect |
 
+> **v3.7 (2026-11-14):** precision rules from JUMBO / VAN HOISEN PO 7211182221:
+> - **New Step 3g:**
+>   - measurement deviations computed per value against the report's own tolerances (no fixed ±3 %; tolerance figures are never deviations; natural vs industrial material from the description);
+>   - out-of-tolerance → `NC-` + `F-` for "within tolerance" claims;
+>   - inspector's issues table read in any language (colour vs sample → `NC-` CP4 with issue and golden-sample photos; appearance check Passed → `F-`);
+>   - CP7 rows read one by one (summary N/A while a test was done → `F-` Minor; assembly N/A justified for one-piece products);
+>   - artwork from another order → `OB-`;
+>   - no header-row evidence.
+> - **New Step 7d — Corrected FRI report:** the original with corrections in place (old value struck, corrected value in red with "(IQA)"), overall result and header corrected, red notes per finding, open-items list.
 > **v3.6 (2026-11-12):** live Supplier CAPA — **Step 7b rewritten** to match the IQS output:
 > - built only from the open findings at export (no template content, no fixed rows or photo limit);
 > - produced only when a supplier action exists (NC- or supplier responsibility; RG- on the same checkpoint travels with its NC-);

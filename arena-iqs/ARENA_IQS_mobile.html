@@ -2468,6 +2468,7 @@ function friRenderKpis(){
     : 'No supplier action in the findings (no NC-, no supplier responsibility)';
   el.innerHTML = `<div class="fri-out-head"><span>${who}</span>${v ? `<span class="tag ${shipCls}">${friX(ship || 'Not assessed')}</span>` : ''}</div>` +
     card('nc-soon', '📝', 'Annotated FRI report (.docx)', 'Báo cáo FRI có chú thích IQA', annSub, isDocx, 'friExportAnnotated') +
+    card('nc-urgent', '✏️', 'Corrected FRI report (.docx)', 'Báo cáo FRI đã hiệu chỉnh', !v ? 'Open or import a validation first' : isDocx ? `Original report with the IQA corrections in place (old value struck, corrected value in red) · ${open} open finding(s)` : 'Needs the original Word (.docx) report', isDocx, 'friExportCorrected') +
     card(groups.length ? 'nc-overdue' : 'nc-ok', '📮', 'Supplier CAPA (.docx)', 'Yêu cầu CAPA gửi nhà cung cấp', capaSub, !!groups.length, 'friExportCapa');
 }
 // ── Print (validation assessment summary) ──
@@ -2875,17 +2876,97 @@ function friPreValidate(v){
   // ── CP5: cartons measured, deviation > 3 % ──
   const ctn = all.match(/(\d{1,3})\s*(?:cartons?|ctns?)\s*(?:were\s*)?(?:weighed|measured|checked)/i) || all.match(/(?:cartons?|ctns?)\s*(?:weighed|measured|checked)\s*[:|]?\s*(\d{1,3})/i);
   if (ctn && +ctn[1] < 5) { add({ cp:'CP5', sev:'Major', title:`Only ${ctn[1]} carton(s) weighed / measured (≥5 required).`, action:'Weigh and measure at least 5 cartons.' }); cpIssue('CP5', 'gap'); }
-  const devs = []; lines.filter(l => FRI_CP_KEYS.CP5.kw.test(l)).forEach(l => { (l.match(/[+\-±]?\s?\d+(?:[.,]\d+)?\s?%/g) || []).forEach(p => { const n = Math.abs(parseFloat(p.replace(/[^\d.,-]/g, '').replace(',', '.'))); if (n > 3 && n < 100) devs.push({ l, n }); }); });
-  if (devs.length) {
-    const passed = said('CP5') === 'Passed' || devs.some(d => /pass|ok|conform/i.test(d.l));
-    add({ pattern: passed ? 1 : '', cp:'CP5', sev: passed ? 'Critical' : 'Major', title:`Deviation above ±3% recorded (${devs.slice(0,3).map(d => d.n + '%').join(', ')})${passed ? ' while CP5 is Passed' : ''}.`, action:'Confirm the measurement against the QSD spec; correct the CP5 result.' });
-    add({ type:'NC', cp:'CP5', sev:'Medium', resp:'QC + supplier', title:`Weight / dimension outside ±3% tolerance (${devs[0].n}%).`, action:'Containment: hold the lot; supplier to correct; re-measure.' });
+  // ── CP5: measurement table — spec vs finding, against the report's OWN tolerances (never a fixed ±3 %; tolerance
+  //    figures are requirements, not deviations). Rows: Parameter | Specification | Claimed | Finding | Requirement | Result ──
+  const cellsOf = l => l.split('|').map(c => c.trim());
+  const flat = all.replace(/\s+/g, ' ');
+  const pctOf = re => { const m = flat.match(re); return m ? +m[1] : null; };
+  const tolDim = pctOf(/Product\s*dimension\s*:?\s*tolerance\s*(?:\+\/-|±|\+-)?\s*(\d+(?:\.\d+)?)\s*%/i) ?? 5;
+  const wm = flat.match(/Product\s*weight\s*:?\s*tolerance\s*(?:\+\/-|±|\+-)?\s*(\d+(?:\.\d+)?)\s*%\s*for\s*industrial[^%]*?(?:\+\/-|±|\+-)\s*(\d+(?:\.\d+)?)\s*%\s*for\s*natural\s*materials\s*\(([^)]*)\)/i);
+  const tolWi = wm ? +wm[1] : (pctOf(/Product\s*weight\s*:?\s*tolerance\s*(?:\+\/-|±|\+-)?\s*(\d+(?:\.\d+)?)\s*%/i) ?? 5), tolWn = wm ? +wm[2] : 10;
+  const natural = (wm ? wm[3] : 'wood, rattan, grass, bamboo, terracotta').split(/[,;]/).map(x => x.trim().toLowerCase()).filter(Boolean);
+  const tolPw = pctOf(/Packing\s*weight\s*:?\s*tolerance\s*(?:\+\/-|±|\+-)?\s*(\d+(?:\.\d+)?)\s*%/i) ?? 10;
+  let pkTable = [[120, 5], [400, 10], [1000, 20], [2000, 30], [3000, 50], [5000, 80]];
+  { const sz = lines.find(l => /Packing\s*size\s*\(mm\)/i.test(l)), tl = lines.find(l => /^Tolerance\s*\(mm\)/i.test(l));
+    if (sz && tl) { const up = cellsOf(sz).slice(1).map(c => (c.match(/\d+/g) || []).pop()).filter(Boolean).map(Number), tv = cellsOf(tl).slice(1).map(c => (c.match(/\d+/) || [])[0]).filter(Boolean).map(Number);
+      if (up.length && up.length === tv.length) pkTable = up.map((u, k) => [u, tv[k]]); } }
+  const descTxt = lines.filter(l => /Product\s*description|^\d{6,}\s*\|/i.test(l)).join(' ').toLowerCase() + ' ' + String(v.pf || '').toLowerCase();
+  const isNatural = natural.some(w => w && descTxt.includes(w)), ambiguous = !isNatural && /ceramic|clay|stoneware|earthenware|stone|concrete|cement/.test(descTxt);
+  const numsOf = t => (String(t).match(/\d+(?:[.,]\d+)?/g) || []).map(x => +x.replace(',', '.'));
+  const grp = t => { const g = [...String(t).matchAll(/\b([A-Z]{1,3})\s*:\s*([\d.,]+(?:\s*[x×*]\s*[\d.,]+)*)/g)]; return g.length ? g.map(m => ({ k: m[1], n: numsOf(m[2]) })) : String(t).split('/').map(x => ({ k: '', n: numsOf(x) })).filter(x => x.n.length); };
+  const unit = t => /mm\b/i.test(t) ? 'mm' : /cm\b/i.test(t) ? 'cm' : /kg\b/i.test(t) ? 'kg' : /\dg\b|\d\s+g\b/i.test(t) ? 'g' : /\dm\b/i.test(t) ? 'm' : '';
+  const sgn = x => (x > 0 ? '+' : x < 0 ? '−' : '±') + Math.abs(x).toFixed(1);
+  const MROWS = [
+    { key: /^Product\s*dim(?:ension)?s?\s*:?$/i, name: 'Product dimension', kind: 'pdim', ev: 'Product dimension|Product dim', prod: true },
+    { key: /^Product\s*weight\s*:?$/i, name: 'Product weight', kind: 'pw', ev: 'Net weight|Product weight', prod: true },
+    { key: /^Packing\s*dim(?:ension)?s?\s*:?$/i, name: 'Packing dimension', kind: 'kdim', ev: 'Pallet dimension|Packing dimension|Packing dim', prod: false },
+    { key: /^Packing\s*weight\s*:?$/i, name: 'Packing weight', kind: 'kw', ev: 'GW|Gross weight|Pallet weight|Packing weight', prod: false },
+  ];
+  let dimLabels = null;
+  MROWS.forEach(R => {
+    const line = lines.find(l => R.key.test(cellsOf(l)[0])); if (!line) return;
+    const c = cellsOf(line), spec = c[1] || '', found = c[3] || '', reqTxt = c[4] || '', res = c[5] || '';
+    if (!/\d/.test(spec) || !/\d/.test(found)) return;
+    const gs = grp(spec), gf = grp(found); if (R.kind === 'pdim' && gs.every(x => x.k)) dimLabels = gs.map(x => x.k);
+    const outs = [];
+    gs.forEach((g, gi) => { const h = gf.find(x => g.k && x.k === g.k) || gf[gi]; if (!h) return;
+      const lab = g.k || (dimLabels && dimLabels.length === gs.length ? dimLabels[gi] : (gs.length > 1 ? `#${gi + 1}` : ''));
+      g.n.forEach((sv, ni) => { const fv = h.n[ni]; if (fv === undefined || !sv) return; const dev = (fv - sv) / sv * 100;
+        let lim, limTxt, out;
+        if (R.kind === 'pdim') { lim = tolDim; out = Math.abs(dev) > lim + 1e-9; limTxt = `±${lim}%`; }
+        else if (R.kind === 'pw') { lim = isNatural ? tolWn : tolWi; out = Math.abs(dev) > (ambiguous ? Math.max(tolWi, tolWn) : lim) + 1e-9; limTxt = ambiguous ? `±${tolWi}% industrial / ±${tolWn}% natural` : `±${lim}% ${isNatural ? 'natural' : 'industrial'}`; }
+        else if (R.kind === 'kdim') { const mult = unit(spec) === 'cm' ? 10 : unit(spec) === 'm' ? 1000 : 1, smm = sv * mult, dmm = (fv - sv) * mult; lim = (pkTable.find(([u]) => smm <= u) || pkTable[pkTable.length - 1])[1]; out = Math.abs(dmm) > lim + 1e-9; limTxt = `±${lim} mm`;
+          if (out) outs.push({ lab: [lab, g.n.length === 3 ? ['L', 'W', 'H'][ni] : ''].filter(Boolean).join(' '), sv, fv, u: unit(spec), devTxt: `${dmm > 0 ? '+' : '−'}${Math.abs(Math.round(dmm))} mm`, limTxt }); return; }
+        else { lim = tolPw; out = Math.abs(dev) > lim + 1e-9; limTxt = `±${lim}%`; }
+        if (out) outs.push({ lab, sv, fv, u: unit(spec) || unit(found), devTxt: `${sgn(dev)}%`, limTxt });
+        else if (R.kind === 'pw' && ambiguous && Math.abs(dev) > tolWi) add({ type:'OB', sev:'—', resp:'QS', cp:'CP5', evq: R.ev, title:`${R.name}${lab ? ' ' + lab : ''}: ${fv} vs ${sv} ${unit(spec)} (${sgn(dev)}%) is within ±${tolWn}% (natural) but outside ±${tolWi}% (industrial) — confirm the material class of the product.`, action:'QS: confirm which weight tolerance applies.' });
+      }); });
+    if (!outs.length) return;
+    const what = outs.map(o => `${o.lab ? o.lab + ' ' : ''}${o.fv} ${o.u} vs ${o.sv} ${o.u} spec (${o.devTxt})`).join('; ');
+    const lim = outs[0].limTxt, rowRx = '^' + c[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s*:$/, '');
+    add({ type:'NC', cp:'CP5', sev: R.prod ? 'Major' : 'Minor', resp:'QC + supplier', evq: R.ev, title:`${R.name} out of tolerance: ${what}; limit ${lim} (report's own requirement).`,
+      action: R.prod ? 'Containment: hold the lot; re-measure / re-weigh the affected size on the full sample; supplier to correct to the specification or obtain the Ally\'s written acceptance; re-inspect.' : 'Supplier to correct the pallet / packing to the approved size (container loading plan, shipping mark) or obtain the Ally\'s written acceptance; re-measure.',
+      refs: [{ kind:'data', src:'rule', label:'Measurement table', excerpt: line.slice(0, 200) }],
+      fix: [{ row: rowRx, from: reqTxt, to: `Out of tolerance: ${what} (limit ${lim})` }, ...(/^(passed|pending|ok)/i.test(res) ? [{ row: rowRx, from: res, last: true, to: 'Failed' }] : [])] });
+    if (/within|conform|pass|ok/i.test(reqTxt + ' ' + res)) add({ pattern: /pass/i.test(res) ? 1 : '', cp:'CP5', sev: /pass/i.test(res) ? 'Critical' : 'Major', evq: R.ev,
+      title:`Report states "${reqTxt}"${res ? ' / ' + res : ''} for ${R.name.toLowerCase()} although the measured value is outside tolerance (${what}).`, action:'Inspector: record the deviation and judge it against the stated tolerance; correct the result.',
+      refs: [{ kind:'data', src:'rule', label:'Measurement table', excerpt: line.slice(0, 200) }] });
+    if (R.prod && said('CP5') === 'Passed') add({ cp:'CP5', sev:'Major', evq: 'Measurement data', title:`CP5 Measurement data marked Passed although ${R.name.toLowerCase()} is out of tolerance.`, action:'Correct the CP5 result to Failed.', fix: [{ row: '^5\\.?\\s*Measurement data', from: 'Passed', to: 'Failed' }] });
     cpIssue('CP5', 'nc');
-  } else if (!out.cps.CP5.ev.length) cpIssue('CP5', 'gap');
-  // ── CP7: tests not done ──
-  const nt = lines.filter(l => !friIsSummaryRow(l) && FRI_CP_KEYS.CP7.kw.test(l) && /(not\s*tested|n\/a|not\s*applicable|not\s*done|not\s*performed)/i.test(l));
-  if (nt.length) { add({ pattern:7, cp:'CP7', sev:'Major', title:`On-site test row(s) not tested / N/A without justification: ${nt.slice(0,2).map(l => l.slice(0,60)).join(' · ')}.`, action:'Perform the test at the required special level or record the justification.' }); cpIssue('CP7', 'gap'); }
-  if (said('CP7') === 'N/A' && (v.inspType || 'FRI') === 'FRI') { add({ pattern:7, cp:'CP7', sev:'Critical', title:'CP7 On-site tests marked N/A on a Final Random Inspection.', action:'Perform the department test rows (S3, or S1 outdoor furniture).' }); cpIssue('CP7', 'nc'); }
+  });
+  if (!out.cps.CP5.ev.length) cpIssue('CP5', 'gap');
+  // ── inspector's own issues table ("Issues item | Proposal CAPA"), any language — each issue is a product finding ──
+  {
+    const i0 = lines.findIndex(l => /^Issues\s*item/i.test(l)), iss = [];
+    if (i0 >= 0) for (let k = i0 + 1; k < lines.length && k < i0 + 40; k++) { const l = lines[k]; if (/Table of shipment|^PO#/i.test(l)) break;
+      const m = l.match(/^#\s*(\d+)\s*:?\s*(.*)$/); if (m) { const t = cellsOf(m[2])[0].replace(/\s+/g, ' ').trim(); if (t) iss.push({ n: +m[1], t }); } }
+    const VI = [[/m[àa]u/i, 'colour'], [/kh[áa]c\s*(v[ớo]i\s*)?m[ẫa]u/i, 'differs from the sample'], [/n[ứu]t/i, 'crack'], [/(b[ểe]|v[ỡo])\b/i, 'broken'], [/tr[ầa]y|x[ướu][ớo]c/i, 'scratch'], [/m[ẻe]|s[ứu]t/i, 'chip'], [/b[ẩa]n|d[ơo]\b/i, 'dirty'], [/thi[ếe]u/i, 'missing'], [/k[íi]ch\s*th[ướu][ớo]c/i, 'dimension'], [/nh[ãa]n/i, 'label'], [/m[ãa]\s*v[ạa]ch/i, 'barcode'], [/m[ốo]c/i, 'mould']];
+    const gist = t => { const w = VI.filter(([re]) => re.test(t)).map(x => x[1]); const p = (t.match(/(\d+(?:[.,]\d+)?)\s*%/) || [])[1];
+      const colour = w.includes('colour'); return { colour, text: (colour ? 'colour ' + (w.includes('differs from the sample') ? 'differs from the approved sample' : 'deviation') : (w.join(', ') || 'issue recorded by the inspector')) + (p ? ` (≈${p}% of goods)` : '') }; };
+    const col = iss.filter(x => gist(x.t).colour), oth = iss.filter(x => !gist(x.t).colour);
+    if (col.length) {
+      add({ type:'NC', cp:'CP4', sev:'Major', resp:'QC + supplier', evq: '#\\s*\\d|golden|colou?r', title:`Colour differs from the approved sample — inspector's issue ${col.map(x => `#${x.n} ${gist(x.t).text.replace(/^colour differs from the approved sample\s*/, '')}`).join(', ')}: "${col.map(x => x.t).join('" / "')}". CP4 Sample comparison ${said('CP4') || 'not concluded'}.`,
+        action:'Containment: hold the lot; QS and the Ally to decide on the colour against the golden sample (D65); supplier to sort / re-work or obtain the Ally\'s written acceptance; re-inspect.',
+        fix: /pending|passed/i.test(said('CP4') || '') ? [{ row: '^4\\.?\\s*Sample comparison', from: said('CP4'), to: 'Failed (colour differs from the sample)' }] : [] });
+      const ap = lines.find(l => /^Appearance\s*check/i.test(l) && /colou?r\s*deviation/i.test(l));
+      if (ap && /\|\s*Passed\s*\|?\s*$/i.test(ap)) add({ cp:'CP6', sev:'Major', evq: 'Appearance check|colou?r deviation', title:`Appearance check ("no obvious color deviation") marked Passed although the inspector recorded a colour difference from the sample (issue ${col.map(x => '#' + x.n).join(', ')}).`, action:'Inspector: record the colour deviation in the appearance check and the defect tally; correct the result.', fix: [{ row: '^Appearance\\s*check', from: 'Passed', last: true, to: 'Not confirmed — colour deviation recorded' }] });
+    }
+    oth.forEach(x => add({ type:'NC', cp:'CP6', sev:'Major', resp:'QC + supplier', evq: `#\\s*${x.n}\\b`, title:`Inspector's issue #${x.n}: ${gist(x.t).text} — "${x.t}".`, action:'Containment: hold the affected goods; supplier to sort / rework; QS to define the disposition.' }));
+  }
+  // ── CP7: test rows read one by one; N/A justified when the test cannot apply (no assembly for a one-piece product) ──
+  const TROW = /^(Assembly check|Function test|Stability test|Wobbling check|Smell check|Adhesion test[^|]*|Rubbing test[^|]*|Drop test[^|]*|Load test[^|]*|Static load[^|]*|Strength test[^|]*|Durability test[^|]*|Moisture[^|]*test)\s*\|/i;
+  const trows = lines.filter(l => TROW.test(l)).map(l => { const c = cellsOf(l); return { name: c[0].replace(/\s*\(.*$/, ''), res: [...c].reverse().find(x => /^(Passed|Failed|N\/A|NA|Pending|Not tested|Not done|Not performed)/i.test(x)) || '' }; });
+  const tDone = trows.filter(t => /pass|fail/i.test(t.res)), tNA = trows.filter(t => /^(N\/A|NA|not)/i.test(t.res));
+  const noAssembly = !/assembl|screws?|bolts?|\bkit\b|knock[\s-]*down|\bKD\b|hardware/i.test(descTxt);
+  const tNAq = tNA.filter(t => !(noAssembly && /assembly/i.test(t.name)));
+  if (said('CP7') === 'N/A' && tDone.length) add({ cp:'CP7', sev:'Minor', evq: tDone.map(t => t.name).join('|'), title:`CP7 summary says N/A although ${tDone.map(t => `${t.name} (${t.res})`).join(', ')} was performed.`, action:'Correct the CP7 summary result.', fix: [{ row: '^7\\.?\\s*On-site tests', from: 'N/A', to: `Partly performed — ${tDone.map(t => t.name + ' ' + t.res).join(', ')}` }] });
+  else if (said('CP7') === 'N/A' && (v.inspType || 'FRI') === 'FRI') add({ pattern:7, cp:'CP7', sev:'Critical', title:'CP7 On-site tests marked N/A on a Final Random Inspection and no test row was performed.', action:'Perform the applicable test rows of the FRI template (S3).' });
+  if (tNAq.length) add({ pattern:7, cp:'CP7', sev:'Minor', evq: tNAq.map(t => t.name).join('|'), title:`On-site tests recorded N/A without a justification: ${tNAq.map(t => t.name).join(', ')}${noAssembly && tNA.some(t => /assembly/i.test(t.name)) ? ' (Assembly check N/A accepted — one-piece product)' : ''}.`, action:'Record why each test does not apply to this product, or perform it at S3.' });
+  if (tNAq.length) cpIssue('CP7', 'gap');
+  // ── artwork for another order (Ally refs in the file do not belong to this report) ──
+  { const rr = new Set(all.match(/\b\d\.\d{3}\.\d{3}\b/g) || []);
+    (v.docs || []).filter(d => d.type === 'art').forEach(d => { const dr = [...new Set(((d.name || '') + ' ' + (d.text || '')).match(/\b\d\.\d{3}\.\d{3}\b/g) || [])];
+      if (dr.length && rr.size && !dr.some(x => rr.has(x))) add({ type:'OB', sev:'—', resp:'QS', cp:'CP3', title:`Artwork file "${d.name}" refers to ${dr.join(' / ')}, not to this order's ${[...rr].join(' / ')} — confirm the released artwork for this P.O.`, action:'QS: confirm the correct released artwork (shipping mark) for this P.O. and re-check CP3 against it.' }); }); }
   // ── CP8: disposal data ──
   if (!out.cps.CP8.ev.length) { add({ cp:'CP8', sev:'Major', evid:true, title:'Disposal data table (packaging weight + material per SKU) absent.', action:'Complete the disposal data table (PPWR data feed).' }); cpIssue('CP8', 'gap'); }
   // ── CP9: expired document marked available (pattern #9) ──
@@ -3311,6 +3392,7 @@ const FRI_EV_RULES = [
   [/qty|quantity|P\.O\.\s*line/i, /quantity|qty|carton\s*count|packed/i],
 ];
 function friEvRx(f){
+  if (f.evq) return new RegExp(f.evq, 'i');
   const t = f.title || '';
   const tok = [...new Set((t.match(/\b\d{13,14}\b|\b[A-Z]{2,}[-_]?\d{2,}[A-Z0-9-]*\b/g) || []))].map(x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   const r = FRI_EV_RULES.find(([k]) => k.test(t));
@@ -3324,7 +3406,7 @@ function friLinkRefs(v, f){
     const lines = src.text.split('\n').map(l => l.replace(/\s*\|\s*/g, ' | ').replace(/( \| )+/g, ' | ').replace(/^ \| | \| $/g, '').trim()).filter(l => l.replace(/[|\s]/g, '').length > 2);
     const capOnly = im => (im.cap && im.cap !== '(no caption)') ? im.cap : im.ctx;   // own caption only — neighbours belong to other photos
     lines.filter(l => rx.test(l) && !(src.imgs || []).some(im => im.cap === l)).slice(0, 2).forEach(l => refs.push({ kind:'data', src:'report-auto', label:'Report text', excerpt: l.slice(0, 200) }));
-    (src.imgs || []).filter(im => rx.test(capOnly(im)) && !refs.some(r => r.key === im.key)).slice(0, 3).forEach(im => refs.push({ kind:'photo', src:'report-auto', key: im.key, w: im.w, h: im.h, label:`Report photo ${im.n} — ${im.cap.slice(0, 90)}` }));
+    (src.imgs || []).filter(im => rx.test(capOnly(im)) && !refs.some(r => r.key === im.key)).slice(0, f.evq ? 6 : 3).forEach(im => refs.push({ kind:'photo', src:'report-auto', key: im.key, w: im.w, h: im.h, label:`Report photo ${im.n} — ${im.cap.slice(0, 90)}` }));
     if (!refs.some(r => (r.kind === 'data' || r.kind === 'photo') && !r.doc && r.src !== 'master')) {
       // the finding is an absence: record what was searched and the report's own claim for the checkpoint
       const cpk = FRI_CP_KEYS[(f.cp || '').toUpperCase()];
@@ -3338,7 +3420,8 @@ function friLinkRefs(v, f){
     const hit = (d.text && rx.test(d.text)) || (d.imgs || []).some(im => rx.test(im.cap + ' ' + im.ctx));
     if (!hit || refs.some(r => r.doc === d.id)) return;
     if (!/CP3|CP4|CP5|CP7|CP9/.test(f.cp || '') && !(f.title || '').match(/\d{13,14}/)) return;
-    const line = d.text ? (d.text.split('\n').find(l => rx.test(l)) || '').trim().slice(0, 200) : '';
+    const isHdr = l => (l.match(/supplier\s*ref|ally\s*(code|ref)|description|brand|\bean\b|factory\s*name|\bsku\b|net\s*weight|order\s*q|unit\s*price|amount|\bno\b\.?/gi) || []).length >= 4;
+    const line = d.text ? (d.text.split('\n').find(l => rx.test(l) && !isHdr(l)) || '').trim().slice(0, 200) : '';
     if (line) refs.push({ kind:'data', src:'report-auto', doc: d.id, label:`${FRI_DOC_LABEL[d.type] || 'Document'} — ${d.name}`, excerpt: line });
     const im = (d.imgs || []).find(i => rx.test(i.cap + ' ' + i.ctx)) || (d.type === 'art' && (f.title || '').includes(d.name) ? (d.imgs || [])[0] : null);
     if (im && refs.some(r => r.key === im.key)) return;
@@ -3637,6 +3720,80 @@ async function friAnnotatedDocx(v){
   const out = friZip(order.map(n => [n, parts[n]]));
   return { blob: out, comments: comments.length, paras: paras.length };
 }
+// Corrected FRI report (fri-validation Step 7c companion): a copy of the original .docx, format unchanged, with the IQA
+// corrections applied IN PLACE — the wrong value struck through and the corrected value in red (auditable) — a red "►" note
+// under each finding's paragraph, the IQA recommendation under "Overall Result" and an "Open items" list at the end.
+async function friCorrectedDocx(v){
+  const src = v.source || {};
+  if (!src.fileKey || !/^docx?m?$/i.test(src.ext || '')) throw new Error('The corrected report needs the original Word (.docx) report. Import the .docx report (the original file with its photos) in this browser.');
+  const blob = await friIdbGet(src.fileKey); if (!blob || typeof blob === 'string') throw new Error('The original report file is not stored in this browser — import the .docx report again.');
+  const z = await friUnzip(await blob.arrayBuffer()), parts = {};
+  for (const n of z.names) parts[n] = await z.read(n);
+  const dec = n => new TextDecoder().decode(parts[n]), enc = x => new TextEncoder().encode(x);
+  const open = v.findings.filter(f => f.status !== 'Closed');
+  const RED = 'C00000', note = (t, o) => `<w:p><w:pPr><w:spacing w:before="40" w:after="40"/></w:pPr><w:r><w:rPr>${o && o.b === false ? '' : '<w:b/>'}<w:color w:val="${RED}"/><w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr><w:t xml:space="preserve">${friX(t)}</w:t></w:r></w:p>`;
+  const kind = f => f.type === 'NC' ? 'NONCONFORMANCE' : f.type === 'F' ? 'CORRECTION' : 'TO BE CONFIRMED';
+  const sevTxt = f => f.sev && f.sev !== '—' ? ` (${f.sev})` : '';
+  // 1. value corrections inside table rows (innermost <w:tr>): strike the old runs, append the corrected value in red
+  const strikeRuns = x => x.replace(/<w:r>(?!<w:rPr>)/g, '<w:r><w:rPr></w:rPr>').replace(/<w:r( [^>]*)?>(\s*)<w:rPr>/g, (m0, a, sp) => `<w:r${a || ''}>${sp}<w:rPr><w:strike/>`);
+  const applyFix = (xml, fx) => {
+    const re = /<w:tr[ >](?:(?!<w:tr[ >])[\s\S])*?<\/w:tr>/g; let m, done = false, out = xml;
+    const rows = []; while ((m = re.exec(xml))) rows.push({ s: m.index, e: m.index + m[0].length, x: m[0] });
+    for (let k = 0; k < rows.length && !done; k++) {
+      const r = rows[k], txt = friXmlText(r.x).replace(/[|\s]+/g, ' ').trim();
+      if (!new RegExp(fx.row, 'i').test(txt)) continue;
+      const tcs = []; const rt = /<w:tc[ >](?:(?!<w:tc[ >])[\s\S])*?<\/w:tc>/g; let c; while ((c = rt.exec(r.x))) tcs.push({ s: c.index, e: c.index + c[0].length, x: c[0], t: friXmlText(c[0]).replace(/[|\s]+/g, ' ').trim() });
+      const want = String(fx.from || '').replace(/\s+/g, ' ').trim().toLowerCase(), cand = tcs.filter(t => want ? t.t.toLowerCase().startsWith(want) : false);
+      const tc = fx.last ? cand[cand.length - 1] : cand[0]; if (!tc) continue;
+      const lastP = tc.x.lastIndexOf('</w:p>');
+      const nx = strikeRuns(tc.x.slice(0, lastP)) + `<w:r><w:rPr><w:b/><w:color w:val="${RED}"/></w:rPr><w:t xml:space="preserve"> → ${friX(fx.to)} (IQA)</w:t></w:r>` + tc.x.slice(lastP);
+      const nr = r.x.slice(0, tc.s) + nx + r.x.slice(tc.e);
+      out = xml.slice(0, r.s) + nr + xml.slice(r.e); done = true;
+    }
+    return { xml: out, done };
+  };
+  let doc = dec('word/document.xml'), applied = 0, missed = [];
+  open.forEach(f => (f.fix || []).forEach(fx => { const r = applyFix(doc, fx); if (r.done) { doc = r.xml; applied++; } else missed.push(`${f.ref}: ${fx.from}`); }));
+  // overall result (body paragraph) and the header "Result:" — failed when a product NC- is open, else pending
+  const ncOpen = open.some(f => f.type === 'NC'), verdict = ncOpen ? 'Failed' : (open.length ? 'Pending' : 'Passed');
+  const fixPara = (xml, rx) => { const re = /<w:p[ >](?:(?!<w:p[ >])[\s\S])*?<\/w:p>/g; let m, armed = false; while ((m = re.exec(xml))) { const t = friXmlText(m[0]).replace(/[|\s]+/g, ' ').trim();
+      if (rx.test(t) && !/\b(Pending|Passed|Failed)\b/i.test(t.replace(rx, ''))) { armed = true; continue; }   // label alone: the status is in the next paragraph
+      if (armed && !t) continue;
+      if (rx.test(t) || (armed && /^(Pending|Passed|Failed)\b/i.test(t))) {
+      const cur = (t.match(/:\s*(\w+)/) || [])[1] || ''; if (cur.toLowerCase() === verdict.toLowerCase()) return xml;
+      const x = m[0], last = x.lastIndexOf('</w:p>'), nx = x.slice(0, last).replace(/(<w:r(?: [^>]*)?>)((?:(?!<\/w:r>)[\s\S])*?<w:t[^>]*>)([^<]*\b(Pending|Passed|Failed)\b[^<]*)/g, (a, r0, mid, tx) => strikeRuns(r0 + mid) + tx) + `<w:r><w:rPr><w:b/><w:color w:val="${RED}"/></w:rPr><w:t xml:space="preserve"> → ${verdict} (IQA)</w:t></w:r>` + x.slice(last);
+      return xml.slice(0, m.index) + nx + xml.slice(m.index + x.length); } } return xml; };
+  doc = fixPara(doc, /^Overall\s*Result\s*:/i);
+  Object.keys(parts).filter(n => /^word\/header\d*\.xml$/.test(n)).forEach(n => { parts[n] = enc(fixPara(dec(n), /^Result\s*:/i)); });
+  // 2. red notes under each finding's anchor paragraph (same anchors as the annotated report)
+  const paras = []; const pr = /<w:p[ >][\s\S]*?<\/w:p>/g; let pm;
+  while ((pm = pr.exec(doc))) { const x = pm[0], inner = x.slice(4); paras.push({ start: pm.index, end: pm.index + x.length, xml: x, clean: !/<w:p[ >]/.test(inner) && !/txbxContent/.test(x), text: friXmlText(x).replace(/[|\s]+/g, ' ').trim() }); }
+  const groups = new Map();
+  open.forEach(f => { const i = friAnchorIndex(f, paras); if (i < 0) return; if (!groups.has(i)) groups.set(i, []); groups.get(i).push(f); });
+  let ov = paras.findIndex(p => p.clean && /^overall\s*result/i.test(p.text));
+  if (ov >= 0 && !/\b(Pending|Passed|Failed)\b/i.test(paras[ov].text.replace(/^overall\s*result\s*:?/i, ''))) { const nx = paras.findIndex((p, k) => k > ov && k <= ov + 3 && /^(Pending|Passed|Failed)\b/i.test(p.text.replace(/→.*$/, '').trim())); if (nx > 0) ov = nx; }
+  const ins = [...groups.entries()].map(([i, g]) => ({ i, xml: g.map(f => note(`► IQA ${kind(f)}: ${f.ref}${sevTxt(f)} ${f.title}${f.action ? ' → ' + f.action : ''}`)).join('') }));
+  if (ov >= 0) ins.push({ i: ov, xml: note('► INFO: ' + friRecommendation(v)), first: true });
+  ins.sort((a, b) => b.i - a.i || (a.first ? 1 : -1)).forEach(n => { const p = paras[n.i]; doc = doc.slice(0, p.end) + n.xml + doc.slice(p.end); });
+  // 3. open-items list before "End of report" (or at the end of the body)
+  const list = `<w:p><w:pPr><w:spacing w:before="200" w:after="80"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${RED}"/><w:sz w:val="22"/></w:rPr><w:t xml:space="preserve">Open items — IQA validation (${open.length}) · result ${verdict}</w:t></w:r></w:p>`
+    + open.map(f => note(`► ${kind(f)}: ${f.ref}${sevTxt(f)} ${f.title}${f.action ? ' → ' + f.action : ''}`, { b: false })).join('');
+  const endRx = /<w:p[ >](?:(?!<w:p[ >])[\s\S])*?End of report(?:(?!<w:p[ >])[\s\S])*?<\/w:p>/;
+  const em = doc.match(endRx);
+  if (em) doc = doc.replace(endRx, list + em[0]); else doc = doc.replace(/(<w:sectPr[\s\S]*?<\/w:sectPr>\s*<\/w:body>)/, list + '$1');
+  parts['word/document.xml'] = enc(doc);
+  const order = ['[Content_Types].xml', ...Object.keys(parts).filter(n => n !== '[Content_Types].xml')];
+  return { blob: friZip(order.map(n => [n, parts[n]])), applied, missed, notes: open.length, verdict };
+}
+async function friExportCorrected(){
+  if (!friCur || !friCur.source) { alert('Import the FRI report (.docx) first.'); return; }
+  try {
+    const r = await friCorrectedDocx(friCur), fu = friLotRow(friPos(friCur)[0] || {}) || {};
+    const name = ['FRI_Corrected', friFileTag(friCur.ally || fu.ally), friFileTag(friShortName(friCur.sup || fu.sup)), friFileTag(friCur.po)].filter(Boolean).join('_') + '.docx';
+    friDownload(r.blob, name);
+    const m = g('fri-import-msg'); if (m) m.textContent = `Corrected report: ${r.applied} value correction(s) in place, ${r.notes} IQA note(s), result ${r.verdict}${r.missed.length ? ' — not placed: ' + r.missed.join('; ') : ''} — ${name}`;
+  } catch(e) { alert(e.message); }
+}
 async function friExportAnnotated(){
   if (!friCur || !friCur.source) { alert('Import the FRI report (.docx) first.'); return; }
   try {
@@ -3673,7 +3830,11 @@ async function friExportCapa(){
   const v = friCur, fu = friLotRow(friPos(v)[0] || {}) || {}, groups = friCapaGroups(v);
   if (!groups.length) { alert('No supplier action in the findings (no NC- and no finding with supplier responsibility) — no Supplier CAPA is needed.'); return; }
   const ally = (v.ally || fu.ally || '').toUpperCase(), supShort = friShortName(v.sup || fu.sup).toUpperCase(), ref = friCapaRefLabel(v);
-  const items = friOrderItems(v).items, product = (v.pf || (items[0] && items[0].desc) || '').toUpperCase();
+  const rptDesc = (() => { const l = String((v.source || {}).text || '').split('\n').find(x => /^\s*\d{6,}\s*\|/.test(x)); const c = l ? l.split('|').map(t => t.trim()) : []; return c.find((t, k) => k >= 2 && /[a-z]{3}/i.test(t) && !/^[A-Z0-9.\-\s]+$/.test(t)) || ''; })();
+  const shortDesc = d => { d = String(d || '').replace(/\s+/g, ' ').trim(); const name = d.split(/\s(?=(?:colou?r|size|dim(?:ension)?s?|[LMS]\s*:|\d+\s*(?:sets?|pcs)\s*\/))/i)[0].trim(); const col = (d.match(/colou?r\s*:\s*(.+?)(?=\s+(?:[A-Z]{1,2}\s*:|size|dim|\d+\s*(?:sets?|pcs)\s*\/)|$)/i) || [])[1]; return [name, col].filter(Boolean).join(' · ').slice(0, 80); };
+  const items = friOrderItems(v).items, product = shortDesc(v.pf || (items[0] && items[0].desc) || rptDesc).toUpperCase();
+  let etd = fu.realEtd || fu.etd || '';
+  if (!etd) { const dn = (v.docs || []).filter(d => d.type === 'po').map(d => d.name).join(' '), em = dn.match(/ETD\s*[:\-]?\s*(\d{1,2})[\s\-./]([A-Za-z]{3})[\s\-./](\d{2,4})/i); if (em) etd = `${em[1].padStart(2, '0')} ${em[2].charAt(0).toUpperCase() + em[2].slice(1).toLowerCase()} ${em[3].length === 2 ? '20' + em[3] : em[3]}`; }
   const fmt = d => { if (!d) return ''; const t = new Date(String(d).slice(0, 10) + 'T00:00:00'); return isNaN(t) ? String(d) : t.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }); };
   // reference format: Calibri, navy 153650, table header 153650 / white, rows F0F5F8 / white, no borders, teal 0C6863 headings
   const NAVY = '153650', TEAL = '0C6863', BAND = 'F0F5F8', W = 9936, C1 = 2534, C2 = 778, C3 = 3312, media = []; let imgId = 0;
@@ -3685,7 +3846,7 @@ async function friExportCapa(){
   let b = '';
   b += `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="8" w:space="4" w:color="4F81BD"/></w:pBdr><w:spacing w:before="60" w:after="160" w:line="240" w:lineRule="auto"/></w:pPr>${run('Supplier corrective action request', { b:true, sz:58, sp:5 })}</w:p>`;
   b += para([[ally, supShort].filter(Boolean).join(' / '), ref, product].filter(Boolean).join('  •  '), { after:120 });
-  b += para(`Please return the completed response and supporting records to the responsible Quality Supervisor (QS) before release review. QS will confirm the response deadline and disposition. Inspection date ${fmt(v.inspDate) || '—'}.${fu.etd || fu.realEtd ? ` ${ref.startsWith('PI') ? 'PI' : 'PO'} ETD ${fmt(fu.realEtd || fu.etd)}.` : ''}`, { after:200 });
+  b += para(`Please return the completed response and supporting records to the responsible Quality Supervisor (QS) before release review. QS will confirm the response deadline and disposition. Inspection date ${fmt(v.inspDate) || '—'}.${etd ? ` ${ref.startsWith('PI') ? 'PI' : 'PO'} ETD ${/^\d{4}-/.test(etd) ? fmt(etd) : etd}.` : ''}`, { after:200 });
   { const c = friCompute(v), blocked = /BLOCKED/.test(c.ship || ''), col = blocked ? 'C00000' : /WITHHELD/.test(c.ship || '') ? 'B45F06' : '2E7D32';
     b += `<w:p><w:pPr><w:shd w:val="clear" w:color="auto" w:fill="${blocked ? 'FDECEA' : 'FFF4E5'}"/><w:spacing w:before="60" w:after="140"/></w:pPr>${run('Shipment status: ' + (c.ship || '—'), { b:true, color: col, sz:22 })}${(c.reasons || []).length ? run(' — ' + c.reasons.join('; '), { color: col, sz:20 }) : ''}</w:p>`; }
   const rows = [`<w:tr><w:trPr><w:tblHeader/></w:trPr>${tc(C1, cp('Action', { b:true, color:'FFFFFF' }), NAVY)}${tc(W - C1, cp('Required response and closure evidence', { b:true, color:'FFFFFF' }), NAVY, 3)}</w:tr>`];
@@ -3695,7 +3856,8 @@ async function friExportCapa(){
     const gr = groups[k], ids = gr.items.map(f => f.ref).join(' / '), cpN = (String(gr.items[0].cp || '').toUpperCase().match(/CP(\d+)/) || [])[1];
     const topic = cpN ? FRI_CPS[+cpN - 1][1] : 'Follow-up', fill = k % 2 ? 'FFFFFF' : BAND;
     const lines = gr.items.map(f => `${f.ref} · ${sevOf(f)}: ` + [f.title, f.action].filter(Boolean).map(t => String(t).trim()).map((t, n, arr) => n < arr.length - 1 && !/[.!?:;]$/.test(t) ? t + '.' : t).join(' ').replace(/\s+/g, ' ').trim());
-    const evid = [...new Set(gr.items.flatMap(f => (f.refs || []).filter(r => r.kind !== 'photo').map(r => `${r.kind === 'master' ? 'Master file' : r.label}${r.excerpt ? ': ' + String(r.excerpt).replace(/\s+/g, ' ').slice(0, 180) : ''}`)))];
+    const seenEx = new Set(), cut = t => { t = String(t).replace(/\s+/g, ' ').trim(); return t.length > 180 ? t.slice(0, t.lastIndexOf(' ', 178)) + ' …' : t; };
+    const evid = gr.items.flatMap(f => (f.refs || []).filter(r => r.kind !== 'photo')).filter(r => { const k = String(r.excerpt || r.label).replace(/\s+/g, ' ').trim(); if (seenEx.has(k)) return false; seenEx.add(k); return true; }).map(r => `${r.kind === 'master' ? 'Master file' : r.label}${r.excerpt ? ': ' + cut(r.excerpt) : ''}`);
     const text = lines.join('\n') + (evid.length ? '\nEvidence: ' + evid.join(' · ') : '')
       + '\nIdentify the affected lots and quantities, record containment and correction, and submit traceable evidence (photos, counts, re-verification records). Explain the cause and the preventive action.';
     rows.push(`<w:tr><w:trPr><w:cantSplit/></w:trPr>${tc(C1, cp(ids) + cp(topic), fill)}${tc(W - C1, cp(text), fill, 3)}</w:tr>`);
@@ -3704,7 +3866,7 @@ async function friExportCapa(){
     for (const f of gr.items) for (const r of (f.refs || []).filter(r => r.kind === 'photo' && !r.doc)) { if (seen.has(r.key)) continue; const u = await friImgGet(r.key); if (!u) continue; seen.add(r.key); photos.push({ u, r }); }
     for (let p0 = 0; p0 < photos.length; p0 += 3) {
       const cells = photos.slice(p0, p0 + 3).map(({ u, r }, q) => { imgId++; const rid = 'rIdCapa' + imgId; media.push({ rid, name: `capa${imgId}.jpeg`, data: friB64(u) });
-        const num = (String(r.label).match(/image(\d+)/i) || [])[1], cap = String(r.label).replace(/^Report photo [^—]*—\s*/, '').replace(/^Photo:\s*/i, '').trim();
+        const num = (String(r.label).match(/image(\d+)/i) || [])[1], cap = String(r.label).replace(/^Report photo [^—]*—\s*/, '').replace(/^Photo:\s*/i, '').trim().replace(/[\s:;,]+$/, '');
         const cx = Math.round(2.05 * 914400), cy = Math.round(cx * (r.h || 3) / (r.w || 4));
         const drawing = friDocxImg(rid, 200 + imgId, r.w, r.h).replace(/cx="\d+" cy="\d+"/g, `cx="${cx}" cy="${cy}"`).replace(/<w:r><w:t xml:space="preserve">  <\/w:t><\/w:r>$/, '');
         return tc(spans[q][0], `<w:p><w:pPr><w:spacing w:before="60" w:after="40"/></w:pPr>${drawing}</w:p>` + cp(`Photo ${num || imgId} · ${cap.charAt(0).toUpperCase() + cap.slice(1)}${/[.!?]$/.test(cap) ? '' : '.'}`, { b:true, sz:17 }), 'FFFFFF', spans[q][1] > 1 ? spans[q][1] : 0); });
