@@ -586,8 +586,13 @@ A **copy of the original `.docx`**, with the same format, text and photos as the
 
 1. **Value corrections:** in the cell that is wrong (CP summary results, measurement-table requirement / result, appearance check, CP7 summary), the original run is **struck through** and the corrected value is appended in red: `→ <corrected value> (IQA)`. Examples: `Pending → Failed (colour differs from the sample) (IQA)`; `Within the tolerance → Out of tolerance: M 2.8 kg vs 3.5 kg spec (−20.0 %) (IQA)`.
 2. **Overall result and header "Result:":** struck and corrected to **Failed** when a product `NC-` is open, **Pending** when only report or requirement items are open, **Passed** otherwise. The status word may sit in the paragraph after the "Overall Result:" label; correct it there.
-3. **Notes:** a red bold `► IQA NONCONFORMANCE / CORRECTION / TO BE CONFIRMED: <ID> (<severity>) <finding> → <action>` paragraph under each finding's anchor paragraph (same anchors as the annotated comments). The `► INFO:` IQA recommendation goes under the overall result.
-4. **Open items:** an "Open items — IQA validation (n) · result <verdict>" list before "End of report".
+3. **Notes inside the cells** (fri-validate-correct format): bold red on yellow, placed in the cell the finding concerns.
+   - **Narrow or number cell** (< 2200 twips, e.g. Sample size, Cr/Ma/Mi, Result): the note goes to the widest cell of the same row.
+   - **Prefixes:** `► TO BE COMPLETED:` (data or photo to add) · `► TO BE CONFIRMED:` (value present but doubtful, `NC-`, `RG-`) · `► INFO:` (`OB-`, context).
+   - **Note text:** `<ID> <finding> → <action>`.
+   - **Recommendation:** the IQA recommendation goes as `► INFO:` on "Overall Result".
+   - **Proven value corrections**, each with an INFO note: Defectives Accepted = Ac of the sample really inspected; inspection date dd/mm/yyyy.
+4. **Open items:** an "Open items — IQA validation <ref> (n)" list just before "End report".
 
 **Never** delete or retype the inspector's original values, and never move or recompress photos.
 
